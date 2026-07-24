@@ -4,6 +4,18 @@ Every behaviour change gets an entry in the same commit. Plain-language section 
 
 ---
 
+## 2026-07-25 — Azure deploy artifacts (G3-optional flex, per ADR-0004)
+
+**What:** `server/Dockerfile` (multi-stage: full `python:3.11-slim` builder installs `requirements.txt` including `ortools`/`pandas`, only the resulting site-packages + app code ship in the runtime stage), `server/.dockerignore`, `deploy/provision-azure.sh` — a one-shot Azure CLI script provisioning the resource group, Postgres Flexible Server (Burstable B1ms), Key Vault, and Container Apps environment per ADR-0004's service map, then `az containerapp up`-ing `server/` directly.
+
+**Why:** team/SBU.md backlog (2026-07-25). ADR-0004 picked the Azure services months — days — ago but nothing was actually deployed; if a judge asks "is this live" the honest answer was no. Explicitly optional (docs/01 §6): the real demo runs on localhost + cloudflared regardless of whether this ever gets run.
+
+**Not verified:** Docker Desktop's daemon isn't running in this environment, so the image was never actually built here — only reviewed against the same Dockerfile conventions used elsewhere. `provision-azure.sh` was never run against a real subscription. Both should be smoke-tested before relying on either at the pitch; flagging this honestly rather than claiming a build/deploy that didn't happen.
+
+**Plain language:** Wrote the files needed to actually put the server on Azure, matching the plan the team already agreed on — a container recipe and a script that provisions the database, secret storage, and hosting in one run. Neither has actually been run for real yet (this environment can't run Docker), so treat this as a draft to test before trusting it, not a confirmed working deployment.
+
+---
+
 ## 2026-07-25 — G3 refinement backlog: route persistence, incident report, event catch-up, camera health
 
 **What:** Four items from team/SBU.md's 2026-07-25 refinement list. (1) `POST /v1/routes/plan` now persists a `Route` row per team (`server/src/api/routes.py`) — previously computed and returned a plan but never wrote it. (2) `GET /v1/incidents/{id}/report` (new `server/src/api/incidents.py`) bundles an incident with its linked entity, sighting timeline, alerts, and every evidence_chain event naming either — the honesty-ledger "structured to support a case" claim is now a real endpoint, not just a chain-intact yes/no. (3) `GET /v1/events/since?ts=` (new `server/src/api/events.py`) reconstructs `sighting.new`/`entity.candidate`/`alert.new` events from the tables that already back them, for WS reconnect catch-up — no new event-log table, no server-side session state. (4) `GET /v1/cameras` (new `server/src/api/cameras.py`) + `Camera.last_seen_at` (new column, `alembic/versions/003_camera_last_seen.py`), bumped on every sighting ingest — online/offline computed from a 60s staleness cutoff.
