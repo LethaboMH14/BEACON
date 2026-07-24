@@ -6,7 +6,7 @@ Contract from docs/01-ARCHITECTURE.md §5, ADR-0002.
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict
 from pydantic import BaseModel, Field
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 
 from ..db import get_db, Entity, Sighting, Whitelist, Watchlist, EvidenceChain
@@ -14,6 +14,7 @@ from ..db.models import Incident, Alert
 from ..db.evidence_integrity import verify_chain
 from ..ws.manager import ws_manager
 from ..suspicion import score_entity
+from ..auth import require_operator_token
 import hashlib
 import json
 import uuid
@@ -152,18 +153,25 @@ async def get_entity(
 async def verify_entity(
     entity_id: str,
     verify_data: VerifyAction,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    x_operator_token: Optional[str] = Header(default=None, alias="X-Operator-Token"),
 ):
     """
     Human verification gate (ADR-0002).
-    
+
     Actions:
     - flag: promote candidate → flagged (pre-arm cameras, route patrols)
     - dismiss: mark as not suspicious, reset score
     - whitelist: add to street whitelist (kills recurrence false positives)
-    
+
     Every verification writes to evidence_chain (WHO verified WHAT WHEN).
+    operator_id is only trustworthy because require_operator_token rejects
+    any caller whose X-Operator-Token doesn't match the claimed operator_id
+    (team/SBU.md backlog, 2026-07-25) — without this, anyone could write
+    any operator name into the permanent hash-chained evidence record.
     """
+    require_operator_token(verify_data.operator_id, x_operator_token)
+
     entity = db.query(Entity).filter(Entity.id == entity_id).first()
     if not entity:
         raise HTTPException(

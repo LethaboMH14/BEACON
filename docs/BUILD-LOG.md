@@ -4,6 +4,18 @@ Every behaviour change gets an entry in the same commit. Plain-language section 
 
 ---
 
+## 2026-07-25 — operator_id is now authenticated, not free text (evidence-chain honesty gap)
+
+**What:** `POST /v1/entities/{id}/verify` previously took `operator_id` straight from the request body and wrote it verbatim into `EvidenceChain.actor_id`, `Watchlist.added_by`, and the Incident's evidence entry — no check the caller actually was that operator. New `server/src/auth/operators.py::require_operator_token(operator_id, x_operator_token)`: reads a static `OPERATOR_TOKENS` roster (`.env`, JSON `{operator_id: token}`), requires a matching `X-Operator-Token` header, 401s on missing/mismatched/unknown operator_id, and **fails closed** (401) if no roster is configured at all rather than accepting everything. Wired into `verify_entity` in `server/src/api/entities.py`.
+
+**Why:** team/SBU.md backlog (2026-07-25, Lethabo). The pitch's ethics story rests on evidence_chain's "WHO verified WHAT WHEN" being trustworthy — before this, anyone hitting the endpoint could write any operator name into the permanent hash-chained record. No full OAuth needed for a hackathon; a static roster + header check makes the claim true rather than assumed.
+
+**Plain language:** Before this, the system just believed whatever name you typed in as the person who verified a flag — there was no proof you actually were that person. Now the request has to come with a matching secret token for the operator it claims to be, or it's rejected. This matters because the whole "we can prove who did what and when" pitch depended on that field being honest.
+
+**Verified:** 82/82 server tests pass (3 new: missing token rejected, mismatched token rejected, unknown operator_id rejected; all 6 existing verify tests updated to send a valid test token via a new autouse `operator_roster` conftest fixture).
+
+---
+
 ## 2026-07-25 — G3 refinement backlog: route persistence, incident report, event catch-up, camera health
 
 **What:** Four items from team/SBU.md's 2026-07-25 refinement list. (1) `POST /v1/routes/plan` now persists a `Route` row per team (`server/src/api/routes.py`) — previously computed and returned a plan but never wrote it. (2) `GET /v1/incidents/{id}/report` (new `server/src/api/incidents.py`) bundles an incident with its linked entity, sighting timeline, alerts, and every evidence_chain event naming either — the honesty-ledger "structured to support a case" claim is now a real endpoint, not just a chain-intact yes/no. (3) `GET /v1/events/since?ts=` (new `server/src/api/events.py`) reconstructs `sighting.new`/`entity.candidate`/`alert.new` events from the tables that already back them, for WS reconnect catch-up — no new event-log table, no server-side session state. (4) `GET /v1/cameras` (new `server/src/api/cameras.py`) + `Camera.last_seen_at` (new column, `alembic/versions/003_camera_last_seen.py`), bumped on every sighting ingest — online/offline computed from a 60s staleness cutoff.
