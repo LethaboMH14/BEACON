@@ -96,6 +96,8 @@ WS   /ws/ops        events: sighting.new, entity.candidate, entity.flagged, aler
 WS   /ws/member     events: alert.new (own cameras only), guardian.request
 ```
 
+**Roadmap idea (not yet built) — Vehicle-Specific Risk Routing.** Raised by Ndu (2026-07-24): the insurance claims data tracks make/model of targeted vehicles, so `POST /v1/routes/plan` and the RAG assistant layer could factor in *what the user is driving*, not just where they are. If a user requests a route while driving a make/model with a high historical hijack-claim concentration (e.g. VW Polo, Toyota Hilux) through a high-claims hex, the assistant proactively suggests a safer route, framed as a Vitality-points opportunity. Architecturally this slots in as an additional weighted input alongside `risk_cells`/`claims` once the `data/` claims pipeline exists (docs/02) — it needs a `vehicle_make_model` field on the user/vehicle side and a claims-by-make-model aggregate, neither of which exist yet. No code changes yet; logged here so the routing/RAG work doesn't have to be redesigned to add it later.
+
 ## 6. Latency + degradation budgets
 
 Detection→render ≤2.0 s p95 (`scripts/latency.py`). Camera agent queues offline and replays. Server serves cached risk if `data/` is down. Dashboard marks stale, never blank. Demo runs fully on localhost + one tunnel — no cloud dependency to fail mid-pitch (Azure deploy is a G3-optional flex, ADR-0015 lineage).
