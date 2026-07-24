@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from ..db import get_db, Sighting, Camera, Entity
 from ..ws.manager import ws_manager
+from ..suspicion import score_entity
 import uuid
 
 router = APIRouter()
@@ -128,8 +129,26 @@ async def create_sighting(
     db.add(sighting)
     db.commit()
     db.refresh(sighting)
-    
-    # Fan-out WebSocket event (≤300ms budget)
+
+    # Run suspicion scorer for entities with a resolvable identity
+    if entity_id:
+        result = score_entity(entity_id, db)
+        db.commit()
+
+        # Emit entity.candidate if the scorer promoted the state
+        if result.new_state == "candidate":
+            await ws_manager.broadcast_to_ops({
+                "event": "entity.candidate",
+                "data": {
+                    "entity_id": entity_id,
+                    "base_score": result.base_score,
+                    "factors": result.factors,
+                    "conflict_gate_fired": result.conflict_gate_fired,
+                    "ts": datetime.utcnow().isoformat(),
+                }
+            })
+
+    # Fan-out sighting event (≤300ms budget)
     await ws_manager.broadcast_to_ops({
         "event": "sighting.new",
         "data": {
@@ -210,7 +229,24 @@ async def create_sightings_batch(
         created.append(sighting)
     
     db.commit()
-    
+
+    # Run scorer for all entities that appeared in this batch
+    entity_ids_to_score = {s.entity_id for s in created if s.entity_id}
+    for eid in entity_ids_to_score:
+        result = score_entity(eid, db)
+        db.commit()
+        if result.new_state == "candidate":
+            await ws_manager.broadcast_to_ops({
+                "event": "entity.candidate",
+                "data": {
+                    "entity_id": eid,
+                    "base_score": result.base_score,
+                    "factors": result.factors,
+                    "conflict_gate_fired": result.conflict_gate_fired,
+                    "ts": datetime.utcnow().isoformat(),
+                }
+            })
+
     # Emit batch event
     await ws_manager.broadcast_to_ops({
         "event": "sighting.batch",

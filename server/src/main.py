@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
 from .db import init_db
-from .api import sightings_router, entities_router
+from .api import sightings_router, entities_router, alerts_router
 from .ws import ws_router
 
 # Load environment variables
@@ -21,10 +21,10 @@ async def lifespan(app: FastAPI):
     """Startup and shutdown events."""
     # Startup: initialize database
     init_db()
-    print("✓ Database initialized")
+    print("[OK] Database initialized")
     yield
     # Shutdown: cleanup if needed
-    print("✓ Server shutdown")
+    print("[OK] Server shutdown")
 
 
 # Create FastAPI app
@@ -47,6 +47,7 @@ app.add_middleware(
 # Include routers
 app.include_router(sightings_router, prefix="/v1", tags=["sightings"])
 app.include_router(entities_router, prefix="/v1", tags=["entities"])
+app.include_router(alerts_router, prefix="/v1", tags=["alerts"])
 app.include_router(ws_router, tags=["websockets"])
 
 

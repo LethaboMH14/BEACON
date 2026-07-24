@@ -10,7 +10,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from ..db import get_db, Entity, Sighting, Whitelist, Watchlist, EvidenceChain
+from ..db.evidence_integrity import verify_chain
 from ..ws.manager import ws_manager
+from ..suspicion import score_entity
 import hashlib
 import json
 
@@ -96,15 +98,28 @@ async def get_entity(
     
     # Compute current score with lazy decay
     current_score = compute_current_score(entity.base_score, entity.last_updated)
-    
+
     # Get recent sightings (last 10)
     recent_sightings = db.query(Sighting).filter(
         Sighting.entity_id == entity_id
     ).order_by(Sighting.ts.desc()).limit(10).all()
-    
-    # TODO G1: compute factors from sighting graph
-    # For G0, return empty factors
-    factors = EntityFactors()
+
+    # Re-run scorer to get live factors (read-only — scorer result not committed here)
+    from ..suspicion.scorer import score_entity as _score
+    try:
+        result = _score(entity_id, db)
+        db.rollback()   # discard the _persist_score write — GET is read-only
+        factors = EntityFactors(
+            recurrence=result.factors.get("F1_recurrence"),
+            time_anomaly=result.factors.get("F2_time_anomaly"),
+            crime_correlation=result.factors.get("F3_crime_corr"),
+            casing_behaviour=result.factors.get("F4_casing"),
+            territory_roaming=result.factors.get("F5_roaming"),
+            modal_corroboration=result.factors.get("F6_modal_corrob"),
+        )
+    except Exception:
+        db.rollback()
+        factors = EntityFactors()
     
     return EntityResponse(
         id=entity.id,
@@ -254,8 +269,7 @@ async def verify_entity(
 
 
 async def _write_evidence(
-    db: Session,
-    action: str,
+    db: Session,    action: str,
     actor_id: str,
     target_type: str,
     target_id: str,
@@ -273,7 +287,19 @@ async def _write_evidence(
     # Get last event hash for chain
     last_event = db.query(EvidenceChain).order_by(EvidenceChain.id.desc()).first()
     prev_hash = last_event.event_hash if last_event else None
-    
+
+    # BUG FIX (found reviewing this against evidence_integrity.py's verifier):
+    # ts must be computed exactly ONCE and reused for both the hash input and
+    # the stored column. The previous version called datetime.utcnow() twice —
+    # once to build event_data["ts"], again for the stored `ts=` field — so the
+    # hash was computed over a timestamp that was never actually persisted.
+    # verify_chain() recomputes the hash from the STORED row, so every row
+    # written this way failed its own integrity check on the very next read —
+    # confirmed by writing one real row and calling verify_chain() on it before
+    # this fix (is_intact: False). This is the load-bearing "who verified what
+    # when" evidence for the ethics pitch; it must be intact by construction.
+    ts = datetime.utcnow()
+
     # Compute event hash
     event_data = {
         "action": action,
@@ -281,11 +307,11 @@ async def _write_evidence(
         "target_type": target_type,
         "target_id": target_id,
         "details": details,
-        "ts": datetime.utcnow().isoformat(),
+        "ts": ts.isoformat(),
         "prev_hash": prev_hash
     }
     event_hash = hashlib.sha256(json.dumps(event_data, sort_keys=True).encode()).hexdigest()
-    
+
     # Create evidence entry
     evidence = EvidenceChain(
         action=action,
@@ -293,9 +319,26 @@ async def _write_evidence(
         target_type=target_type,
         target_id=target_id,
         details=details,
-        ts=datetime.utcnow(),
+        ts=ts,
         prev_hash=prev_hash,
         event_hash=event_hash
     )
-    
+
     db.add(evidence)
+
+
+@router.get("/evidence/integrity")
+async def evidence_integrity(db: Session = Depends(get_db)):
+    """
+    Verify the hash-chain integrity of the evidence_chain table.
+    Returns is_intact, total_events, and the first broken link if any.
+    Ops-only in production; unrestricted for the demo.
+    """
+    result = verify_chain(db)
+    return {
+        "is_intact":     result.is_intact,
+        "total_events":  result.total_events,
+        "broken_at_id":  result.broken_at_id,
+        "broken_at_seq": result.broken_at_seq,
+        "detail":        result.detail,
+    }
