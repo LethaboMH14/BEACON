@@ -157,6 +157,59 @@ def test_verify_entity_flag(client, db_session):
     assert evidence.actor_id == "op_001"
 
 
+def test_verify_entity_flag_creates_incident_and_live_alert(client, db_session):
+    """
+    Regression test (Lethabo's traced blocker, team/SBU.md 2026-07-25):
+    flag must create a real Incident, then a real Alert against it — the
+    live route from "operator flags entity" to "an alert fires" that the
+    demo's Act 1 beat depends on. Previously flag never touched incidents,
+    so this path 404'd if anything downstream tried to create an alert.
+    """
+    from src.db.models import Entity, Camera, Sighting, Incident, Alert
+
+    camera = Camera(id="cam_flag_test", name="Flag Test Cam", hex_id="hex_flag_test")
+    db_session.add(camera)
+
+    entity = Entity(
+        id="ent_test_flag_alert",
+        kind="vehicle",
+        plate_text="ALRT123GP",
+        base_score=0.6,
+        last_updated=datetime.utcnow(),
+        state="candidate",
+        first_seen=datetime.utcnow(),
+        last_seen=datetime.utcnow(),
+        sighting_count=1
+    )
+    db_session.add(entity)
+    db_session.commit()
+
+    db_session.add(Sighting(
+        camera_id=camera.id, entity_id=entity.id, ts=datetime.utcnow(),
+        hex_id="hex_flag_test", kind="vehicle", modality="plate", confidence=0.9,
+    ))
+    db_session.commit()
+
+    response = client.post(f"/v1/entities/{entity.id}/verify", json={
+        "action": "flag", "operator_id": "op_001", "note": "test"
+    })
+    assert response.status_code == 200
+    body = response.json()
+    assert "incident_id" in body and body["incident_id"]
+    assert "alert_id" in body and body["alert_id"]
+
+    incident = db_session.query(Incident).filter(Incident.id == body["incident_id"]).first()
+    assert incident is not None
+    assert incident.related_entity_id == entity.id
+    assert incident.hex_id == "hex_flag_test"
+
+    alert = db_session.query(Alert).filter(Alert.id == body["alert_id"]).first()
+    assert alert is not None
+    assert alert.incident_id == incident.id
+    assert alert.entity_id == entity.id
+    assert alert.status == "pending"
+
+
 def test_verify_entity_dismiss(client, db_session):
     """
     Test POST /v1/entities/{id}/verify with action=dismiss.
