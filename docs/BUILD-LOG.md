@@ -4,6 +4,18 @@ Every behaviour change gets an entry in the same commit. Plain-language section 
 
 ---
 
+## 2026-07-24 — G2: POST /v1/routes/plan — OR-Tools patrol routing, real centroids not H3 math
+
+**What:** `server/src/routing/planner.py` (`plan_routes`) + `server/src/api/routes.py` (`POST /v1/routes/plan`). Wraps Google OR-Tools (`RoutingIndexManager`/`RoutingModel`) as a team-orienteering problem: each candidate hex (ranked by `risk/forecast.py`'s `rank_hotspots`) is an *optional* stop via `AddDisjunction`, with a skip penalty proportional to its risk score — so under a tight fuel/time budget the solver drops the lowest-value stops instead of failing outright. Distance dimension capped at `fuel_budget_km`, time dimension (haversine travel time + a fixed 12-minute Koper dwell per stop, from the deterrence literature cited in docs/01 §4) capped at `shift_window_minutes`. Hex→coordinate lookup uses the real average `Claim.lat`/`Claim.lng` for that hex, not H3 cell math — reported as `unlocatable` if a hex has no located claims.
+
+**Why:** G2 checklist (team/SBU.md), completing the frozen contract's `POST /v1/routes/plan`. Two things worth flagging: (1) `h3` was pulled from `requirements.txt` entirely — `h3.cell_to_latlng()` raised `H3CellInvalidError` on the `hex_id` strings already used throughout the repo's fixtures/seed data, so rather than patch upstream hex generation mid-hackathon, centroids are derived from real claims data instead, same honesty-over-invented-infra principle as the risk fallback above. (2) Distance is haversine, not OSRM — the same feasibility nitpick raised at G0 in team/SBU.md, still deferred.
+
+**Plain language:** Built the part that tells patrol teams where to actually go: given a shift length, a fuel budget, and how many teams are out, it picks the best set of hotspots to visit and in what order, skipping the least valuable ones first if there isn't enough time or fuel for everything. It figures out where a "hex" of the map actually is on the ground using real claim locations, not a hex-grid formula that didn't match the data we already had.
+
+**Verified:** 66/66 server tests pass (8 new: empty-candidates, nearby-high-value preferred over far-low-value, fuel budget respected, unlocatable hex reported not silently dropped, dwell time counted against time budget, invalid inputs rejected, endpoint shape, endpoint validation).
+
+---
+
 ## 2026-07-24 — G2: GET /v1/risk + /v1/hotspots — real claims fallback, no fake calibration
 
 **What:** `server/src/risk/forecast.py` (`estimate_hex_risk`, `rank_hotspots`) + `server/src/api/risk.py` (`GET /v1/risk?hex=&hour=`, `GET /v1/hotspots?window=&limit=`). Built before Ndu's real forecast model (`data/`) has landed on `main` — rather than block on that or fake a calibrated number, this tiers: (1) trust a real `RiskCell` row if Ndu's pipeline has already written one for that hex+hour, pass its own `model_version`/`top_factors` straight through untouched; (2) otherwise fall back to a real score derived from actual `Claim` rows in that hex — claim count + a same-hour proximity boost using the same `{0,1,22,23}` peak-hour set as `suspicion/scorer.py`'s F2 (the real midnight spike, verified against `Gradhack_Insure_Data.xlsx`); (3) zero claims ever recorded for a hex → `risk_score=0.0`, labelled `no_data`, never silently omitted.
