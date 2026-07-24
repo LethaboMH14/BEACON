@@ -11,12 +11,10 @@ from __future__ import annotations
 
 import argparse
 import time
-import uuid
 from datetime import datetime, timezone
 
 import cv2
 import requests
-from ultralytics import YOLO
 
 # Tier 0 gate (CLAUDE.md §4.2): skip inference on a near-static scene.
 MOTION_THRESHOLD = 12.0
@@ -32,14 +30,51 @@ def motion_score(prev_gray, gray) -> float:
     return diff.mean()
 
 
+def build_sighting_payload(
+    camera_id: str,
+    ts: str,
+    hex_id: str,
+    kind: str,
+    xyxy: tuple[float, float, float, float],
+    confidence: float,
+) -> dict:
+    """
+    Shapes a detection into the exact POST /v1/sightings contract
+    (SightingCreate in server/src/api/sightings.py). Pulled out of run()'s
+    loop so it's unit-testable against the real schema — the inline version
+    once drifted (hex vs hex_id, missing modality, bbox as a list not
+    {x,y,w,h}) and 422'd silently since post_sighting only caught network
+    errors, not HTTP status.
+    """
+    x1, y1, x2, y2 = [round(v) for v in xyxy]
+    return {
+        "camera_id": camera_id,
+        "ts": ts,
+        "hex_id": hex_id,
+        "kind": kind,
+        "modality": "yolo",
+        "bbox": {"x": x1, "y": y1, "w": x2 - x1, "h": y2 - y1},
+        "confidence": round(float(confidence), 3),
+        # embedding_ref / plate_text / clip_ref arrive at G2 (Tier 2, ArcFace + EasyOCR)
+    }
+
+
 def post_sighting(server: str, sighting: dict) -> None:
     try:
-        requests.post(f"{server}/v1/sightings", json=sighting, timeout=1.5)
+        resp = requests.post(f"{server}/v1/sightings", json=sighting, timeout=1.5)
+        if not resp.ok:
+            # A schema mismatch here fails silently otherwise — POST succeeds at the
+            # transport level (no RequestException) while the server 422s and drops it.
+            print(f"[agent] server rejected sighting {resp.status_code}: {resp.text}")
     except requests.RequestException as exc:
         print(f"[agent] server unreachable, queuing dropped for G0 ({exc})")
 
 
 def run(camera_id: str, server: str, hex_id: str, source: int | str) -> None:
+    # Deferred so importing this module (e.g. to unit-test build_sighting_payload)
+    # doesn't require the ultralytics/torch stack to be installed.
+    from ultralytics import YOLO
+
     model = YOLO("yolov8n.pt")
     cap = cv2.VideoCapture(source)
     if not cap.isOpened():
@@ -70,17 +105,14 @@ def run(camera_id: str, server: str, hex_id: str, source: int | str) -> None:
                 continue
 
             kind = "person" if cls_name == "person" else "vehicle"
-            x1, y1, x2, y2 = [round(v) for v in box.xyxy[0].tolist()]
-            sighting = {
-                "sighting_id": str(uuid.uuid4()),
-                "camera_id": camera_id,
-                "ts": now,
-                "hex": hex_id,
-                "kind": kind,
-                "bbox": [x1, y1, x2, y2],
-                "confidence": round(float(box.conf[0]), 3),
-                # embedding_ref / plate_text / clip_ref arrive at G2 (Tier 2, ArcFace + EasyOCR)
-            }
+            sighting = build_sighting_payload(
+                camera_id=camera_id,
+                ts=now,
+                hex_id=hex_id,
+                kind=kind,
+                xyxy=tuple(box.xyxy[0].tolist()),
+                confidence=float(box.conf[0]),
+            )
             print(f"[agent] sighting {kind} conf={sighting['confidence']} bbox={sighting['bbox']}")
             post_sighting(server, sighting)
 

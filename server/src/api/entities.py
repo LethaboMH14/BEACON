@@ -10,11 +10,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from ..db import get_db, Entity, Sighting, Whitelist, Watchlist, EvidenceChain
+from ..db.models import Incident, Alert
 from ..db.evidence_integrity import verify_chain
 from ..ws.manager import ws_manager
 from ..suspicion import score_entity
 import hashlib
 import json
+import uuid
 
 router = APIRouter()
 
@@ -184,7 +186,47 @@ async def verify_entity(
             active=True
         )
         db.add(watchlist_entry)
-        
+
+        # BLOCKER FIX (Lethabo, team/SBU.md 2026-07-25): flag never created an
+        # Incident, but POST /v1/alerts hard-requires an existing incident_id —
+        # there was no live route from operator-flags-entity to an alert firing,
+        # the exact Act 1 beat the demo depends on. Create the Incident here,
+        # from the entity's most recent sighting (hex/lat/lng/ts), then create
+        # the Alert directly against it.
+        last_sighting = db.query(Sighting).filter(
+            Sighting.entity_id == entity_id
+        ).order_by(Sighting.ts.desc()).first()
+        incident_hex = last_sighting.hex_id if last_sighting else None
+        incident_ts = last_sighting.ts if last_sighting else datetime.utcnow()
+
+        incident = Incident(
+            id=f"inc_{uuid.uuid4().hex[:16]}",
+            incident_type="suspicious",
+            hex_id=incident_hex or "unknown",
+            occurred_at=incident_ts,
+            severity="high",
+            description=verify_data.note or f"Entity {entity_id} flagged by operator",
+            related_entity_id=entity_id,
+        )
+        db.add(incident)
+        db.flush()  # need incident.id populated before the Alert FK references it
+
+        now = datetime.utcnow()
+        alert = Alert(
+            id=f"alrt_{uuid.uuid4().hex[:16]}",
+            alert_type="entity_flagged",
+            recipient_id="ops",
+            recipient_type="ops",
+            entity_id=entity_id,
+            incident_id=incident.id,
+            message=f"Entity {entity_id} flagged: {verify_data.note or 'no note'}",
+            severity="high",
+            status="pending",
+            created_at=now,
+            cancel_window_expires=now + timedelta(seconds=30),
+        )
+        db.add(alert)
+
         # Write to evidence chain
         await _write_evidence(
             db=db,
@@ -192,21 +234,33 @@ async def verify_entity(
             actor_id=verify_data.operator_id,
             target_type="entity",
             target_id=entity_id,
-            details={"note": verify_data.note, "state_transition": "candidate → flagged"}
+            details={
+                "note": verify_data.note,
+                "state_transition": "candidate → flagged",
+                "incident_id": incident.id,
+                "alert_id": alert.id,
+            }
         )
-        
+
         # Emit WebSocket event
         await ws_manager.broadcast_to_ops({
             "event": "entity.flagged",
             "data": {
                 "entity_id": entity_id,
+                "incident_id": incident.id,
+                "alert_id": alert.id,
                 "operator_id": verify_data.operator_id,
                 "ts": datetime.utcnow().isoformat()
             }
         })
-        
+
         db.commit()
-        return {"status": "flagged", "entity_id": entity_id}
+        return {
+            "status": "flagged",
+            "entity_id": entity_id,
+            "incident_id": incident.id,
+            "alert_id": alert.id,
+        }
     
     elif action == "dismiss":
         # Reset suspicion
