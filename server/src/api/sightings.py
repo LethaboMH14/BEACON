@@ -87,6 +87,7 @@ async def create_sighting(
         )
         db.add(camera)
         db.flush()
+    camera.last_seen_at = sighting_data.ts
 
     # Entity resolution (simplified for G0 — full logic in suspicion/)
     entity_id = None

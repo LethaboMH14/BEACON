@@ -29,6 +29,7 @@ class Camera(Base):
     hex_id: Mapped[Optional[str]] = mapped_column(String(15), nullable=True)  # H3 hex res 8/9
     status: Mapped[str] = mapped_column(String(32), default="active")  # active, offline, maintenance
     owner_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)  # member ID
+    last_seen_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)  # bumped per sighting (G3 camera health)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

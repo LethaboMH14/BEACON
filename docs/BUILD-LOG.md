@@ -4,6 +4,18 @@ Every behaviour change gets an entry in the same commit. Plain-language section 
 
 ---
 
+## 2026-07-25 — G3 refinement backlog: route persistence, incident report, event catch-up, camera health
+
+**What:** Four items from team/SBU.md's 2026-07-25 refinement list. (1) `POST /v1/routes/plan` now persists a `Route` row per team (`server/src/api/routes.py`) — previously computed and returned a plan but never wrote it. (2) `GET /v1/incidents/{id}/report` (new `server/src/api/incidents.py`) bundles an incident with its linked entity, sighting timeline, alerts, and every evidence_chain event naming either — the honesty-ledger "structured to support a case" claim is now a real endpoint, not just a chain-intact yes/no. (3) `GET /v1/events/since?ts=` (new `server/src/api/events.py`) reconstructs `sighting.new`/`entity.candidate`/`alert.new` events from the tables that already back them, for WS reconnect catch-up — no new event-log table, no server-side session state. (4) `GET /v1/cameras` (new `server/src/api/cameras.py`) + `Camera.last_seen_at` (new column, `alembic/versions/003_camera_last_seen.py`), bumped on every sighting ingest — online/offline computed from a 60s staleness cutoff.
+
+**Why:** Lowest-priority items on the same backlog as the flag→incident→alert blocker (already fixed, PR #14) and `/v1/risk-cells` (PR #15) — none of these block the demo's Act 1 beat, but each closes a gap between what the pitch claims and what the code actually does.
+
+**Plain language:** Patrol routes are now saved, not just computed and thrown away. There's a real "case file" endpoint for a flagged entity — everything known about it in one place — instead of only a pass/fail integrity check. If a laptop's WiFi drops mid-demo, the ops screen can now ask "what did I miss since X" and get real answers instead of just going silent. And every camera now reports whether it's actually still sending video, so a dead webcam mid-pitch is visible instead of a silent mystery.
+
+**Verified:** 74/74 server tests pass (6 new, one per behaviour above plus the camera-bump-on-ingest regression).
+
+---
+
 ## 2026-07-25 — Server duplication resolved: retired server/main.py, ported its two unique capabilities into server/src/
 
 **What:** `server/main.py` — the standalone in-memory FastAPI monolith flagged as an open item in the 2026-07-24 G0 merge note below — is deleted. Before removing it, ported its two capabilities that `server/src/` didn't yet have: (1) `server/src/suspicion/entity_resolution.py` (new file) — confusion-aware plate matching (normalized Levenshtein, OCR-confusable substitutions like `0↔O`/`1↔I`/`8↔B`/`5↔S` cost 0.25 not 1.0, `MATCH_THRESHOLD=0.80`), wired into both the single and batch `POST /v1/sightings` handlers in `server/src/api/sightings.py`, replacing the exact-string-match placeholder noted as a G0 simplification. (2) `server/src/suspicion/scorer.py`'s F6 modal-corroboration filter extended from `Sighting.kind == "weapon"` to `(Sighting.kind == "weapon") | (Sighting.modality == "audio")`, restoring audio-cue corroboration that `vision/audio_agent.py` already produced but `server/src/` couldn't yet use. Also fixed a separate, previously-unflagged gap found while doing this: `POST /v1/sightings` hard-rejected any `camera_id` it hadn't seen before with a 404 — since no sensor-registration endpoint exists anywhere in the codebase, this would have silently 404'd every real vision or audio agent hitting a fresh server for the first time. Both handlers now auto-register an unknown `camera_id`/node id as a new sensor on first sighting. `vision/audio_agent.py` repointed from the now-deleted bespoke `/v1/audio-cues` endpoint to the standard `/v1/sightings` contract (payload reshaped to match `SightingCreate`).
