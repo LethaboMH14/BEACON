@@ -1,13 +1,12 @@
 # Auto-requests reviews when a PR touches these paths.
-# TODO: replace placeholder handles with real GitHub usernames when everyone joins.
 
 *                   @LethaboMH14
 
-/server/            @LethaboMH14   # + @SBU_HANDLE
-/vision/            @LethaboMH14   # + @SALI_HANDLE
-/data/              @LethaboMH14   # + @NDU_HANDLE
-/dashboard/         @LethaboMH14   # + @CONNIE_HANDLE
-/design/            @LethaboMH14   # + @CONNIE_HANDLE
+/server/            @LethaboMH14 @Sibusiso-K
+/vision/            @LethaboMH14 @sali-cpu
+/data/              @LethaboMH14 @ndumisoskhosana
+/dashboard/         @LethaboMH14 @Ipeleng-Modise
+/design/            @LethaboMH14 @Ipeleng-Modise
 /brain/             @LethaboMH14
 /docs/adr.md        @LethaboMH14   # decisions: whole team comments, Lethabo merges
 CLAUDE.md           @LethaboMH14
