@@ -1,6 +1,6 @@
-# CLAUDE.md — ILISO Master Build Context
+# CLAUDE.md — BEACON Master Build Context
 
-> **Read this first, every session.** Single source of truth for how we build ILISO.
+> **Read this first, every session.** Single source of truth for how we build BEACON.
 > Deep detail lives in `/docs` and `/team`. Amend only via the protocol in §9.
 > Team: Lethabo (planning + build), Sbu (backend + systems), Sali (vision ML + Discovery alignment), Connie/Ipeleng (UI + logic), Ndu (data science + business).
 
@@ -8,9 +8,11 @@
 
 ## 1. What we are building
 
-**ILISO** ("the eye", isiXhosa — *iliso lomphakathi*, the community's eye) — an AI community-safety network for the Discovery Gradhack 2026 Theme 3: **"AI for Safer Communities — Biometric community security network."**
+**BEACON** — *the light that stays on* — an AI community-safety network for the Discovery Gradhack 2026 Theme 3: **"AI for Safer Communities — Biometric community security network."**
 
-Discovery supplies ring-doorbell cameras to members and partners with private security companies. ILISO is the intelligence layer on top:
+A beacon warns early, summons focused response, and keeps shining when the streetlights die. That is the product in one word — and it is Discovery's language: their core purpose is to *make people healthier and **enhance and protect their lives***. BEACON productizes the "protect their lives" clause (see docs/05 §1b for the full Four Principles alignment).
+
+Discovery supplies ring-doorbell cameras to members and partners with private security companies. BEACON is the intelligence layer on top:
 
 1. **See** — faces, license plates, vehicles, weapons detected on camera streams (edge vision).
 2. **Hear** — gunshots, glass-break, screams (acoustic channel, ported from VUKA).
@@ -18,9 +20,9 @@ Discovery supplies ring-doorbell cameras to members and partners with private se
 4. **Connect** — the **Sighting Graph**: every camera detection becomes a node; repeat plates/faces across cameras at crime-correlated places and times build a calibrated **suspicion score** (see docs/01 §4 — this is our unique IP).
 5. **Act** — human-verified alerts, Guardian confirmation, Koper-dosed patrol routes optimized for risk coverage per litre of fuel.
 
-**The thesis:** everyone else will demo a detector and a heatmap. ILISO fuses four independent senses into one calibrated decision, forecasts crime *before* it happens, and is engineered to never harm an innocent person — then wraps it in Discovery's own shared-value model so prevention pays (**Vitality Protect**).
+**The thesis:** everyone else will demo a detector and a heatmap. BEACON fuses four independent senses into one calibrated decision, forecasts crime *before* it happens, and is engineered to never harm an innocent person — then wraps it in Discovery's own shared-value model so prevention pays (**Vitality Protect**).
 
-**Lineage:** ILISO is the community layer VUKA always had on its roadmap (ISIPHEPHELO), now realized for Theme 3. VUKA's UMKHUSELI (personal app) remains the roadmap integration for the person-present 6% of crimes.
+**Lineage:** BEACON is the community layer VUKA always had on its roadmap (ISIPHEPHELO), now realized for Theme 3. VUKA's UMKHUSELI (personal app) remains the roadmap integration for the person-present 6% of crimes.
 
 **The data dictates the design (Gradhack_Insure_Data.xlsx, 15,712 claims):**
 - 93.6% property crime (Theft 14,380 · Burglary 214 · jamming 7 …) → prevent / deter / recover / investigate.
@@ -52,15 +54,15 @@ Discovery supplies ring-doorbell cameras to members and partners with private se
 | D8 | Routing | **Google OR-Tools team-orienteering: maximize risk-weighted coverage under fuel/time budget, 12-min Koper dwell per hot-spot** | Koper 1995: 11–15 min dose drops next-30-min crime 15%→4% |
 | D9 | Privacy boundary | **Embeddings, not images. Faces/plates stored as vectors + short retention incident clips only. Watchlist entries require human verification. Resident/regular whitelist first-class** | POPIA by construction; NIST FRVT bias answer lives in the architecture |
 | D10 | Honesty ledger | Carried from VUKA. Never: "prevents all crime", "identifies criminals" (it identifies *leads*), uncalibrated precision, silent simulation. `sim_` prefix on all simulated components | Credibility is the moat |
-| D11 | Naming | Platform = **ILISO** (working name — collision-check before anything public; alternates in ADR-0001). Suspicion engine = "Sighting Graph". Member programme = "Vitality Protect" (pitch framing only, not a Discovery trademark claim) | One language in code and pitch |
-| D12 | Repo | New public GitHub repo `iliso` under LethaboMH14. Same secret rules as VUKA: `.env` gitignored, keys via Sbu directly, never in commits | Repo is PUBLIC |
+| D11 | Naming | Platform = **BEACON** ("the light that stays on" — ADR-0003, supersedes ADR-0001's ILISO). Suspicion engine = "Sighting Graph". Member programme = "Vitality Protect" (pitch framing only, not a Discovery trademark claim) | English, Discovery-toned, Four Principles-aligned |
+| D12 | Repo | New public GitHub repo `beacon` under LethaboMH14. Same secret rules as VUKA: `.env` gitignored, keys via Sbu directly, never in commits | Repo is PUBLIC |
 
 ---
 
 ## 3. Repo map (create exactly this)
 
 ```
-iliso/
+beacon/
 ├── CLAUDE.md                  # this file
 ├── README.md
 ├── docs/                      # 01–06 + adr.md (append-only) + BUILD-LOG.md
@@ -75,8 +77,11 @@ iliso/
 ├── data/                      # Ndu: ingest/, geocode/, enrich/, forecast/, eval/
 ├── dashboard/                 # Connie+Lethabo: React app (ops / exec / member views)
 ├── scripts/                   # demo orchestration, seeders, latency harness
-└── .github/workflows/ci.yml
+├── design/                    # Connie: mockups, exports, screen specs (see design/README.md)
+└── .github/                   # workflows/ci.yml, PULL_REQUEST_TEMPLATE.md, CODEOWNERS
 ```
+
+**Collaboration flow (how everyone's adds show up):** work on branches `<name>/<thing>`, open a PR for EVERYTHING — code, docs, mockups. PRs are where we see, comment, and amend each other's additions (CONTRIBUTING.md has the 5-step loop). Everyone sets Watch → All activity on the repo so nothing lands silently.
 
 ---
 
@@ -153,4 +158,5 @@ Read order: this file → your brief in `team/<YOU>.md` → the doc for your are
 Same as VUKA: propose via ADR in `docs/adr.md` (append-only), discuss in the PR, mark Accepted on merge, update the §2 table if a locked decision changed. Never edit history — supersede.
 
 **Changelog:**
-- 2026-07-24 — v1.0 — Initial ILISO pack (docs 01–06, team briefs, ADR-0001/0002). Authors: Lethabo + Claude.
+- 2026-07-24 — v1.0 — Initial doc pack as ILISO (docs 01–06, team briefs, ADR-0001/0002). Authors: Lethabo + Claude.
+- 2026-07-24 — v1.1 — ADR-0003: renamed to **BEACON**; Four Principles + Discovery-purpose alignment added (docs/05 §1b); contribution workflow (CONTRIBUTING.md, PR template, CODEOWNERS, design/). Authors: Lethabo + Claude.

@@ -1,12 +1,25 @@
-# ILISO — 05 Business Case (Ndu + Sali)
+# BEACON — 05 Business Case (Ndu + Sali)
 
 > Owners: Ndu (numbers) + Sali (Discovery alignment, from her 25-page research). Status: v1.0, 2026-07-24.
 
 ## 1. The frame: Vitality Protect — shared value applied to safety
 
-Discovery's engine (per Sali's research + public record) is the shared-value loop: incentivise lower-risk behaviour → fewer claims → share the savings back → deeper engagement. Vitality Health and Vitality Drive prove it works (engaged members: 76% lower mortality; drivers improve ~15% within a month; R2.4bn shared back in 2024). **ILISO is the fourth pillar: Vitality Protect** — the same loop applied to home + vehicle security. We pitch it in Discovery's own language; that is Sali's alignment section.
+Discovery's engine (per Sali's research + public record) is the shared-value loop: incentivise lower-risk behaviour → fewer claims → share the savings back → deeper engagement. Vitality Health and Vitality Drive prove it works (engaged members: 76% lower mortality; drivers improve ~15% within a month; R2.4bn shared back in 2024). **BEACON is the fourth pillar: Vitality Protect** — the same loop applied to home + vehicle security. We pitch it in Discovery's own language; that is Sali's alignment section.
 
 Positioning (from the July 15 decision, unchanged): a **standalone platform that integrates with Discovery via API** — pilotable without waiting on internal Discovery IT.
+
+## 1b. BEACON × Discovery's Four Principles (Adrian Gore) — say this in their language
+
+Gore's *The Four Principles*: disciplined optimism · focused urgency · declared goals · the Pareto Tail. BEACON isn't just compatible with them — each one maps to a load-bearing design decision. This table is a pitch slide:
+
+| Gore's principle | What it means | Where it lives in BEACON |
+|---|---|---|
+| **Disciplined optimism** | Constructive view grounded in reality, not blind hope | We claim crime is *reducible* — and prove it with calibrated forecasts, a measured PAI uplift vs baseline, and an honesty ledger of claims we refuse to make. Optimism with error bars |
+| **Focused urgency** | Extreme intent + speed at critical objectives | The 2.0 s detection→alert budget; 12-min Koper doses at exactly the peak-vulnerability hours; the demo targets the 00:00 spike, not the whole day |
+| **Declared goals** | Public, high-bar targets that create accountability | Our budgets table is public in the repo (fuel −30% at ≥80% coverage, ≤1 false alert/camera-week, beat-the-baseline forecast) — and the demo declares its latency number live on the call |
+| **The Pareto Tail** | Non-linear compounding at the edges of the distribution | Crime IS a Pareto tail: criminology's law of crime concentration (Weisburd) — a few percent of places generate ~half of crime; our own data: the 00:00 hour is 3× the trough, a handful of suburbs dominate, repeat entities recur. BEACON is a machine for finding the tail and concentrating light on it — that's why small patrol resources compound into outsized prevention |
+
+**And the purpose line:** Discovery exists "to make people healthier and to enhance and **protect their lives**." Vitality Health took the first clause; Vitality Drive took the roads; **BEACON takes the third clause home** — the same shared-value loop, applied to the street the member sleeps on. Close the alignment section with that sentence.
 
 ## 2. Where the money is (their own data)
 
@@ -24,11 +37,11 @@ Positioning (from the July 15 decision, unchanged): a **standalone platform that
 - Tangible: premium discount + Vitality Protect points for an armed, online camera.
 - Emotional: street safety score, "your camera helped recover a neighbour's car" moments, Guardian button.
 - Network effect: every camera makes the street safer — joining is pro-social. Security companies join because routes cut fuel ~30% (target, from optimizer eval) while coverage rises: they sell "smart patrol" upmarket.
-- Trust: privacy centre, embeddings-not-photos, whitelist you control, human gate. **We are the anti-Flock** — mass ALPR networks are in backlash (ICE data-sharing, false stops, council cancellations); ILISO's consent-first, member-owned, human-gated design is the differentiator judges from an insurer will feel immediately.
+- Trust: privacy centre, embeddings-not-photos, whitelist you control, human gate. **We are the anti-Flock** — mass ALPR networks are in backlash (ICE data-sharing, false stops, council cancellations); BEACON's consent-first, member-owned, human-gated design is the differentiator judges from an insurer will feel immediately.
 
 ## 4. Market context (Ndu: verify + cite before pitch)
 
-SA private security is one of the largest per-capita industries on earth (~2.7M registered guards vs ~150k police — verify current PSiRA figures); insurers already fund armed response. ILISO doesn't create a new behaviour — it makes an existing R-billions spend *targeted*. Comparables for the roadmap slide: Flock (~$7.5bn valuation — the surveillance-heavy cautionary tale), Ring/ADT (hardware+monitoring), DeepAlert/Vumacam locally (verify current status — know them for Q&A; Vumacam's CCTV-pole model is the incumbent to contrast with our member-owned doorbell model).
+SA private security is one of the largest per-capita industries on earth (~2.7M registered guards vs ~150k police — verify current PSiRA figures); insurers already fund armed response. BEACON doesn't create a new behaviour — it makes an existing R-billions spend *targeted*. Comparables for the roadmap slide: Flock (~$7.5bn valuation — the surveillance-heavy cautionary tale), Ring/ADT (hardware+monitoring), DeepAlert/Vumacam locally (verify current status — know them for Q&A; Vumacam's CCTV-pole model is the incumbent to contrast with our member-owned doorbell model).
 
 ## 5. Pitch shape (the 30%)
 

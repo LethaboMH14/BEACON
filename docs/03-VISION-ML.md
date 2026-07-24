@@ -1,4 +1,4 @@
-# ILISO — 03 Vision + ML (Sali's spec)
+# BEACON — 03 Vision + ML (Sali's spec)
 
 > Owner: Sali. Status: v1.0, 2026-07-24. Day-one doc: `team/SALI.md`.
 
@@ -40,7 +40,7 @@ SA formats vary by province (e.g. Gauteng `XX 00 XX GP`, custom plates). EasyOCR
 - Pipeline: RetinaFace detect → align → ArcFace 512-d embed → cosine vs entity store.
 - Calibrate on a validation set that looks like South Africa: use balanced public sets, and OUR OWN faces (team consents) across lighting (load-shedding-dark frames included — use low-light augmentation).
 - Produce the reliability curve that sets candidate=0.55 / verify-suggest=0.65 (or whatever the data says — those are targets).
-- One slide: NIST FRVT found false-positive differentials up to ~100× across demographics; ILISO's answer is architecture (human gate, ADR-0002), not a claim that our model is magically unbiased. You present this — it will land harder than any accuracy number.
+- One slide: NIST FRVT found false-positive differentials up to ~100× across demographics; BEACON's answer is architecture (human gate, ADR-0002), not a claim that our model is magically unbiased. You present this — it will land harder than any accuracy number.
 
 ## 6. Presentation + Discovery alignment (your other hat)
 

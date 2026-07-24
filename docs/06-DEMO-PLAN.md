@@ -1,4 +1,4 @@
-# ILISO — 06 Demo Plan (70% demo / 30% slides, virtual over Teams)
+# BEACON — 06 Demo Plan (70% demo / 30% slides, virtual over Teams)
 
 > Owner: Lethabo (orchestration) + everyone has a driving role. Status: v1.0, 2026-07-24.
 > Leader guidance: 70/30 split, demo as close to live as possible. No phones — laptops over Teams.

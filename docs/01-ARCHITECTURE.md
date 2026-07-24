@@ -1,4 +1,4 @@
-# ILISO — 01 System Architecture
+# BEACON — 01 System Architecture
 
 > Owner: Lethabo (with Sbu on §5 contract). Status: v1.0, 2026-07-24.
 
@@ -55,7 +55,7 @@ Primary user is the **security company ops room** (they act on alerts and drive 
 - **Plates:** normalized text match with a confusion-aware comparator — edit distance where 0↔O, 1↔I, 8↔B, 5↔S substitutions cost 0.25. Match quality ∈ [0,1] travels with every match (Flock's 0-vs-O false stops are the cautionary tale — we never silently exact-match).
 - **Vehicles without readable plates:** make/model/colour tags + image embedding cosine; only ever a *weak* factor.
 - **Faces:** ArcFace cosine. ≥0.55 = candidate link, ≥0.65 = suggest to human (targets; Sali calibrates on a validation set). Below candidate = discarded.
-- An **entity** is an embedding cluster with a random ID. ILISO never asserts a legal identity — a match is a lead (D9, ADR-0002).
+- An **entity** is an embedding cluster with a random ID. BEACON never asserts a legal identity — a match is a lead (D9, ADR-0002).
 
 ## 4. The Sighting Graph — suspicion engine (our unique IP)
 

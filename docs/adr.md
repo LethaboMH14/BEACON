@@ -27,3 +27,13 @@
 5. Every score shown is calibrated; every alert carries a cancel window.
 
 **Consequences.** We give up "fully automatic" headlines and gain the pitch's strongest slide: the system is engineered so the worst outcome — armed response to a wrong match — cannot happen by design. Latency cost of the human gate is acceptable because the property-crime track (93.6% of claims) is prevention/recovery, not seconds-critical.
+
+---
+
+## ADR-0003: Rename ILISO → BEACON; Discovery-alignment naming rationale | Status: Accepted | 2026-07-24 | Supersedes the naming portion of ADR-0001
+
+**Context.** Team decision: the platform name should be English and align with Discovery's brand voice, core purpose ("make people healthier and enhance and protect their lives") and Adrian Gore's Four Principles (disciplined optimism, focused urgency, declared goals, the Pareto Tail). ILISO (isiXhosa, "the eye") read as surveillance-first and needed translation in the pitch.
+
+**Decision.** Platform = **BEACON**, tagline *"the light that stays on."* Rationale: a beacon warns early (focused urgency), is light rather than a watching eye (disciplined optimism — protection framed as hope, not surveillance), is by definition a public visible commitment (declared goals), and concentrates light exactly where the dark is (the Pareto Tail — mirrors the law of crime concentration our whole design exploits). Load-shedding resonance: the light that stays on when the streetlights don't. Candidates considered: FORESIGHT (too cold/analytics), LIGHTHOUSE (name collision with Google's dev tool), SENTINEL (militaristic, overused). Repo: `beacon` under LethaboMH14 (user-created). Full alignment mapping: docs/05 §1b.
+
+**Consequences.** All docs renamed in this commit; ADR-0001 and the genesis BUILD-LOG entry retain "ILISO" as historical record (append-only protocol). "Vitality Protect" stays as pitch framing for the member programme, explicitly not a Discovery trademark claim. Trademark/collision check still required before any public use beyond the hackathon ("beacon" is common in tech and security — e.g. BLE beacons; acceptable for a hackathon, revisit for production).

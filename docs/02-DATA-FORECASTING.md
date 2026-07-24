@@ -1,4 +1,4 @@
-# ILISO — 02 Data Engineering + Forecasting (Ndu's spec)
+# BEACON — 02 Data Engineering + Forecasting (Ndu's spec)
 
 > Owner: Ndu. Status: v1.0, 2026-07-24. Your day-one document is `team/NDU.md`; this is the full technical spec behind it.
 

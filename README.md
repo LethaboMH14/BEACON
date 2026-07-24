@@ -1,8 +1,8 @@
-# ILISO — the community's eye
+# BEACON — the light that stays on
 
 AI community-safety network for Discovery Gradhack 2026 · Theme 3: AI for Safer Communities.
 
-**One line:** ILISO fuses four independent senses — camera vision (faces, plates, weapons), acoustics, Discovery claims context, and member phones — into one calibrated decision; forecasts crime before it happens; routes Koper-dosed patrols to prevent it; and is engineered so it can never harm an innocent person.
+**One line:** BEACON fuses four independent senses — camera vision (faces, plates, weapons), acoustics, Discovery claims context, and member phones — into one calibrated decision; forecasts crime before it happens; routes Koper-dosed patrols to prevent it; and is engineered so it can never harm an innocent person.
 
 Built by Team Sonar: Lethabo Hoaeane · Sbu · Salimata Mbaye · Ipeleng (Connie) · Ndumiso.
 

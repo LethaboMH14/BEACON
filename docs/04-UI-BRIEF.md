@@ -1,4 +1,4 @@
-# ILISO — 04 UI + Interaction Logic (Connie/Ipeleng's spec)
+# BEACON — 04 UI + Interaction Logic (Connie/Ipeleng's spec)
 
 > Owner: Connie. Status: v1.0, 2026-07-24. Day-one doc: `team/CONNIE.md`.
 
