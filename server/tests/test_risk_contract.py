@@ -146,3 +146,57 @@ def test_get_hotspots_endpoint_shape(client, db_session):
     assert body["hour"] == 0
     assert isinstance(body["hotspots"], list)
     assert any(h["hex_id"] == "hex_hs" for h in body["hotspots"])
+
+
+def test_post_risk_cells_ingest_shape(client, db_session):
+    res = client.post("/v1/risk-cells", json={
+        "cells": [{
+            "hex_id": "hex_ndu_01",
+            "forecast_date": datetime.utcnow().isoformat(),
+            "hour": 0,
+            "risk_score": 0.83,
+            "top_factors": {"near_repeat": 0.5, "peak_hour": 0.33},
+            "model_version": "ndu-lgbm-v1",
+        }],
+    })
+    assert res.status_code == 201
+    assert res.json() == {"inserted": 1}
+
+    row = db_session.query(RiskCell).filter(RiskCell.hex_id == "hex_ndu_01").first()
+    assert row is not None
+    assert row.model_version == "ndu-lgbm-v1"
+
+
+def test_post_risk_cells_supersedes_the_claims_fallback(client, db_session):
+    # Real claims give the fallback something to say for this hex/hour...
+    _make_claim(db_session, "hex_ndu_02", hour=0, hour_known=True)
+    fallback = client.get("/v1/risk", params={"hex": "hex_ndu_02", "hour": 0}).json()
+    assert fallback["source"] == "claims_fallback"
+
+    # ...but a real model row for the same hex/hour must win over it.
+    client.post("/v1/risk-cells", json={
+        "cells": [{
+            "hex_id": "hex_ndu_02", "forecast_date": datetime.utcnow().isoformat(),
+            "hour": 0, "risk_score": 0.91, "model_version": "ndu-lgbm-v1",
+        }],
+    })
+    res = client.get("/v1/risk", params={"hex": "hex_ndu_02", "hour": 0})
+    body = res.json()
+    assert body["source"] == "model"
+    assert body["risk_score"] == 0.91
+    assert body["model_version"] == "ndu-lgbm-v1"
+
+
+def test_post_risk_cells_rejects_out_of_range_score(client, db_session):
+    res = client.post("/v1/risk-cells", json={
+        "cells": [{
+            "hex_id": "hex_bad", "forecast_date": datetime.utcnow().isoformat(),
+            "hour": 0, "risk_score": 1.5, "model_version": "v1",
+        }],
+    })
+    assert res.status_code == 422
+
+
+def test_post_risk_cells_rejects_empty_batch(client, db_session):
+    res = client.post("/v1/risk-cells", json={"cells": []})
+    assert res.status_code == 422

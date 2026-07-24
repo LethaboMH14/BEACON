@@ -8,10 +8,11 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from ..db import get_db
+from ..db.models import RiskCell
 from ..risk import estimate_hex_risk, rank_hotspots
 
 router = APIRouter()
@@ -37,6 +38,23 @@ class HotspotEntry(BaseModel):
 class HotspotsRes(BaseModel):
     hour: int
     hotspots: list[HotspotEntry]
+
+
+class RiskCellIn(BaseModel):
+    hex_id: str
+    forecast_date: datetime
+    hour: int = Field(..., ge=0, le=23)
+    risk_score: float = Field(..., ge=0.0, le=1.0)
+    top_factors: Optional[dict] = None
+    model_version: str
+
+
+class RiskCellsIngestReq(BaseModel):
+    cells: list[RiskCellIn] = Field(..., min_length=1)
+
+
+class RiskCellsIngestRes(BaseModel):
+    inserted: int
 
 
 def _current_hour_or(hour: Optional[int]) -> int:
@@ -81,3 +99,26 @@ async def get_hotspots(
             for e in estimates
         ],
     )
+
+
+@router.post("/risk-cells", response_model=RiskCellsIngestRes, status_code=status.HTTP_201_CREATED)
+async def post_risk_cells(body: RiskCellsIngestReq, db: Session = Depends(get_db)):
+    """
+    Write path for Ndu's forecast pipeline (team/SBU.md 2026-07-25 backlog):
+    /v1/risk and /v1/hotspots already read the latest RiskCell row per
+    (hex_id, hour) — see src/risk/forecast.py — but until now nothing could
+    write one outside of tests. Real model output lands here; the fallback
+    in forecast.py is superseded automatically per-hex/hour the moment a
+    row exists, no contract change needed.
+    """
+    rows = [
+        RiskCell(
+            hex_id=c.hex_id, forecast_date=c.forecast_date, hour=c.hour,
+            risk_score=c.risk_score, top_factors=c.top_factors,
+            model_version=c.model_version,
+        )
+        for c in body.cells
+    ]
+    db.add_all(rows)
+    db.commit()
+    return RiskCellsIngestRes(inserted=len(rows))

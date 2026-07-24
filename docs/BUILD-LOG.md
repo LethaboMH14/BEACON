@@ -4,6 +4,20 @@ Every behaviour change gets an entry in the same commit. Plain-language section 
 
 ---
 
+## 2026-07-25 — POST /v1/risk-cells + real claims loaded (15,712 rows, no geocoding yet)
+
+**What:** `POST /v1/risk-cells` (`server/src/api/risk.py`) — batch write path for `RiskCell` rows, so Ndu's forecast model has somewhere to land output instead of writing directly to SQLite. `server/scripts/load_claims.py` — loads the real `Gradhack_Insure_Data.xlsx` (15,712 rows) into the `claims` table: dedupes by `Incident` id (0 found), uppercase-trims `SUBURB` with nulls bucketed to `UNKNOWN` (4.1% of rows), keeps negative `CLAIM_AMOUNT` reversals, sets `hour`/`hour_known=True` from the real `INCIDENT_DATE_TIME` timestamp.
+
+**Why:** team/SBU.md backlog (2026-07-25, Lethabo). `/v1/risk`'s claims-fallback and F3 near-repeat correlation both key off real `Claim` rows and had nothing outside test fixtures. `/v1/risk-cells` was the one write path missing from the frozen contract before Ndu's model exists to test it against.
+
+**Not done, deliberately out of my lane:** geocoding the 2,929 distinct suburbs to lat/lng/hex_id — that needs Nominatim + a hand-curated `suburb_alias.csv` (docs/02 §3, Ndu's spec). Claims load with `hex_id=None` rather than an invented coordinate; hex-keyed features (near-repeat, risk fallback, routing centroids) won't see these rows until geocoding lands.
+
+**Plain language:** The real claims spreadsheet is now actually in the database — not just referenced in docs — with honest handling of missing suburbs and reversed charges. Added the endpoint that will let the real forecasting model publish its numbers once it exists. The one thing still missing is turning suburb names into map coordinates, which is deliberately left to whoever owns that data-cleaning step rather than guessed at here.
+
+**Verified:** 73/73 server tests pass (4 new: ingest shape, model-row supersedes claims-fallback for the same hex/hour, score-range validation, empty-batch rejection). `load_claims.py` run against the real file: 15,712 loaded, 0 duplicates, 95.9% suburb coverage.
+
+---
+
 ## 2026-07-25 — Fixed silent 422s in vision/agent.py: sighting payload had drifted from the server contract
 
 **What:** `vision/agent.py`'s webcam capture loop was building `POST /v1/sightings` payloads with `hex` instead of `hex_id`, no `modality` field, and `bbox` as a `[x1, y1, x2, y2]` list instead of the required `{x, y, w, h}` dict — every field `SightingCreate` (`server/src/api/sightings.py`) actually needs. `post_sighting()` only caught `requests.RequestException` (transport-level failures), never checked the HTTP response, so the server's 422 rejection was swallowed silently — a live camera agent would run, print nothing wrong, and never land a single sighting. Fixed by: (1) extracting payload construction out of the loop into a standalone `build_sighting_payload()` function shaped to the real contract, so it's unit-testable in isolation; (2) `post_sighting()` now checks `resp.ok` and logs the status + body on rejection; (3) made the `ultralytics` YOLO import lazy (moved from module-level into `run()`) so the module — and `build_sighting_payload` specifically — can be imported and tested without the full ultralytics/torch stack installed; (4) added `vision/tests/test_agent.py`, which validates `build_sighting_payload()`'s output directly against the real `SightingCreate` Pydantic model (cross-package import from `server/src/`), not a hand-copied assumption of the schema.
