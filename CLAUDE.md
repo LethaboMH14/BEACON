@@ -56,6 +56,7 @@ Discovery supplies ring-doorbell cameras to members and partners with private se
 | D10 | Honesty ledger | Carried from VUKA. Never: "prevents all crime", "identifies criminals" (it identifies *leads*), uncalibrated precision, silent simulation. `sim_` prefix on all simulated components | Credibility is the moat |
 | D11 | Naming | Platform = **BEACON** ("the light that stays on" — ADR-0003, supersedes ADR-0001's ILISO). Suspicion engine = "Sighting Graph". Member programme = "Vitality Protect" (pitch framing only, not a Discovery trademark claim) | English, Discovery-toned, Four Principles-aligned |
 | D12 | Repo | Public GitHub repo **[LethaboMH14/BEACON](https://github.com/LethaboMH14/BEACON)**. Same secret rules as VUKA: `.env` gitignored, keys via Sbu directly, never in commits | Repo is PUBLIC |
+| D13 | Cloud provider | **Azure for Students, one shared subscription (Sbu's, hosting server/DB), per-workstream service map in ADR-0004.** No credit card to activate, $100/yr, consistent with VUKA's Azure choice | Student budget reality beats raw feature comparison; demo runs on localhost + tunnel regardless, cloud is the optional G3 flex |
 
 ---
 

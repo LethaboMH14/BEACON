@@ -21,10 +21,10 @@ async def lifespan(app: FastAPI):
     """Startup and shutdown events."""
     # Startup: initialize database
     init_db()
-    print("✓ Database initialized")
+    print("[OK] Database initialized")
     yield
     # Shutdown: cleanup if needed
-    print("✓ Server shutdown")
+    print("[OK] Server shutdown")
 
 
 # Create FastAPI app

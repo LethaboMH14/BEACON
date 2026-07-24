@@ -31,7 +31,33 @@
 
 1. Full live (target) → 2. Act 1 pre-recorded screen capture, Acts 2–3 live (map+replay are local, low-risk) → 3. Full recorded video + live voiceover. Record the fallback video at G2, not the night before.
 
-## 3. Rehearsal checklist
+## 3. Live-demo feasibility gap check (2026-07-24, post-G2)
+
+Reality check against what's actually built, so rehearsal time isn't wasted on rungs that don't exist yet. Laptops-only confirmed as the right call — no dedicated camera hardware, and it doesn't need any: a laptop webcam pointed at a printed prop IS a "ring camera" for detection purposes, this is standard in the security-vision demo world (Flock/ZeroEyes case studies, docs/03).
+
+**Real and demo-ready today (G0–G2, laptop webcam only):**
+- `vision/agent.py`: webcam → YOLOv8n person/vehicle boxes → live sighting stream. Genuinely live, no faking.
+- `server/main.py` + `brain/`: plate-bearing sightings resolve to entities (confusion-aware match — an OCR misread "0" vs "O" still resolves to the same car), F1 recurrence crosses a machine ceiling into `watch_candidate`, broadcasts live over `/ws/ops`, and only a human `verify` call can reach `flagged`. Proved live this session: 3 OCR-noisy plate sightings, 2 cameras → `watch_candidate` → verify → `flagged`, all over a real WS connection.
+- `scripts/latency.py`: real p95 number for the script (318ms, budget 2.0s) — use the real number, never round it up for drama.
+- cloudflared tunnel: proven live against `/health` — the 3-laptop-across-houses topology in §0 works mechanically.
+
+**Scripted in this doc but not yet built — ranked by what blocks the demo hardest:**
+
+| Gap | Blocks | Effort | Call |
+|---|---|---|---|
+| **Ops dashboard UI** (`dashboard/` is a bare single-file skeleton; Connie's real screens are mockups only, no React app yet) | Every act — it's the main shared screen for 9 of 9 demo minutes | High | **Build first.** Nothing else matters if there's no screen for the audience to watch. |
+| **Plate OCR** (EasyOCR) in `vision/agent.py` — today the agent detects `vehicle` boxes but never extracts `plate_text`, so entity resolution has nothing to chew on live | Act 1's "two cameras, same entity" beat | Medium | Build second — unlocks the F1 logic we already proved works. |
+| **`data/` claims pipeline + forecast** — doesn't exist yet; the cold-open heatmap and Act 2 forecast layer have nothing behind them | First 30 seconds + Act 2 | High | Build third. Static pre-baked GeoJSON is an acceptable interim — real ingestion later, said out loud if not landed by rehearsal. |
+| **Route planning** (OR-Tools) | Act 2 second half | Medium | After forecast — routes need risk scores to plan against. |
+| Weapon-class fine-tune | Act 1 "watch candidate" escalation beat | High, and low reps possible with a stock model | **Descope risk.** A pretrained COCO YOLOv8n has no gun/knife class. Either fine-tune on a small labelled set (Sali) or cut the beat and say so — do not fake a weapon detection. |
+| Face recognition (ArcFace) | Act 1 face beat | Medium, ethically sensitive | Keep minimal: one hardcoded enrolled-team embedding compared at runtime, not a full pipeline. Consent line stays mandatory regardless of scope. |
+| Sighting Graph replay UI (Act 3) | Act 3 | Medium — the brain/ logic underneath is now real | Needs a `sim_` stream generator + replay UI; logic already proven, just needs a front end. |
+
+**One addition to the script:** add a visible "ingest" beat to the cold open — a live event where a new claim/sighting visibly lands on the map (not just a pre-loaded static heatmap) — proves the pipeline is live data, not a screenshot. Cheap to add once `data/` exists: one seed row posted mid-sentence, one hex lighting up on cue.
+
+**Fallback ladder correction:** rung 1 ("full live") isn't reachable until the ops dashboard exists — there is currently no screen to be live on. Rehearsal can't start until that's built.
+
+## 4. Rehearsal checklist
 
 - [ ] Tunnel + WS reconnect tested on real Teams call, all three laptops, cameras on
 - [ ] Printed props ready: 2 fake plates, weapon printout, enrolled team face
