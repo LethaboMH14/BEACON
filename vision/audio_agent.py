@@ -12,9 +12,11 @@ Pipeline per ~1s audio block:
    sound (cascade-before-compute, same philosophy as vision/agent.py).
 2. Tier 2: YAMNet inference (521-class softmax) -> map top class to a
    BEACON cue label via CLASSES_OF_INTEREST (models.json).
-3. POST /v1/audio-cues: {node_id, ts, hex, label, confidence}. Never posts
-   raw audio — label + confidence only (privacy-at-source, same rule as
-   vision/ not persisting raw frames).
+3. POST /v1/sightings: {camera_id: node_id, ts, hex_id, kind: label,
+   modality: "audio", confidence}. Never posts raw audio — label + confidence
+   only (privacy-at-source, same rule as vision/ not persisting raw frames).
+   Uses the same sightings contract as vision/agent.py (server/src/) — an
+   unknown node_id auto-registers as a sensor on first sighting.
 
 Run: python audio_agent.py --node-id node_1 --server http://localhost:8000
 """
@@ -64,7 +66,7 @@ def map_yamnet_class(scores: np.ndarray, classes_of_interest: dict[str, str]) ->
 
 def post_cue(server: str, cue: dict) -> None:
     try:
-        requests.post(f"{server}/v1/audio-cues", json=cue, timeout=2)
+        requests.post(f"{server}/v1/sightings", json=cue, timeout=2)
     except requests.RequestException as exc:
         print(f"[audio_agent] cue post failed (server offline?): {exc}")
 
@@ -93,10 +95,11 @@ def run(node_id: str, server: str, hex_id: str) -> None:
             return
 
         cue = {
-            "node_id": node_id,
+            "camera_id": node_id,
             "ts": datetime.now(timezone.utc).isoformat(),
-            "hex": hex_id,
-            "label": label,
+            "hex_id": hex_id,
+            "kind": label,
+            "modality": "audio",
             "confidence": round(confidence, 3),
         }
         print(f"[audio_agent] cue: {label} ({confidence:.2f})")

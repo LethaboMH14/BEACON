@@ -91,6 +91,43 @@ def test_create_sighting_with_plate(client, sample_camera):
     assert data2["entity_id"] == data["entity_id"]
 
 
+def test_create_sighting_plate_confusion_aware_match(client, sample_camera):
+    """
+    Test that an OCR-noisy plate reading resolves to the same entity as the
+    original, not a new one — confusion-aware matching (docs/01 §3), ported
+    into server/src/suspicion/entity_resolution.py after server/main.py (the
+    original home of this logic, via brain/entity_resolution.py) was retired.
+    "0" and "O" are OCR-confusable, so "CA0123456" and "CAO123456" must match.
+    """
+    payload = {
+        "camera_id": sample_camera.id,
+        "ts": datetime.utcnow().isoformat(),
+        "kind": "vehicle",
+        "modality": "plate",
+        "confidence": 0.9,
+        "plate_text": "CA0123456",
+    }
+    response = client.post("/v1/sightings", json=payload)
+    assert response.status_code == 201
+    entity_id = response.json()["entity_id"]
+    assert entity_id is not None
+
+    # Same plate, but OCR misread "0" as "O" this time
+    payload2 = {
+        "camera_id": sample_camera.id,
+        "ts": datetime.utcnow().isoformat(),
+        "kind": "vehicle",
+        "modality": "plate",
+        "confidence": 0.9,
+        "plate_text": "CAO123456",
+    }
+    response2 = client.post("/v1/sightings", json=payload2)
+    assert response2.status_code == 201
+
+    # Contract: OCR-confusable variant resolves to the SAME entity, not a new one
+    assert response2.json()["entity_id"] == entity_id
+
+
 def test_create_sighting_with_bbox(client, sample_camera):
     """
     Test sighting with bounding box.
@@ -117,10 +154,12 @@ def test_create_sighting_with_bbox(client, sample_camera):
     assert data["kind"] == "person"
 
 
-def test_create_sighting_invalid_camera(client):
+def test_create_sighting_unknown_camera_auto_registers(client):
     """
-    Test sighting with non-existent camera fails.
-    Contract: 404 if camera not found.
+    Test sighting with a never-seen-before camera_id auto-registers it as a
+    new sensor rather than failing — there is no separate registration
+    endpoint, and rejecting an unseen node_id would silently drop every
+    freshly-started vision/audio agent against a new DB.
     """
     payload = {
         "camera_id": "cam_nonexistent",
@@ -129,12 +168,11 @@ def test_create_sighting_invalid_camera(client):
         "modality": "yolo",
         "confidence": 0.85
     }
-    
+
     response = client.post("/v1/sightings", json=payload)
-    
-    # Contract: 404 Not Found
-    assert response.status_code == 404
-    assert "not found" in response.json()["detail"].lower()
+
+    assert response.status_code == 201
+    assert response.json()["camera_id"] == "cam_nonexistent"
 
 
 def test_create_sighting_missing_required_field(client, sample_camera):
@@ -196,7 +234,7 @@ def test_create_sightings_batch(client, sample_camera):
                 "plate_text": "XYZ789GP"
             },
             {
-                "camera_id": "cam_nonexistent",  # This will be skipped
+                "camera_id": "cam_nonexistent",  # auto-registers as a new sensor, not skipped
                 "ts": datetime.utcnow().isoformat(),
                 "kind": "person",
                 "modality": "yolo",
@@ -204,17 +242,19 @@ def test_create_sightings_batch(client, sample_camera):
             }
         ]
     }
-    
+
     response = client.post("/v1/sightings/batch", json=payload)
-    
+
     assert response.status_code == 201
     data = response.json()
-    
-    # Contract: created/skipped counts
+
+    # Contract: created/skipped counts. Unknown camera_id auto-registers as a
+    # new sensor on first sighting (no separate registration endpoint exists
+    # yet), so nothing here is skipped.
     assert "created" in data
     assert "skipped" in data
-    assert data["created"] == 2  # First two valid
-    assert data["skipped"] == 1  # Last one invalid camera
+    assert data["created"] == 3
+    assert data["skipped"] == 0
 
 
 def test_sighting_response_fields(client, sample_camera):

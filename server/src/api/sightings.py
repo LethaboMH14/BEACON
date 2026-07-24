@@ -5,12 +5,13 @@ Contract from docs/01-ARCHITECTURE.md §5.
 from datetime import datetime
 from typing import Optional, List
 from pydantic import BaseModel, Field
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from ..db import get_db, Sighting, Camera, Entity
 from ..ws.manager import ws_manager
 from ..suspicion import score_entity
+from ..suspicion.entity_resolution import resolve_plate_entity
 import uuid
 
 router = APIRouter()
@@ -72,22 +73,34 @@ async def create_sighting(
     The sighting is stored, linked to an entity (if resolvable), and a 
     WebSocket event is emitted to connected ops clients.
     """
-    # Verify camera exists
+    # Auto-register unknown sensors (camera or mic node) on first sighting —
+    # there is no separate registration endpoint yet, and rejecting a
+    # never-seen-before node_id would silently drop every audio/vision agent
+    # started against a fresh DB.
     camera = db.query(Camera).filter(Camera.id == sighting_data.camera_id).first()
     if not camera:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Camera {sighting_data.camera_id} not found"
+        camera = Camera(
+            id=sighting_data.camera_id,
+            name=sighting_data.camera_id,
+            hex_id=sighting_data.hex_id,
+            status="active",
         )
-    
+        db.add(camera)
+        db.flush()
+
     # Entity resolution (simplified for G0 — full logic in suspicion/)
     entity_id = None
     if sighting_data.plate_text:
-        # Try to find existing entity by plate
-        entity = db.query(Entity).filter(
-            Entity.plate_text == sighting_data.plate_text
-        ).first()
-        
+        # Confusion-aware plate match (docs/01 §3) — an OCR misread like
+        # "0" vs "O" still resolves to the same car, not a new entity.
+        known_plates = dict(
+            db.query(Entity.id, Entity.plate_text)
+            .filter(Entity.plate_text.isnot(None))
+            .all()
+        )
+        matched_id, match_quality = resolve_plate_entity(sighting_data.plate_text, known_plates)
+        entity = db.query(Entity).filter(Entity.id == matched_id).first() if matched_id else None
+
         if not entity:
             # Create new entity
             entity = Entity(
@@ -106,9 +119,9 @@ async def create_sighting(
             entity.last_seen = sighting_data.ts
             entity.sighting_count += 1
             entity.last_updated = datetime.utcnow()
-        
+
         entity_id = entity.id
-    
+
     # Create sighting
     sighting = Sighting(
         camera_id=sighting_data.camera_id,
@@ -125,7 +138,7 @@ async def create_sighting(
         clip_ref=sighting_data.clip_ref,
         created_at=datetime.utcnow()
     )
-    
+
     db.add(sighting)
     db.commit()
     db.refresh(sighting)
@@ -177,18 +190,29 @@ async def create_sightings_batch(
     created = []
     
     for sighting_data in batch.sightings:
-        # Verify camera exists
+        # Auto-register unknown sensors, same as the single-sighting path
         camera = db.query(Camera).filter(Camera.id == sighting_data.camera_id).first()
         if not camera:
-            continue  # Skip invalid camera
-        
-        # Entity resolution (simplified)
+            camera = Camera(
+                id=sighting_data.camera_id,
+                name=sighting_data.camera_id,
+                hex_id=sighting_data.hex_id,
+                status="active",
+            )
+            db.add(camera)
+            db.flush()
+
+        # Entity resolution (confusion-aware plate match, same as the single path)
         entity_id = None
         if sighting_data.plate_text:
-            entity = db.query(Entity).filter(
-                Entity.plate_text == sighting_data.plate_text
-            ).first()
-            
+            known_plates = dict(
+                db.query(Entity.id, Entity.plate_text)
+                .filter(Entity.plate_text.isnot(None))
+                .all()
+            )
+            matched_id, _quality = resolve_plate_entity(sighting_data.plate_text, known_plates)
+            entity = db.query(Entity).filter(Entity.id == matched_id).first() if matched_id else None
+
             if not entity:
                 entity = Entity(
                     id=f"ent_{uuid.uuid4().hex[:16]}",

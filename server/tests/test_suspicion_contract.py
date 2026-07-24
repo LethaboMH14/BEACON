@@ -237,6 +237,40 @@ def test_f6_modal_corroboration_weapon(db_session):
     assert result.factors["F6_modal_corrob"] > 0, "F6 should fire for co-located weapon detection"
 
 
+def test_f6_modal_corroboration_audio(db_session):
+    """
+    F6: audio-modality sighting (e.g. a YAMNet cue from audio_agent.py) co-located
+    in time+hex with an entity's sighting also fires the factor — not just
+    kind=='weapon'. Guards the F6 filter extension in scorer.py that restored
+    audio-modality corroboration lost when server/main.py was retired.
+    """
+    _make_camera(db_session, "cam_061")
+    ent = _make_entity(db_session, "ent_061", plate="AUDIO001")
+
+    now = datetime.utcnow()
+    _make_sighting(db_session, "ent_061", "cam_061", now)
+
+    # Audio cue (e.g. "Gunshot") in same hex, overlapping time window (±15 min).
+    # kind is the mapped YAMNet label, not "weapon" — modality is what matters.
+    audio_cue = Sighting(
+        camera_id="node_1",
+        entity_id=None,
+        ts=now + timedelta(minutes=5),
+        hex_id="881f1d4a9ffffff",
+        kind="Gunshot",
+        modality="audio",
+        confidence=0.72,
+        created_at=datetime.utcnow(),
+    )
+    db_session.add(audio_cue)
+    db_session.commit()
+
+    result = score_entity("ent_061", db_session)
+    db_session.commit()
+
+    assert result.factors["F6_modal_corrob"] > 0, "F6 should fire for co-located audio-modality corroboration"
+
+
 def test_machine_ceiling_never_flagged(db_session):
     """
     Machine ceiling: even with all factors firing, state never exceeds 'candidate'.

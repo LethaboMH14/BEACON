@@ -251,7 +251,7 @@ def score_entity(entity_id: str, db: Session) -> SuspicionResult:
             modal_hit = (
                 db.query(Sighting)
                 .filter(
-                    Sighting.kind == "weapon",
+                    (Sighting.kind == "weapon") | (Sighting.modality == "audio"),
                     Sighting.hex_id == hex_id,
                     Sighting.ts >= window_start,
                     Sighting.ts <= window_end,

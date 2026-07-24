@@ -37,7 +37,7 @@ Reality check against what's actually built, so rehearsal time isn't wasted on r
 
 **Real and demo-ready today (G0–G2, laptop webcam only):**
 - `vision/agent.py`: webcam → YOLOv8n person/vehicle boxes → live sighting stream. Genuinely live, no faking.
-- `server/main.py` + `brain/`: plate-bearing sightings resolve to entities (confusion-aware match — an OCR misread "0" vs "O" still resolves to the same car), F1 recurrence crosses a machine ceiling into `watch_candidate`, broadcasts live over `/ws/ops`, and only a human `verify` call can reach `flagged`. Proved live this session: 3 OCR-noisy plate sightings, 2 cameras → `watch_candidate` → verify → `flagged`, all over a real WS connection.
+- `server/src/` (the real server — 68/68 contract tests): plate-bearing sightings resolve to entities via confusion-aware OCR matching ("0"↔"O" still resolves to one car — `server/src/suspicion/entity_resolution.py`), F1 recurrence crosses a machine ceiling into `candidate`, broadcasts live over `/ws/ops`, and only a human `verify` call can reach `flagged`. **Update (2026-07-25):** `server/main.py` — the earlier monolith this beat was originally proved against — has been retired as a duplicate. Its two capabilities (confusion-aware matching, audio-modality F6 corroboration) were ported into `server/src/` first, so nothing regressed; both now have contract-test coverage. The OCR-noise beat is safe to script live again.
 - `scripts/latency.py`: real p95 number for the script (318ms, budget 2.0s) — use the real number, never round it up for drama.
 - cloudflared tunnel: proven live against `/health` — the 3-laptop-across-houses topology in §0 works mechanically.
 
