@@ -12,7 +12,7 @@ def test_get_entity_with_decay(client, sample_camera, db_session):
     Test GET /v1/entities/{id} computes lazy decay.
     Contract: score_now = base_score * 0.5^(days_elapsed/7)
     """
-    from db.models import Entity
+    from src.db.models import Entity
     
     # Create entity with base_score set 7 days ago (one half-life)
     seven_days_ago = datetime.utcnow() - timedelta(days=7)
@@ -63,7 +63,7 @@ def test_get_entity_no_decay(client, db_session):
     Test entity with recent update has minimal decay.
     Contract: current_score ≈ base_score for recent updates.
     """
-    from db.models import Entity
+    from src.db.models import Entity
     
     # Create entity with recent update
     entity = Entity(
@@ -104,7 +104,7 @@ def test_verify_entity_flag(client, db_session):
     Test POST /v1/entities/{id}/verify with action=flag.
     Contract: promotes to flagged, adds to watchlist, writes evidence.
     """
-    from db.models import Entity, Watchlist, EvidenceChain
+    from src.db.models import Entity, Watchlist, EvidenceChain
     
     # Create candidate entity
     entity = Entity(
@@ -162,7 +162,7 @@ def test_verify_entity_dismiss(client, db_session):
     Test POST /v1/entities/{id}/verify with action=dismiss.
     Contract: resets score, returns to observed state.
     """
-    from db.models import Entity
+    from src.db.models import Entity
     
     entity = Entity(
         id="ent_test_004",
@@ -200,7 +200,7 @@ def test_verify_entity_whitelist(client, db_session):
     Test POST /v1/entities/{id}/verify with action=whitelist.
     Contract: adds to whitelist, resets score, requires hex_id.
     """
-    from db.models import Entity, Whitelist
+    from src.db.models import Entity, Whitelist
     
     entity = Entity(
         id="ent_test_005",
@@ -249,7 +249,7 @@ def test_verify_entity_whitelist_missing_hex(client, db_session):
     Test whitelist action without hex_id fails.
     Contract: 400 Bad Request if hex_id missing.
     """
-    from db.models import Entity
+    from src.db.models import Entity
     
     entity = Entity(
         id="ent_test_006",
@@ -282,7 +282,7 @@ def test_verify_entity_invalid_action(client, db_session):
     Test verify with invalid action fails.
     Contract: 400 for invalid action.
     """
-    from db.models import Entity
+    from src.db.models import Entity
     
     entity = Entity(
         id="ent_test_007",

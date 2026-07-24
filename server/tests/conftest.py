@@ -6,15 +6,17 @@ import pytest
 import sys
 from pathlib import Path
 from sqlalchemy import create_engine
+from sqlalchemy.pool import StaticPool
 from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+# Add server/ to path so `src` resolves as a package (its modules use
+# package-relative imports — adding src/ itself to the path breaks them)
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from main import app
-from db.models import Base
-from db.database import get_db
+from src.main import app
+from src.db.models import Base
+from src.db.database import get_db
 
 
 # Use in-memory SQLite for tests
@@ -25,7 +27,10 @@ def db_engine():
     """Create a fresh database engine for each test."""
     engine = create_engine(
         TEST_DATABASE_URL,
-        connect_args={"check_same_thread": False}
+        connect_args={"check_same_thread": False},
+        # StaticPool: share the ONE in-memory connection across threads —
+        # without it the TestClient's app thread gets a fresh, EMPTY :memory: db
+        poolclass=StaticPool,
     )
     Base.metadata.create_all(bind=engine)
     yield engine
@@ -61,7 +66,7 @@ def client(db_session):
 @pytest.fixture
 def sample_camera(db_session):
     """Create a sample camera for tests."""
-    from db.models import Camera
+    from src.db.models import Camera
     from datetime import datetime
     
     camera = Camera(
