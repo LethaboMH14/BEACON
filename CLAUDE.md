@@ -55,7 +55,7 @@ Discovery supplies ring-doorbell cameras to members and partners with private se
 | D9 | Privacy boundary | **Embeddings, not images. Faces/plates stored as vectors + short retention incident clips only. Watchlist entries require human verification. Resident/regular whitelist first-class** | POPIA by construction; NIST FRVT bias answer lives in the architecture |
 | D10 | Honesty ledger | Carried from VUKA. Never: "prevents all crime", "identifies criminals" (it identifies *leads*), uncalibrated precision, silent simulation. `sim_` prefix on all simulated components | Credibility is the moat |
 | D11 | Naming | Platform = **BEACON** ("the light that stays on" — ADR-0003, supersedes ADR-0001's ILISO). Suspicion engine = "Sighting Graph". Member programme = "Vitality Protect" (pitch framing only, not a Discovery trademark claim) | English, Discovery-toned, Four Principles-aligned |
-| D12 | Repo | New public GitHub repo `beacon` under LethaboMH14. Same secret rules as VUKA: `.env` gitignored, keys via Sbu directly, never in commits | Repo is PUBLIC |
+| D12 | Repo | Public GitHub repo **[LethaboMH14/BEACON](https://github.com/LethaboMH14/BEACON)**. Same secret rules as VUKA: `.env` gitignored, keys via Sbu directly, never in commits | Repo is PUBLIC |
 
 ---
 

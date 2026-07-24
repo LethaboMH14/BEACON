@@ -12,6 +12,20 @@ Built by Team Sonar: Lethabo Hoaeane · Sbu · Salimata Mbaye · Ipeleng (Connie
 3. `docs/01-ARCHITECTURE.md` → your area doc (02 data · 03 vision · 04 UI · 05 business · 06 demo)
 4. `docs/adr.md` + `docs/BUILD-LOG.md` — decisions + what just changed
 
+## Tech stack
+
+| Layer | Technology |
+|---|---|
+| Vision (edge) | Python 3.11 · Ultralytics **YOLOv8** (person/vehicle/weapon/plate) · **InsightFace ArcFace** (face embeddings) · **EasyOCR** (plate text) · OpenCV · ONNX Runtime |
+| Audio (roadmap channel) | **YAMNet** TFLite (gunshot/glass-break/scream — ported from VUKA) |
+| Backend | **FastAPI + WebSockets** · SQLite (day-0) → **PostgreSQL + pgvector** (embedding search) · **H3** hex grid |
+| Suspicion + fusion (`brain/`) | Calibrated log-odds fusion · conflict gate · human-verify gate (ADR-0002) · confusion-aware plate matching |
+| Data + forecasting | pandas · **Nominatim** geocoding (cached) · statsmodels (Poisson/neg-bin baseline) · near-repeat kernel · **LightGBM** + SHAP · calibration + PAI eval |
+| Patrol routing | **Google OR-Tools** (team orienteering, 12-min Koper dwell) · OSRM road network |
+| Dashboard | **React + Vite + TypeScript + Tailwind** · **MapLibre GL + deck.gl** (H3 layers) · WS live feed |
+| Context feeds | WeatherAPI · EskomSePush (load reduction) · events/marches calendar (`sim_` seeded) · SA holidays/paydays |
+| Demo infra | cloudflared tunnel · `scripts/latency.py` referee · GitHub Actions CI |
+
 ## The seven theme requirements → where they live
 | Requirement | Component |
 |---|---|
