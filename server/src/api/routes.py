@@ -4,14 +4,16 @@ See src/routing/planner.py's module header for the full modelling rationale
 (team-orienteering VRP with disjunction penalties, haversine not OSRM,
 real-claim centroids not H3 math).
 """
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from ..db import get_db
+from ..db.models import Route
 from ..routing import plan_routes
 
 router = APIRouter()
@@ -70,6 +72,31 @@ async def post_routes_plan(body: RoutePlanReq, db: Session = Depends(get_db)):
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    # Route persistence (team/SBU.md backlog, 2026-07-25): plan_routes() only
+    # returned a plan, never wrote the Route row the schema already has —
+    # fine for a single-shot demo, but nothing else could ever look a plan
+    # up afterwards. Persist one Route row per team.
+    now = datetime.utcnow()
+    shift_end = now + timedelta(minutes=body.shift_window_minutes)
+    total_candidates = len(plan.dropped_hexes) + sum(len(r.stops) for r in plan.routes)
+    for r in plan.routes:
+        coverage_pct = (len(r.stops) / total_candidates * 100.0) if total_candidates else 0.0
+        db.add(Route(
+            id=f"rt_{uuid.uuid4().hex[:16]}",
+            team_id=str(r.team_id),
+            shift_start=now,
+            shift_end=shift_end,
+            stops=[
+                {"hex_id": s.hex_id, "lat": s.lat, "lng": s.lng,
+                 "risk_score": s.risk_score, "arrival_offset_minutes": s.arrival_offset_minutes}
+                for s in r.stops
+            ],
+            fuel_budget=body.fuel_budget_km,
+            coverage_pct=coverage_pct,
+            status="planned",
+        ))
+    db.commit()
 
     return RoutePlanRes(
         routes=[

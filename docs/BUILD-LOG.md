@@ -4,6 +4,18 @@ Every behaviour change gets an entry in the same commit. Plain-language section 
 
 ---
 
+## 2026-07-25 — G3 refinement backlog: route persistence, incident report, event catch-up, camera health
+
+**What:** Four items from team/SBU.md's 2026-07-25 refinement list. (1) `POST /v1/routes/plan` now persists a `Route` row per team (`server/src/api/routes.py`) — previously computed and returned a plan but never wrote it. (2) `GET /v1/incidents/{id}/report` (new `server/src/api/incidents.py`) bundles an incident with its linked entity, sighting timeline, alerts, and every evidence_chain event naming either — the honesty-ledger "structured to support a case" claim is now a real endpoint, not just a chain-intact yes/no. (3) `GET /v1/events/since?ts=` (new `server/src/api/events.py`) reconstructs `sighting.new`/`entity.candidate`/`alert.new` events from the tables that already back them, for WS reconnect catch-up — no new event-log table, no server-side session state. (4) `GET /v1/cameras` (new `server/src/api/cameras.py`) + `Camera.last_seen_at` (new column, `alembic/versions/003_camera_last_seen.py`), bumped on every sighting ingest — online/offline computed from a 60s staleness cutoff.
+
+**Why:** Lowest-priority items on the same backlog as the flag→incident→alert blocker (already fixed, PR #14) and `/v1/risk-cells` (PR #15) — none of these block the demo's Act 1 beat, but each closes a gap between what the pitch claims and what the code actually does.
+
+**Plain language:** Patrol routes are now saved, not just computed and thrown away. There's a real "case file" endpoint for a flagged entity — everything known about it in one place — instead of only a pass/fail integrity check. If a laptop's WiFi drops mid-demo, the ops screen can now ask "what did I miss since X" and get real answers instead of just going silent. And every camera now reports whether it's actually still sending video, so a dead webcam mid-pitch is visible instead of a silent mystery.
+
+**Verified:** 74/74 server tests pass (6 new, one per behaviour above plus the camera-bump-on-ingest regression).
+
+---
+
 ## 2026-07-25 — POST /v1/risk-cells + real claims loaded (15,712 rows, no geocoding yet)
 
 **What:** `POST /v1/risk-cells` (`server/src/api/risk.py`) — batch write path for `RiskCell` rows, so Ndu's forecast model has somewhere to land output instead of writing directly to SQLite. `server/scripts/load_claims.py` — loads the real `Gradhack_Insure_Data.xlsx` (15,712 rows) into the `claims` table: dedupes by `Incident` id (0 found), uppercase-trims `SUBURB` with nulls bucketed to `UNKNOWN` (4.1% of rows), keeps negative `CLAIM_AMOUNT` reversals, sets `hour`/`hour_known=True` from the real `INCIDENT_DATE_TIME` timestamp.
