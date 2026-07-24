@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
 from .db import init_db
-from .api import sightings_router, entities_router, alerts_router
+from .api import sightings_router, entities_router, alerts_router, risk_router, routes_router
 from .ws import ws_router
 
 # Load environment variables
@@ -48,6 +48,8 @@ app.add_middleware(
 app.include_router(sightings_router, prefix="/v1", tags=["sightings"])
 app.include_router(entities_router, prefix="/v1", tags=["entities"])
 app.include_router(alerts_router, prefix="/v1", tags=["alerts"])
+app.include_router(risk_router, prefix="/v1", tags=["risk"])
+app.include_router(routes_router, prefix="/v1", tags=["routes"])
 app.include_router(ws_router, tags=["websockets"])
 
 
