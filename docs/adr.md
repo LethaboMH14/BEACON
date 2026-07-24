@@ -65,3 +65,13 @@
 | RAG/LLM layer for the Vehicle-Specific Risk Routing idea (docs/01 §5 roadmap note, Ndu's idea) | Ndu | **Flagged risk, not yet resolved** | Azure OpenAI Service requires a separate access-request approval that is not guaranteed to clear during the hackathon window — do not build the RAG layer assuming it will. Fallback if it doesn't clear in time: call a model API directly (e.g. Anthropic/OpenAI with a personal key) and treat it as a `sim_`-labelled/manual-key integration in the pitch, not a "we deployed this on Azure" claim |
 
 **Consequences.** One person's Azure for Students subscription hosts the shared resource group for anything that needs to be live for the demo (recommend Sbu's, since he owns `server/` and the deploy is server-centric) — everyone else gets Contributor/Reader access via Azure AD B2B guest invite, which is free and doesn't draw on their own $100 credit. Anyone who wants to experiment independently (e.g. Sali testing Azure ML Compute) can still activate their own student subscription for that alone — it just isn't the demo-day target. This is a G3-optional flex (docs/01 §6): the actual demo runs on localhost + cloudflared tunnel regardless, so a cloud outage on pitch day degrades gracefully to the already-proven local topology, not a hard failure.
+
+---
+
+## ADR-0005: Canonical suspicion-scoring engine — `server/src/suspicion/scorer.py` | Status: Accepted | 2026-07-25
+
+**Context.** Two independent scoring implementations exist with no import relationship: `brain/fusion.py` (PR #7, in-memory `Entity` dataclass, F1+F6 only, standalone) and `server/src/suspicion/scorer.py` (PR #10, all six F1–F6 factors, reads real `Sighting`/`Claim` DB rows, wired into the live `/v1/entities` API and the hash-chained evidence log). A pitch whose ethics story rests on "one auditable score, human-gated" cannot ship with two scorers that could disagree on the same entity.
+
+**Decision.** `server/src/suspicion/scorer.py` is canonical — it's the one actually reachable from the frozen API contract (docs/01 §5) and the one the evidence chain / human-verify gate is built against. `brain/fusion.py` is retained as a reference prototype (its F1 window logic and human-gate discipline are sound and match) but must not be wired into `server/` or the dashboard; no new factor work should land there. If `brain/`'s author wants F2–F5 parity or a different modelling approach, extend `scorer.py` directly rather than completing the parallel file.
+
+**Consequences.** No code deleted (PR #7's author's call whether to remove or keep `brain/` as a design note). Any future PR wiring entity scoring into an endpoint must import from `server/src/suspicion/scorer.py`, not `brain/fusion.py`.
