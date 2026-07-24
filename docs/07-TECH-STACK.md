@@ -1,7 +1,7 @@
 # BEACON — 07 Tech Stack
 
-> Owner: Team (locked by ADR-0001, extended by G0/G1 implementation).  
-> Status: v1.0, 2026-07-24.
+> Owner: Team (locked by ADR-0001, extended by G0/G1/G2 implementation).  
+> Status: v1.1, 2026-07-24 (Sbu: G2 risk/hotspots/routing — see Version History).
 
 This document tracks every technology choice, the rationale, and where it lives in the repo. It exists so any team member or reviewer can understand why we're using what we're using without digging through ADRs and commit history.
 
@@ -54,7 +54,8 @@ This document tracks every technology choice, the rationale, and where it lives 
 | **Geocoding** | Nominatim (cached) | Free; no API key; suburb→lat/lng for claims data | `data/geocode/` | ADR-0001 (D5) |
 | **Hex indexing** | H3 (res 8/9) | Hierarchical spatial index; hex cells for risk forecasting; industry standard for location intelligence | `data/enrich/` | ADR-0001 (D5) |
 | **Forecasting model** | Gradient-boosted trees (LightGBM/XGBoost) | Handles mixed feature types; interpretable feature importance; seasonal baseline + near-repeat kernel | `data/forecast/` | ADR-0001 (D7) |
-| **Route optimization** | Google OR-Tools (team orienteering) | Koper-dosed patrol stops; maximizes coverage under fuel/time budget; open-source | `server/src/routes/` (G2) | ADR-0001 (D8) |
+| **Route optimization** | Google OR-Tools 9.12.4544 (`RoutingIndexManager`/`RoutingModel`, team-orienteering via `AddDisjunction`) | Koper-dosed patrol stops (12min dwell) as *optional* visits with a risk-proportional skip penalty, not a hard TSP — lets the solver drop low-value hexes when fuel/time is tight instead of failing; open-source, no paid routing API | `server/src/routing/planner.py`, `server/src/api/routes.py` (G2, built) | ADR-0001 (D8) |
+| **Interim risk model (G2)** | Real-claims fallback (3-tier: `RiskCell` model row → live `Claim` count/peak-hour heuristic → explicit "no_data") | Ndu's GBT forecaster (below) isn't trained yet — this fallback is honestly labelled and uses only real claims data (no invented calibration), so `/v1/risk` and `/v1/hotspots` return truthful numbers today and swap to the real model later without an API change | `server/src/risk/forecast.py`, `server/src/api/risk.py` (G2, built) | D10 (honesty ledger) |
 
 ---
 
@@ -65,7 +66,7 @@ This document tracks every technology choice, the rationale, and where it lives 
 | **Repo** | GitHub (public) | Team collaboration; PR workflow; Actions CI; CODEOWNERS for auto-review assignment | `github.com/LethaboMH14/BEACON` | ADR-0001 (D12) |
 | **CI** | GitHub Actions | Automated tests on PR; lint/format checks; build verification | `.github/workflows/ci.yml` | CONTRIBUTING.md |
 | **Environment config** | `.env` (gitignored) | Secrets never in repo; API keys distributed by Sbu directly | `server/.env.example` | ADR-0001 (D12) |
-| **Dependency management** | pip + `requirements.txt` (pinned versions) | Simple; reproducible; exact versions per CLAUDE.md §5 | `server/requirements.txt` | G0 impl |
+| **Dependency management** | pip + `requirements.txt` (pinned versions) | Simple; reproducible; exact versions per CLAUDE.md §5. Pins bumped for Python 3.13 compatibility (original versions predated 3.13 wheel support and failed to resolve): `fastapi==0.115.6`, `uvicorn[standard]==0.32.1`, `websockets==12.0`, `sqlalchemy==2.0.36`, `pytest==8.0.0`/`pytest-asyncio==0.23.6`, `ortools==9.12.4544` | `server/requirements.txt` | G0 impl |
 | **Python formatting** | ruff + black | Fast linting; consistent style; team standard | Implicit (run locally) | CLAUDE.md §5 |
 
 ---
@@ -77,6 +78,7 @@ This document tracks every technology choice, the rationale, and where it lives 
 | **Test framework** | pytest | Industry standard; fixtures; parametrization; async support | `server/tests/` | G0 impl |
 | **Async test support** | pytest-asyncio | Required for WebSocket and async endpoint testing | `server/requirements.txt` | G0 impl |
 | **HTTP client for tests** | httpx / FastAPI TestClient | In-memory app testing; WebSocket support; no network dependency | `server/tests/conftest.py` | G0 impl |
+| **Test DB pooling** | SQLAlchemy `StaticPool` on `sqlite:///:memory:` | Without it, each new connection to an in-memory SQLite DB gets its own empty database — the TestClient's app-thread connection never saw the fixtures' tables. `StaticPool` shares one connection across the whole test | `server/tests/conftest.py` | G1 fix |
 | **Contract test style** | VUKA pattern | Validate exact request/response shapes, not just status codes; enforces frozen API contract | `server/tests/test_*_contract.py` | G0 impl |
 
 ---
@@ -87,6 +89,7 @@ This document tracks every technology choice, the rationale, and where it lives 
 |-----------|------------|-----|-------|-----------|
 | **Distance calculation (G0–G1)** | Haversine formula (great-circle) | Simple; no external dependency; sufficient for near-repeat kernel (400 m) and roaming checks | `server/src/suspicion/scorer.py` | Feasibility note (team/SBU.md) |
 | **Road-network routing (G2+)** | OSRM (Open Source Routing Machine) | Real travel times; cost matrix for OR-Tools; requires local .osm.pbf extract — deferred due to infra weight | Planned G2 | Feasibility note (team/SBU.md) |
+| **Hex→coordinate lookup (routing)** | Real `Claim.lat`/`Claim.lng` centroid average, not H3 geo-math | Existing `hex_id` fixtures/seed data across the repo are not valid H3 cell indices (`h3.cell_to_latlng` raises `H3CellInvalidError` on them) — rather than patch upstream hex generation mid-hackathon, the router derives a stop's real-world location from the actual claims filed in that hex, and honestly reports a hex as `unlocatable` if it has none. `h3` dropped from `requirements.txt` entirely; same real-data-over-invented-math principle as the risk fallback above | `server/src/routing/planner.py::_hex_centroid` | D10 (honesty ledger) |
 
 ---
 

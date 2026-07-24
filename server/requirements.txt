@@ -24,5 +24,9 @@ pytest==8.0.0
 pytest-asyncio==0.23.6
 httpx==0.27.2
 
+# Routing (G2 — team-orienteering route planner)
+ortools==9.12.4544  # G2 route planner (h3 dropped — existing hex_id fixtures
+# aren't valid H3 cell indices; centroid derived from real Claim lat/lng instead)
+
 # Type checking (development)
 mypy==1.8.0
