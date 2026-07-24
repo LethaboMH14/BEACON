@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>BEACON — ops feed (skeleton)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  /* Starting token set for Connie (docs/04 §5) — replace with the real
+     React+Vite+Tailwind app; this file only proves the spine end-to-end. */
+  :root {
+    --bg: #0b0f14;
+    --panel: #131a22;
+    --panel-border: #232c37;
+    --text: #e7edf3;
+    --text-dim: #8fa1b3;
+    --accent: #ffb400;      /* Discovery gold */
+    --accent-dim: #7a5c00;
+    --danger: #ff4d4f;
+    --ok: #33c17a;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, Segoe UI, Roboto, sans-serif;
+  }
+  header {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--panel-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  header h1 { font-size: 16px; margin: 0; letter-spacing: 0.04em; }
+  header h1 span { color: var(--accent); }
+  #status { font-size: 12px; color: var(--text-dim); }
+  #status.connected { color: var(--ok); }
+  #status.disconnected { color: var(--danger); }
+  main { padding: 24px; max-width: 720px; margin: 0 auto; }
+  #feed { display: flex; flex-direction: column; gap: 10px; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    animation: in 0.2s ease-out;
+  }
+  @keyframes in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+  .kind { font-weight: 600; text-transform: uppercase; font-size: 12px; letter-spacing: 0.05em; }
+  .kind.person { color: var(--accent); }
+  .kind.vehicle { color: #6cb6ff; }
+  .kind.weapon { color: var(--danger); }
+  .meta { color: var(--text-dim); font-size: 12px; }
+  .conf { font-variant-numeric: tabular-nums; }
+  #empty { color: var(--text-dim); font-size: 13px; padding: 40px 0; text-align: center; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>BEACON <span>ops feed</span> — skeleton</h1>
+    <div id="status" class="disconnected">connecting…</div>
+  </header>
+  <main>
+    <div id="feed"></div>
+    <div id="empty">Waiting for sightings — run <code>vision/agent.py</code> against this server.</div>
+  </main>
+  <script>
+    const SERVER = window.location.hostname
+      ? `${window.location.protocol}//${window.location.hostname}:8000`
+      : "http://localhost:8000";
+    const WS_URL = SERVER.replace("http", "ws") + "/ws/ops";
+
+    const statusEl = document.getElementById("status");
+    const feedEl = document.getElementById("feed");
+    const emptyEl = document.getElementById("empty");
+
+    function connect() {
+      const ws = new WebSocket(WS_URL);
+      ws.onopen = () => { statusEl.textContent = "live"; statusEl.className = "connected"; };
+      ws.onclose = () => {
+        statusEl.textContent = "disconnected — retrying…";
+        statusEl.className = "disconnected";
+        setTimeout(connect, 2000);
+      };
+      ws.onerror = () => ws.close();
+      ws.onmessage = (msg) => {
+        const { event, payload } = JSON.parse(msg.data);
+        if (event === "sighting.new") addCard(payload);
+      };
+    }
+
+    function addCard(s) {
+      emptyEl.style.display = "none";
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <div>
+          <div class="kind ${s.kind}">${s.kind}</div>
+          <div class="meta">${s.camera_id} · ${s.hex} · ${new Date(s.ts).toLocaleTimeString()}</div>
+        </div>
+        <div class="conf">${(s.confidence * 100).toFixed(0)}%</div>
+      `;
+      feedEl.prepend(card);
+      while (feedEl.children.length > 25) feedEl.removeChild(feedEl.lastChild);
+    }
+
+    connect();
+  </script>
+</body>
+</html>
