@@ -13,6 +13,10 @@ websockets==12.0
 # Database & ORM
 sqlalchemy==2.0.36
 alembic==1.14.0
+psycopg2-binary==2.9.10  # Postgres driver — no-op for SQLite, required for the
+# Azure Postgres Flexible Server deploy target (ADR-0004). Missing entirely
+# before this: the container built but crashed on startup against a real
+# Postgres DATABASE_URL (verified locally, see docs/BUILD-LOG.md).
 
 # Date/time handling
 python-dateutil==2.8.2
