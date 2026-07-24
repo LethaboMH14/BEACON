@@ -4,6 +4,18 @@ Every behaviour change gets an entry in the same commit. Plain-language section 
 
 ---
 
+## 2026-07-24 — G2: GET /v1/risk + /v1/hotspots — real claims fallback, no fake calibration
+
+**What:** `server/src/risk/forecast.py` (`estimate_hex_risk`, `rank_hotspots`) + `server/src/api/risk.py` (`GET /v1/risk?hex=&hour=`, `GET /v1/hotspots?window=&limit=`). Built before Ndu's real forecast model (`data/`) has landed on `main` — rather than block on that or fake a calibrated number, this tiers: (1) trust a real `RiskCell` row if Ndu's pipeline has already written one for that hex+hour, pass its own `model_version`/`top_factors` straight through untouched; (2) otherwise fall back to a real score derived from actual `Claim` rows in that hex — claim count + a same-hour proximity boost using the same `{0,1,22,23}` peak-hour set as `suspicion/scorer.py`'s F2 (the real midnight spike, verified against `Gradhack_Insure_Data.xlsx`); (3) zero claims ever recorded for a hex → `risk_score=0.0`, labelled `no_data`, never silently omitted.
+
+**Why:** G2 checklist (team/SBU.md), scoped to not depend on `data/` existing yet — same "serve the best real signal available, label honestly, let the real thing slot in later without a contract change" pattern VUKA's `compute_risk` used in the identical situation. The fallback is explicitly labelled "not a calibrated probability" in every response — this is a *display* score derived from real claim counts, not an invented calibration.
+
+**Plain language:** Built the two endpoints that answer "how risky is this area right now" and "which areas are the worst right now" — before the real prediction model exists yet. Rather than wait or fake a number, it counts real historical claims in that area and weights them by whether the hour matches the real midnight spike we found in the data. It says plainly, every time, that this isn't a proper calibrated forecast — just a real, honest placeholder that the real model will silently replace once it's ready, since it writes to the same table.
+
+**Verified:** 58/58 server tests pass (12 new: fallback labelling, peak-hour boost direction, claim-count ordering, real-model-row-wins-over-fallback, hour validation, endpoint shapes).
+
+---
+
 ## 2026-07-24 — G1 wired: suspicion scorer + alerts + evidence integrity — fixed one real ethics-critical bug
 
 **What:** `server/src/suspicion/scorer.py` — the F1–F6 log-odds fusion (docs/01 §4): recurrence, time anomaly, near-repeat crime correlation (haversine, OSRM deferred per my own G0 nitpick), casing, territory roaming, modal corroboration. `server/src/api/alerts.py` — POST/GET alerts, ack/cancel with a cancel-window (ADR-0002). `server/src/db/evidence_integrity.py` — `verify_chain()`, re-walks `evidence_chain` and recomputes every hash to detect tampering. `GET /v1/evidence/integrity`. Dependency pins bumped for Python 3.13 (fastapi/uvicorn/sqlalchemy/alembic/httpx/pytest-asyncio — original pins conflicted or predated 3.13 support).
