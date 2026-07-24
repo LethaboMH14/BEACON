@@ -18,3 +18,4 @@ vision/models/*.onnx
 runs/
 .DS_Store
 Thumbs.db
+beacon.db
