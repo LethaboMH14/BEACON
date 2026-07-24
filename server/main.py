@@ -31,6 +31,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 # ---- in-memory store (G0/G2 only — docs/01 §2.2 lists the real schema) ----
 SIGHTINGS: list[dict[str, Any]] = []
 ENTITIES: dict[str, Entity] = {}
+AUDIO_CUES: list[dict[str, Any]] = []
 WHITELIST_PLATES: set[str] = set()  # street whitelist (docs/01 §4 F1) — empty at G2, UI to manage it is G3
 
 
@@ -46,6 +47,15 @@ class Sighting(BaseModel):
     plate_text: str | None = None
     plate_quality: float | None = None
     clip_ref: str | None = None
+
+
+class AudioCue(BaseModel):
+    cue_id: str | None = None
+    node_id: str
+    ts: str
+    hex: str
+    label: Literal["gunshot", "glass_break", "scream", "raised_voices"]
+    confidence: float
 
 
 class VerifyAction(BaseModel):
@@ -118,12 +128,34 @@ async def post_sighting(sighting: Sighting) -> dict[str, Any]:
         entity.sightings.append(record)
         was_below_ceiling = entity.state != STATE_WATCH_CANDIDATE
         is_whitelisted = record["plate_text"].upper() in WHITELIST_PLATES
-        recompute(entity, is_whitelisted=is_whitelisted)
+        recompute(entity, is_whitelisted=is_whitelisted, audio_cues=AUDIO_CUES)
 
         if entity.state == STATE_WATCH_CANDIDATE and was_below_ceiling:
             await ops_hub.broadcast("entity.candidate", _entity_dict(entity))
 
     return {"ok": True, "sighting_id": record["sighting_id"]}
+
+
+@app.post("/v1/audio-cues")
+async def post_audio_cue(cue: AudioCue) -> dict[str, Any]:
+    """docs/01 §4 F6 — independent-channel corroboration. YAMNet (vision/audio_agent.py)
+    posts here; never posts raw audio, label + confidence only (privacy-at-source)."""
+    record = cue.model_dump()
+    record["cue_id"] = record["cue_id"] or str(uuid.uuid4())
+    record["received_at"] = datetime.now(timezone.utc).isoformat()
+    AUDIO_CUES.append(record)
+    await ops_hub.broadcast("audio.cue", record)
+
+    # Re-check every non-decided entity — a cue can corroborate an existing
+    # sighting and push it over the ceiling without a new camera detection.
+    for entity in ENTITIES.values():
+        was_below_ceiling = entity.state != STATE_WATCH_CANDIDATE
+        is_whitelisted = bool(entity.plate_text) and entity.plate_text.upper() in WHITELIST_PLATES
+        recompute(entity, is_whitelisted=is_whitelisted, audio_cues=AUDIO_CUES)
+        if entity.state == STATE_WATCH_CANDIDATE and was_below_ceiling:
+            await ops_hub.broadcast("entity.candidate", _entity_dict(entity))
+
+    return {"ok": True, "cue_id": record["cue_id"]}
 
 
 @app.get("/v1/entities/{entity_id}")

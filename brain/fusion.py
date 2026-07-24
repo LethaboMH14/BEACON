@@ -25,6 +25,14 @@ RECURRENCE_MIN_CAMERAS = 2
 RECURRENCE_WINDOW_DAYS = 14
 F1_LOG_ODDS = 2.2  # calibrated placeholder — tuned on eval set at G3, docs/01 §4
 
+MODAL_CORROBORATION_WINDOW_MINUTES = 10  # audio cue must be tightly co-located in time
+F6_LOG_ODDS = {
+    "gunshot": 3.0,       # independent channel, high weight — same rationale as docs/01 §4 F6
+    "glass_break": 2.5,
+    "scream": 2.5,
+    "raised_voices": 1.0,  # weakest corroborator — could be innocuous, still independent evidence
+}
+
 WATCH_CANDIDATE_THRESHOLD = 2.0  # logistic(2.0) ~= 0.88
 
 STATE_OBSERVED = "observed"
@@ -71,7 +79,35 @@ def factor_f1_recurrence(entity: Entity, is_whitelisted: bool) -> bool:
     return len(in_window) >= RECURRENCE_MIN_SIGHTINGS and len(distinct_cameras_in_window) >= RECURRENCE_MIN_CAMERAS
 
 
-def recompute(entity: Entity, is_whitelisted: bool = False) -> Entity:
+def factor_f6_modal_corroboration(entity: Entity, audio_cues: list[dict]) -> str | None:
+    """docs/01 §4 F6: an independent-channel audio event (gunshot/glass/scream)
+    co-located in hex and tightly co-located in time with this entity's most
+    recent sighting. Independent physical channel (mic, not camera) — this is
+    corroboration, never a standalone trigger for this entity (CLAUDE.md-
+    equivalent Principle 6: never stack correlated layers)."""
+    if not entity.sightings or not audio_cues:
+        return None
+
+    latest = entity.sightings[-1]
+    latest_ts = _parse_ts(latest["ts"])
+    latest_hex = latest["hex"]
+    window = timedelta(minutes=MODAL_CORROBORATION_WINDOW_MINUTES)
+
+    best_label: str | None = None
+    best_weight = 0.0
+    for cue in audio_cues:
+        if cue["hex"] != latest_hex:
+            continue
+        if abs(_parse_ts(cue["ts"]) - latest_ts) > window:
+            continue
+        weight = F6_LOG_ODDS.get(cue["label"], 0.0)
+        if weight > best_weight:
+            best_weight = weight
+            best_label = cue["label"]
+    return best_label
+
+
+def recompute(entity: Entity, is_whitelisted: bool = False, audio_cues: list[dict] | None = None) -> Entity:
     """Recompute score + factors + machine-ceiling state after a new sighting.
     Never sets state to flagged/dismissed — those only come from human_verify()."""
     if entity.state in (STATE_FLAGGED, STATE_DISMISSED, STATE_WHITELISTED):
@@ -84,8 +120,13 @@ def recompute(entity: Entity, is_whitelisted: bool = False) -> Entity:
         log_odds += F1_LOG_ODDS
         factors.append("F1")
 
-    # F2-F6: TODO — need claims-peak histogram / near-repeat kernel / dwell
-    # baseline / road graph / weapon+audio events (docs/01 §4). Not built yet.
+    audio_label = factor_f6_modal_corroboration(entity, audio_cues or [])
+    if audio_label is not None:
+        log_odds += F6_LOG_ODDS[audio_label]
+        factors.append(f"F6:{audio_label}")
+
+    # F2-F5: TODO — need claims-peak histogram / near-repeat kernel / dwell
+    # baseline / road graph (docs/01 §4). Not built yet.
 
     entity.score_log_odds = log_odds
     entity.factors = factors
