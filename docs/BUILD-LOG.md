@@ -4,6 +4,20 @@ Every behaviour change gets an entry in the same commit. Plain-language section 
 
 ---
 
+## 2026-07-25 — POST /v1/risk-cells + real claims loaded (15,712 rows, no geocoding yet)
+
+**What:** `POST /v1/risk-cells` (`server/src/api/risk.py`) — batch write path for `RiskCell` rows, so Ndu's forecast model has somewhere to land output instead of writing directly to SQLite. `server/scripts/load_claims.py` — loads the real `Gradhack_Insure_Data.xlsx` (15,712 rows) into the `claims` table: dedupes by `Incident` id (0 found), uppercase-trims `SUBURB` with nulls bucketed to `UNKNOWN` (4.1% of rows), keeps negative `CLAIM_AMOUNT` reversals, sets `hour`/`hour_known=True` from the real `INCIDENT_DATE_TIME` timestamp.
+
+**Why:** team/SBU.md backlog (2026-07-25, Lethabo). `/v1/risk`'s claims-fallback and F3 near-repeat correlation both key off real `Claim` rows and had nothing outside test fixtures. `/v1/risk-cells` was the one write path missing from the frozen contract before Ndu's model exists to test it against.
+
+**Not done, deliberately out of my lane:** geocoding the 2,929 distinct suburbs to lat/lng/hex_id — that needs Nominatim + a hand-curated `suburb_alias.csv` (docs/02 §3, Ndu's spec). Claims load with `hex_id=None` rather than an invented coordinate; hex-keyed features (near-repeat, risk fallback, routing centroids) won't see these rows until geocoding lands.
+
+**Plain language:** The real claims spreadsheet is now actually in the database — not just referenced in docs — with honest handling of missing suburbs and reversed charges. Added the endpoint that will let the real forecasting model publish its numbers once it exists. The one thing still missing is turning suburb names into map coordinates, which is deliberately left to whoever owns that data-cleaning step rather than guessed at here.
+
+**Verified:** 73/73 server tests pass (4 new: ingest shape, model-row supersedes claims-fallback for the same hex/hour, score-range validation, empty-batch rejection). `load_claims.py` run against the real file: 15,712 loaded, 0 duplicates, 95.9% suburb coverage.
+
+---
+
 ## 2026-07-25 — Server duplication resolved: retired server/main.py, ported its two unique capabilities into server/src/
 
 **What:** `server/main.py` — the standalone in-memory FastAPI monolith flagged as an open item in the 2026-07-24 G0 merge note below — is deleted. Before removing it, ported its two capabilities that `server/src/` didn't yet have: (1) `server/src/suspicion/entity_resolution.py` (new file) — confusion-aware plate matching (normalized Levenshtein, OCR-confusable substitutions like `0↔O`/`1↔I`/`8↔B`/`5↔S` cost 0.25 not 1.0, `MATCH_THRESHOLD=0.80`), wired into both the single and batch `POST /v1/sightings` handlers in `server/src/api/sightings.py`, replacing the exact-string-match placeholder noted as a G0 simplification. (2) `server/src/suspicion/scorer.py`'s F6 modal-corroboration filter extended from `Sighting.kind == "weapon"` to `(Sighting.kind == "weapon") | (Sighting.modality == "audio")`, restoring audio-cue corroboration that `vision/audio_agent.py` already produced but `server/src/` couldn't yet use. Also fixed a separate, previously-unflagged gap found while doing this: `POST /v1/sightings` hard-rejected any `camera_id` it hadn't seen before with a 404 — since no sensor-registration endpoint exists anywhere in the codebase, this would have silently 404'd every real vision or audio agent hitting a fresh server for the first time. Both handlers now auto-register an unknown `camera_id`/node id as a new sensor on first sighting. `vision/audio_agent.py` repointed from the now-deleted bespoke `/v1/audio-cues` endpoint to the standard `/v1/sightings` contract (payload reshaped to match `SightingCreate`).
