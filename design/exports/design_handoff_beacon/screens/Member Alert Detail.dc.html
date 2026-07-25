@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; background: #E5E7EB; font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+  </style>
+</helmet>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402,874">
+  <div style="height:100%; overflow-y:auto; background:#F7F9FC;">
+
+    <!-- clip thumbnail -->
+    <div style="position:relative; height:220px; background:repeating-linear-gradient(135deg, #101725, #101725 6px, #182130 6px, #182130 12px);">
+      <div style="position:absolute; top:54px; left:0; right:0; bottom:0;"></div>
+      <div style="position:absolute; left:34%; top:38%; width:32%; height:46%; border:2px solid rgba(245,166,35,0.85); border-radius:4px;"></div>
+      <div style="position:absolute; top:58px; right:14px; font-size:9px; font-weight:700; letter-spacing:0.06em; color:#0F172A; background:rgba(255,255,255,0.9); border-radius:4px; padding:3px 7px;">SIMULATED</div>
+    </div>
+
+    <div style="padding:18px 20px 0;">
+      <div style="font-size:19px; font-weight:700; color:#0F172A; line-height:1.35;">Unusual activity at your driveway</div>
+
+      <div style="margin-top:14px;">
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <span style="font-size:13px; font-weight:600; color:#475569;">High confidence</span>
+          <span style="font-size:15px; font-weight:700; color:#0F172A; font-variant-numeric:tabular-nums;">87%</span>
+        </div>
+        <div style="height:6px; background:rgba(15,23,42,0.08); border-radius:999px; overflow:hidden; margin-top:6px;">
+          <div style="height:100%; width:87%; background:#F59E0B; border-radius:999px;"></div>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:10px;">
+          <span style="font-size:12px; color:#475569; background:#FFFFFF; border:1px solid rgba(15,23,42,0.08); border-radius:999px; padding:4px 10px;">Seen 3 times</span>
+          <span style="font-size:12px; color:#475569; background:#FFFFFF; border:1px solid rgba(15,23,42,0.08); border-radius:999px; padding:4px 10px;">Late night</span>
+          <span style="font-size:12px; color:#475569; background:#FFFFFF; border:1px solid rgba(15,23,42,0.08); border-radius:999px; padding:4px 10px;">Unfamiliar vehicle</span>
+        </div>
+      </div>
+
+      <!-- countdown -->
+      <sc-if value="{{ showCountdown }}" hint-placeholder-val="{{ true }}">
+        <div style="background:#FFFFFF; border:1px solid rgba(245,166,35,0.3); border-radius:14px; padding:16px; margin-top:18px; text-align:center;">
+          <div style="position:relative; width:96px; height:96px; margin:0 auto 12px;">
+            <svg width="96" height="96" viewBox="0 0 96 96" style="transform:rotate(-90deg);">
+              <circle cx="48" cy="48" r="42" fill="none" stroke="rgba(245,166,35,0.15)" stroke-width="6"></circle>
+              <circle cx="48" cy="48" r="42" fill="none" stroke="#F5A623" stroke-width="6" stroke-linecap="round" stroke-dasharray="263.9" stroke-dashoffset="{{ ringOffset }}"></circle>
+            </svg>
+            <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:28px; font-weight:700; color:#0F172A; font-variant-numeric:tabular-nums;">{{ countdown }}</div>
+          </div>
+          <div style="font-size:13px; color:#475569; margin-bottom:14px;">Alerting your guardian in {{ countdown }}s</div>
+          <button onClick="{{ cancelAlert }}" style="width:100%; font-size:15px; font-weight:700; color:#FFFFFF; background:#0B5FA5; border:none; border-radius:10px; padding:14px; cursor:pointer;">I'm fine — cancel</button>
+        </div>
+      </sc-if>
+      <sc-if value="{{ !showCountdown }}" hint-placeholder-val="{{ false }}">
+        <div style="background:#FFFFFF; border:1px solid rgba(16,185,129,0.25); border-radius:14px; padding:16px; margin-top:18px; text-align:center;">
+          <div style="font-size:14px; font-weight:600; color:#0F172A;">{{ statusMessage }}</div>
+        </div>
+      </sc-if>
+
+      <!-- secondary actions -->
+      <div style="display:flex; flex-direction:column; gap:8px; margin-top:14px;">
+        <button onClick="{{ alertGuardian }}" style="width:100%; font-size:14px; font-weight:600; color:#0B5FA5; background:#FFFFFF; border:1px solid rgba(11,95,165,0.25); border-radius:10px; padding:12px; cursor:pointer;">Alert my guardian</button>
+        <sc-if value="{{ !armedConfirming }}" hint-placeholder-val="{{ true }}">
+          <button onClick="{{ startArmedConfirm }}" style="width:100%; font-size:13px; font-weight:500; color:#94A3B8; background:transparent; border:1px solid rgba(15,23,42,0.1); border-radius:10px; padding:11px; cursor:pointer;">Call armed response</button>
+        </sc-if>
+        <sc-if value="{{ armedConfirming }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; background:rgba(225,29,72,0.05); border:1px solid rgba(225,29,72,0.15); border-radius:10px; padding:10px 12px;">
+            <span style="font-size:12px; color:#475569;">Confirm calling armed response?</span>
+            <div style="display:flex; gap:8px; flex-shrink:0;">
+              <span onClick="{{ confirmArmed }}" style="font-size:12px; font-weight:700; color:#E11D48; cursor:pointer;">Confirm</span>
+              <span onClick="{{ cancelArmedConfirm }}" style="font-size:12px; color:#94A3B8; cursor:pointer;">Cancel</span>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+
+      <!-- what happens next -->
+      <div style="margin-top:18px; border-top:1px solid rgba(15,23,42,0.08); padding-top:14px;">
+        <div onClick="{{ toggleSteps }}" style="display:flex; align-items:center; justify-content:space-between; cursor:pointer;">
+          <span style="font-size:13.5px; font-weight:600; color:#0F172A;">What happens next</span>
+          <span style="{{ chevronStyle }}">▾</span>
+        </div>
+        <sc-if value="{{ stepsOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex; flex-direction:column; gap:10px; margin-top:12px;">
+            <div style="display:flex; gap:10px;">
+              <div style="width:20px; height:20px; border-radius:999px; background:#E8F1F9; color:#0B5FA5; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0;">1</div>
+              <span style="font-size:12.5px; color:#475569; line-height:1.5;">If you don't respond, we notify your listed guardian with this clip.</span>
+            </div>
+            <div style="display:flex; gap:10px;">
+              <div style="width:20px; height:20px; border-radius:999px; background:#E8F1F9; color:#0B5FA5; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0;">2</div>
+              <span style="font-size:12.5px; color:#475569; line-height:1.5;">A human operator reviews the footage before anything further happens.</span>
+            </div>
+            <div style="display:flex; gap:10px;">
+              <div style="width:20px; height:20px; border-radius:999px; background:#E8F1F9; color:#0B5FA5; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0;">3</div>
+              <span style="font-size:12.5px; color:#475569; line-height:1.5;">Armed response is only ever sent after that review, or if you request it.</span>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+
+      <div style="font-size:11px; color:#94A3B8; line-height:1.5; margin-top:16px; padding-bottom:24px;">This clip is stored encrypted and only you and your guardians can open it.</div>
+    </div>
+  </div>
+</x-import>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+
+class Component extends DCLogic {
+  state = { countdown: 12, cancelled: false, guardianAlerted: false, armedConfirming: false, armedCalled: false, stepsOpen: false };
+
+  componentDidMount() {
+    this._interval = setInterval(() => {
+      this.setState(s => {
+        if (s.cancelled || s.countdown <= 0) return s;
+        return { countdown: s.countdown - 1 };
+      });
+    }, 1000);
+  }
+  componentWillUnmount() { clearInterval(this._interval); }
+
+  cancelAlert = () => this.setState({ cancelled: true });
+  alertGuardian = () => this.setState({ guardianAlerted: true, cancelled: true });
+  startArmedConfirm = () => this.setState({ armedConfirming: true });
+  cancelArmedConfirm = () => this.setState({ armedConfirming: false });
+  confirmArmed = () => this.setState({ armedConfirming: false, armedCalled: true, cancelled: true });
+  toggleSteps = () => this.setState(s => ({ stepsOpen: !s.stepsOpen }));
+
+  renderVals() {
+    const circumference = 263.9;
+    const active = !this.state.cancelled && this.state.countdown > 0;
+    const ringOffset = active ? circumference * (1 - this.state.countdown / 12) : 0;
+
+    let statusMessage = 'Guardian notified.';
+    if (this.state.armedCalled) statusMessage = 'Armed response requested.';
+    else if (this.state.guardianAlerted) statusMessage = "Got it — your guardian's been alerted.";
+    else if (this.state.cancelled) statusMessage = "Glad you're safe. No alert sent.";
+
+    return {
+      countdown: this.state.countdown,
+      ringOffset,
+      showCountdown: active,
+      statusMessage,
+      cancelAlert: this.cancelAlert,
+      alertGuardian: this.alertGuardian,
+      armedConfirming: this.state.armedConfirming,
+      startArmedConfirm: this.startArmedConfirm,
+      cancelArmedConfirm: this.cancelArmedConfirm,
+      confirmArmed: this.confirmArmed,
+      stepsOpen: this.state.stepsOpen,
+      toggleSteps: this.toggleSteps,
+      chevronStyle: { fontSize: '12px', color: '#94A3B8', transform: this.state.stepsOpen ? 'rotate(180deg)' : 'none', display: 'inline-block', transition: 'transform 0.2s' },
+    };
+  }
+}
+
+</script>
+</body>
+</html>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { colors, type RiskLevel, riskColor } from './theme/tokens';
 import { getHealth, getHotspots, type HotspotEntry } from './api/client';
 import { OpsSocket, type OpsEvent } from './api/ws';
+import CommunityOperationsCentre from './screens/CommunityOperationsCentre';
 
 function riskLevelFor(score: number): RiskLevel {
   if (score >= 0.75) return 'critical';
@@ -11,6 +12,7 @@ function riskLevelFor(score: number): RiskLevel {
 }
 
 function App() {
+  const [screen, setScreen] = useState<'scaffold' | 'ops-centre'>('ops-centre');
   const [health, setHealth] = useState<'checking' | 'up' | 'down'>('checking');
   const [hotspots, setHotspots] = useState<HotspotEntry[]>([]);
   const [events, setEvents] = useState<OpsEvent[]>([]);
@@ -36,6 +38,28 @@ function App() {
     };
   }, []);
 
+  const toggle = (
+    <button
+      onClick={() => setScreen(screen === 'scaffold' ? 'ops-centre' : 'scaffold')}
+      style={{
+        position: 'fixed', top: 8, right: 8, zIndex: 1000,
+        background: colors.bg700, color: colors.textHi, border: `1px solid ${colors.lineDark}`,
+        borderRadius: 8, padding: '6px 10px', fontSize: 11, cursor: 'pointer',
+      }}
+    >
+      {screen === 'scaffold' ? 'View Community Operations Centre →' : '← View wiring scaffold'}
+    </button>
+  );
+
+  if (screen === 'ops-centre') {
+    return (
+      <>
+        {toggle}
+        <CommunityOperationsCentre />
+      </>
+    );
+  }
+
   return (
     <div
       style={{
@@ -45,6 +69,7 @@ function App() {
         fontFamily: 'inherit',
       }}
     >
+      {toggle}
       <header
         style={{
           background: colors.bg900,

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; background: #E5E7EB; font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    @keyframes livePulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+  </style>
+</helmet>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402,874">
+  <div style="height:100%; overflow-y:auto; background:#F7F9FC;">
+
+    <!-- map -->
+    <div style="position:relative; height:300px; background:linear-gradient(160deg, #1b2332, #101725);">
+      <div style="position:absolute; top:54px; left:0; right:0; bottom:0; overflow:hidden;">
+        <sc-for list="{{ hexCells }}" as="hex" hint-placeholder-count="30">
+          <div style="{{ hex.style }}"></div>
+        </sc-for>
+        <svg style="position:absolute; inset:0; width:100%; height:100%;" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <sc-for list="{{ routes }}" as="r" hint-placeholder-count="3">
+            <path d="{{ r.path }}" fill="none" stroke="{{ r.color }}" stroke-width="{{ r.width }}" stroke-linecap="round" vector-effect="non-scaling-stroke"></path>
+          </sc-for>
+        </svg>
+      </div>
+
+      <sc-if value="{{ started }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute; top:0; left:0; right:0; padding:56px 14px 10px; background:linear-gradient(180deg, rgba(10,15,26,0.85), transparent);">
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <span style="font-size:14px; font-weight:600; color:#FFFFFF;">Turn right on Rivonia Rd · 400m</span>
+            <div style="display:flex; align-items:center; gap:5px; background:rgba(34,211,238,0.15); border:1px solid rgba(34,211,238,0.35); border-radius:999px; padding:3px 9px;">
+              <span style="width:6px; height:6px; border-radius:999px; background:#22D3EE; display:inline-block; animation:livePulse 1.6s ease-in-out infinite;"></span>
+              <span style="font-size:11px; font-weight:600; color:#67E8F9;">92 safe</span>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+
+    <div style="padding:16px 20px 0;">
+      <div style="font-size:15px; font-weight:600; color:#0F172A; margin-bottom:10px;">Route options</div>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <sc-for list="{{ routeCards }}" as="rc" hint-placeholder-count="3">
+          <div onClick="{{ rc.onClick }}" style="{{ rc.cardStyle }}">
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+              <span style="font-size:14px; font-weight:600; color:#0F172A;">{{ rc.name }}</span>
+              <span style="font-size:13px; color:#475569;">{{ rc.duration }}</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px; margin-top:6px;">
+              <span style="font-size:12px; color:#94A3B8;">Safety score</span>
+              <span style="{{ rc.scoreStyle }}">{{ rc.score }}</span>
+            </div>
+            <div style="font-size:12px; color:#475569; margin-top:5px; line-height:1.4;">{{ rc.detail }}</div>
+          </div>
+        </sc-for>
+      </div>
+
+      <button onClick="{{ startRoute }}" style="width:100%; font-size:15px; font-weight:700; color:#FFFFFF; background:#0B5FA5; border:none; border-radius:10px; padding:14px; cursor:pointer; margin-top:16px;">{{ startLabel }}</button>
+
+      <div style="font-size:11px; color:#94A3B8; line-height:1.5; margin-top:14px; padding-bottom:24px;">Routes are scored on camera coverage, active patrols and recent incident density.</div>
+    </div>
+  </div>
+</x-import>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+
+class Component extends DCLogic {
+  state = { selectedRoute: 0, started: false };
+  selectRoute = (i) => this.setState({ selectedRoute: i });
+  startRoute = () => this.setState({ started: true });
+
+  riskColor(level) { return { safe: '#10B981', watch: '#F59E0B', high: '#F0653A', critical: '#E11D48' }[level]; }
+
+  buildHexCells() {
+    const cols = 12, rows = 7, w = 40, h = 34;
+    const hotspots = [{ c: 8, r: 1, level: 'high' }, { c: 3, r: 5, level: 'watch' }];
+    const cells = [];
+    for (let c = 0; c < cols; c++) {
+      for (let r = 0; r < rows; r++) {
+        const x = c * (w * 0.76), y = r * h + (c % 2 === 1 ? h / 2 : 0);
+        let minD = 99;
+        for (const hs of hotspots) { const d = Math.hypot(c - hs.c, r - hs.r); if (d < minD) minD = d; }
+        let level = 'safe', opacity = 0.03;
+        if (minD < 1.3) { level = 'high'; opacity = 0.3; }
+        else if (minD < 2.5) { level = 'watch'; opacity = 0.2; }
+        else if (minD < 3.8) { opacity = 0.1; }
+        cells.push({
+          id: c + '-' + r,
+          style: {
+            position: 'absolute', left: x + 'px', top: y + 'px', width: w + 'px', height: h + 'px',
+            background: this.riskColor(level), opacity,
+            clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)',
+          },
+        });
+      }
+    }
+    return cells;
+  }
+
+  renderVals() {
+    const routesRaw = [
+      { name: 'Route A · via Rivonia Rd', duration: '14 min', score: 92, detail: 'Passes 4 monitored cameras · 2 patrol units active', path: 'M10,80 L30,60 L55,50 L80,20', color: '#10B981' },
+      { name: 'Route B · via William Nicol', duration: '11 min', score: 74, detail: 'Passes 2 monitored cameras · 1 patrol unit active', path: 'M10,80 L40,70 L60,40 L80,20', color: '#F59E0B' },
+      { name: 'Route C · shortest', duration: '9 min', score: 51, detail: 'Passes 1 monitored camera · no active patrol', path: 'M10,80 L25,55 L50,35 L80,20', color: '#F0653A' },
+    ];
+
+    const routeCards = routesRaw.map((r, i) => ({
+      name: r.name, duration: r.duration, score: r.score, detail: r.detail,
+      onClick: () => this.selectRoute(i),
+      cardStyle: {
+        background: '#FFFFFF', borderRadius: '12px', padding: '12px 14px', cursor: 'pointer',
+        border: this.state.selectedRoute === i ? '1.5px solid #0B5FA5' : '1px solid rgba(15,23,42,0.08)',
+      },
+      scoreStyle: { fontSize: '13px', fontWeight: 700, color: r.score > 80 ? '#10B981' : (r.score > 60 ? '#F59E0B' : '#F0653A'), fontVariantNumeric: 'tabular-nums' },
+    }));
+
+    const routes = routesRaw.map((r, i) => ({ path: r.path, color: r.color, width: this.state.selectedRoute === i ? 1.1 : 0.5 }));
+
+    return {
+      hexCells: this.buildHexCells(),
+      routes, routeCards,
+      started: this.state.started,
+      startRoute: this.startRoute,
+      startLabel: this.state.started ? 'Route in progress' : 'Start route',
+    };
+  }
+}
+
+</script>
+</body>
+</html>

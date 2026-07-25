@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; background: #0A0F1A; font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    * { box-sizing: border-box; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-thumb { background: rgba(15,23,42,0.15); border-radius: 999px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+  </style>
+</helmet>
+<div style="width:100%; min-width:1360px; min-height:100vh; background:#0A0F1A; color:#F1F5F9; display:flex; flex-direction:column; overflow-x:auto; position:relative;">
+
+  <!-- TOP BAR -->
+  <div style="height:60px; flex-shrink:0; display:flex; align-items:center; justify-content:space-between; padding:0 20px; border-bottom:1px solid rgba(255,255,255,0.08); background:#0A0F1A;">
+    <div style="display:flex; align-items:baseline; gap:8px; flex-shrink:0; white-space:nowrap;">
+      <span style="font-size:16px; font-weight:800; letter-spacing:0.02em; color:#F1F5F9;">BEACON</span>
+      <span style="font-size:11px; color:#64748B; font-weight:500;">by Discovery</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:2px; background:#101725; border:1px solid rgba(255,255,255,0.08); border-radius:999px; padding:4px; flex-shrink:0;">
+      <sc-for list="{{ navItems }}" as="item" hint-placeholder-count="6">
+        <div onClick="{{ item.onClick }}" style="{{ item.style }}">{{ item.label }}</div>
+      </sc-for>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px; flex-shrink:0; white-space:nowrap; justify-content:flex-end;">
+      <span style="font-size:13px; font-variant-numeric:tabular-nums; color:#94A3B8; letter-spacing:0.02em;">00:14</span>
+      <div style="display:flex; align-items:center; gap:8px; padding-left:10px; border-left:1px solid rgba(255,255,255,0.08);">
+        <div style="width:26px; height:26px; border-radius:999px; background:#182130; border:1px solid rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600; color:#94A3B8; flex-shrink:0;">ND</div>
+        <span style="font-size:13px; color:#F1F5F9;">N. Dlamini</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- BODY -->
+  <div style="flex:1; display:flex; gap:14px; padding:14px; min-height:0;">
+
+    <!-- LEFT: CASE LIST -->
+    <div style="flex:0 0 20%; background:#F7F9FC; border-radius:12px; border:1px solid rgba(15,23,42,0.08); display:flex; flex-direction:column; min-height:0; overflow:hidden;">
+      <div style="padding:14px 14px 10px; border-bottom:1px solid rgba(15,23,42,0.08);">
+        <div style="font-size:15px; font-weight:600; color:#0F172A;">Cases</div>
+        <div style="font-size:11px; color:#94A3B8; margin-top:2px;">5 open this week</div>
+      </div>
+      <div style="flex:1; overflow-y:auto; padding:8px;">
+        <sc-for list="{{ caseItems }}" as="c" hint-placeholder-count="5">
+          <div onClick="{{ c.onClick }}" style="{{ c.rowStyle }}">
+            <div style="font-size:12.5px; font-weight:700; color:#0F172A;">{{ c.id }}</div>
+            <div style="font-size:12px; color:#475569; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ c.entity }}</div>
+            <div style="display:flex; align-items:center; gap:6px; margin-top:5px;">
+              <span style="{{ c.severityStyle }}">{{ c.severity }}</span>
+              <span style="font-size:11px; color:#94A3B8;">{{ c.status }}</span>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <!-- CENTRE: CASE -->
+    <div style="flex:1 1 50%; background:#F7F9FC; border-radius:12px; border:1px solid rgba(15,23,42,0.08); display:flex; flex-direction:column; min-height:0; overflow:hidden;">
+      <div style="flex:1; overflow-y:auto; padding:20px;">
+
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:16px;">
+          <div>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span style="font-size:20px; font-weight:700; color:#0F172A;">{{ selectedCase.id }}</span>
+              <span style="{{ selectedCase.severityStyle }}">{{ selectedCase.severity }}</span>
+            </div>
+            <div style="font-size:12.5px; color:#94A3B8; margin-top:4px;">{{ selectedCase.entity }} · {{ selectedCase.status }}</div>
+          </div>
+          <button onClick="{{ openReport }}" style="font-size:13px; font-weight:700; color:#0A0F1A; background:linear-gradient(135deg,#F5A623 0%, #F27B21 100%); border:none; border-radius:10px; padding:10px 18px; cursor:pointer; white-space:nowrap; box-shadow: inset 0 1px 0 rgba(255,255,255,0.35);">Export report</button>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:8px; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.25); border-radius:8px; padding:10px 12px; margin-bottom:18px;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 2l7 3v6c0 5-3 8-7 9-4-1-7-4-7-9V5z" stroke="#10B981" stroke-width="2" fill="none"></path><path d="M9 12l2 2 4-4" stroke="#10B981" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          <span style="font-size:12.5px; font-weight:600; color:#0F172A;">Evidence chain intact — 9 records verified</span>
+        </div>
+
+        <div style="font-size:13px; font-weight:600; color:#0F172A; margin-bottom:10px;">Evidence timeline</div>
+        <div style="position:relative; padding-left:26px;">
+          <div style="position:absolute; left:9px; top:6px; bottom:6px; width:2px; background:rgba(15,23,42,0.1);"></div>
+          <sc-for list="{{ timeline }}" as="e" hint-placeholder-count="9">
+            <div style="position:relative; padding-bottom:16px;">
+              <div style="position:absolute; left:-26px; top:2px; width:18px; height:18px; border-radius:999px; background:#FFFFFF; border:2px solid #0B5FA5; z-index:1;"></div>
+              <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;">
+                <div style="min-width:0;">
+                  <div style="display:flex; align-items:center; gap:8px; white-space:nowrap;">
+                    <span style="font-size:11px; color:#94A3B8; font-variant-numeric:tabular-nums; white-space:nowrap; flex-shrink:0;">{{ e.time }}</span>
+                    <span style="font-size:11.5px; font-weight:600; color:#0B5FA5; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ e.actor }}</span>
+                  </div>
+                  <div style="font-size:13px; color:#0F172A; margin-top:2px;">{{ e.action }}</div>
+                </div>
+                <span style="font-size:10.5px; font-family:monospace; color:#94A3B8; background:rgba(15,23,42,0.05); border-radius:4px; padding:2px 6px; flex-shrink:0; white-space:nowrap;">{{ e.hash }}</span>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: AI FINDINGS -->
+    <div style="flex:0 0 30%; background:#F7F9FC; border-radius:12px; border:1px solid rgba(15,23,42,0.08); display:flex; flex-direction:column; min-height:0; overflow-y:auto; padding:16px;">
+      <div style="font-size:13px; font-weight:600; color:#0F172A; margin-bottom:10px;">AI findings</div>
+
+      <div style="background:#FFFFFF; border:1px solid rgba(15,23,42,0.07); border-radius:10px; padding:10px; margin-bottom:14px;">
+        <div style="font-size:11px; color:#94A3B8; margin-bottom:6px;">Reconstructed route</div>
+        <svg width="100%" height="120" viewBox="0 0 240 120">
+          <polyline points="20,100 90,60 150,44 200,30" fill="none" stroke="#0B5FA5" stroke-width="2" stroke-dasharray="4 3"></polyline>
+          <circle cx="20" cy="100" r="4" fill="#0B5FA5"></circle>
+          <circle cx="90" cy="60" r="4" fill="#0B5FA5"></circle>
+          <circle cx="150" cy="44" r="4" fill="#0B5FA5"></circle>
+          <polygon points="200,30 224,12 224,48" fill="rgba(245,166,35,0.35)"></polygon>
+          <circle cx="200" cy="30" r="5" fill="#F5A623"></circle>
+        </svg>
+      </div>
+
+      <div style="font-size:12px; font-weight:600; color:#0F172A; margin-bottom:8px;">Factor breakdown</div>
+      <div style="display:flex; flex-direction:column; gap:9px; margin-bottom:14px;">
+        <sc-for list="{{ factors }}" as="f" hint-placeholder-count="4">
+          <div>
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+              <span style="font-size:12px; color:#0F172A;">{{ f.name }}</span>
+              <span style="font-size:11.5px; color:#94A3B8; font-variant-numeric:tabular-nums;">{{ f.contribution }}%</span>
+            </div>
+            <div style="height:4px; background:rgba(15,23,42,0.07); border-radius:999px; overflow:hidden; margin-top:4px;">
+              <div style="height:100%; width:{{ f.contribution }}%; background:#0B5FA5; border-radius:999px;"></div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="font-size:12px; font-weight:600; color:#0F172A; margin-bottom:8px;">Linked sightings</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+        <sc-for list="{{ sightings }}" as="s" hint-placeholder-count="4">
+          <div style="position:relative; border-radius:8px; overflow:hidden; height:64px; background:repeating-linear-gradient(135deg, #101725, #101725 4px, #182130 4px, #182130 8px);">
+            <span style="position:absolute; left:5px; bottom:4px; font-size:9.5px; color:#F1F5F9; background:rgba(10,15,26,0.6); border-radius:3px; padding:1px 4px;">{{ s.label }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- REPORT PREVIEW OVERLAY -->
+  <sc-if value="{{ showReport }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed; inset:0; background:rgba(10,15,26,0.65); display:flex; align-items:center; justify-content:center; z-index:100; padding:30px;">
+      <div style="background:#FFFFFF; border-radius:8px; width:640px; max-height:90vh; overflow-y:auto; padding:36px; box-shadow:0 20px 60px rgba(0,0,0,0.4);">
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:4px;">
+          <div>
+            <div style="font-size:19px; font-weight:700; color:#0F172A;">Investigation report — {{ selectedCase.id }}</div>
+            <div style="font-size:12px; color:#94A3B8; margin-top:3px;">Generated 2026-07-25 00:14:52 SAST · Op. N. Dlamini</div>
+          </div>
+          <span onClick="{{ closeReport }}" style="font-size:13px; color:#94A3B8; cursor:pointer;">Close</span>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:20px 0; padding:14px; background:#F7F9FC; border-radius:8px;">
+          <div><div style="font-size:10.5px; text-transform:uppercase; letter-spacing:0.06em; color:#94A3B8;">Entity</div><div style="font-size:13px; color:#0F172A; margin-top:2px;">{{ selectedCase.entity }}</div></div>
+          <div><div style="font-size:10.5px; text-transform:uppercase; letter-spacing:0.06em; color:#94A3B8;">Severity</div><div style="font-size:13px; color:#0F172A; margin-top:2px;">{{ selectedCase.severity }}</div></div>
+          <div><div style="font-size:10.5px; text-transform:uppercase; letter-spacing:0.06em; color:#94A3B8;">Status</div><div style="font-size:13px; color:#0F172A; margin-top:2px;">{{ selectedCase.status }}</div></div>
+          <div><div style="font-size:10.5px; text-transform:uppercase; letter-spacing:0.06em; color:#94A3B8;">Records</div><div style="font-size:13px; color:#0F172A; margin-top:2px;">9, chain intact</div></div>
+        </div>
+        <div style="font-size:13px; font-weight:600; color:#0F172A; margin-bottom:8px;">Evidence chain</div>
+        <div style="display:flex; flex-direction:column; gap:0;">
+          <sc-for list="{{ timeline }}" as="e" hint-placeholder-count="9">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 0; border-bottom:1px solid rgba(15,23,42,0.06);">
+              <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+                <span style="font-size:11px; color:#94A3B8; font-variant-numeric:tabular-nums; width:64px; flex-shrink:0; white-space:nowrap;">{{ e.time }}</span>
+                <span style="font-size:12.5px; color:#0F172A; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ e.action }}</span>
+              </div>
+              <span style="font-size:10.5px; font-family:monospace; color:#475569; flex-shrink:0; white-space:nowrap;">{{ e.hash }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="font-size:11.5px; color:#94A3B8; font-style:italic; margin-top:18px; padding-top:14px; border-top:1px solid rgba(15,23,42,0.08);">Structured to support an investigation. Tamper-evident.</div>
+      </div>
+    </div>
+  </sc-if>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+
+class Component extends DCLogic {
+  state = { activeNav: 'Investigations', selectedCaseId: 'INV-2044', showReport: false };
+  setNav = (name) => this.setState({ activeNav: name });
+  selectCase = (id) => this.setState({ selectedCaseId: id });
+  openReport = () => this.setState({ showReport: true });
+  closeReport = () => this.setState({ showReport: false });
+
+  sevStyle(level) {
+    const c = { safe: '#10B981', watch: '#F59E0B', high: '#F0653A', critical: '#E11D48' }[level];
+    return { fontSize: '10.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: c, background: c + '1F', borderRadius: '999px', padding: '2px 8px' };
+  }
+
+  cases() {
+    return [
+      { id: 'INV-2044', entity: 'Vehicle · JZ 84 KL GP', severity: 'High', sevLevel: 'high', status: 'Under review' },
+      { id: 'INV-2041', entity: 'Person · unusual activity', severity: 'Watch', sevLevel: 'watch', status: 'Awaiting patrol report' },
+      { id: 'INV-2038', entity: 'Vehicle · HD 12 XZ GP', severity: 'Watch', sevLevel: 'watch', status: 'Closed — no action' },
+      { id: 'INV-2033', entity: 'Person · unusual activity', severity: 'Critical', sevLevel: 'critical', status: 'Escalated to SAPS' },
+      { id: 'INV-2029', entity: 'Vehicle · KT 55 PW GP', severity: 'Safe', sevLevel: 'safe', status: 'Closed — verified resident' },
+    ];
+  }
+
+  renderVals() {
+    const navNames = ['Overview', 'Live Camera', 'Intelligence', 'Patrol', 'Investigations', 'Claims'];
+    const navItems = navNames.map(name => ({
+      label: name,
+      onClick: () => this.setNav(name),
+      style: {
+        fontSize: '12.5px', fontWeight: 600, padding: '7px 13px', borderRadius: '999px', cursor: 'pointer',
+        whiteSpace: 'nowrap', flexShrink: 0,
+        color: this.state.activeNav === name ? '#0A0F1A' : '#94A3B8',
+        background: this.state.activeNav === name ? 'linear-gradient(135deg,#F5A623 0%, #F27B21 100%)' : 'transparent',
+      },
+    }));
+
+    const cases = this.cases();
+    const caseItems = cases.map(c => ({
+      ...c,
+      onClick: () => this.selectCase(c.id),
+      severityStyle: this.sevStyle(c.sevLevel),
+      rowStyle: {
+        padding: '10px 10px', borderRadius: '8px', cursor: 'pointer', marginBottom: '2px',
+        background: this.state.selectedCaseId === c.id ? '#FFFFFF' : 'transparent',
+        borderLeft: this.state.selectedCaseId === c.id ? '3px solid #F5A623' : '3px solid transparent',
+        boxShadow: this.state.selectedCaseId === c.id ? '0 1px 3px rgba(15,23,42,0.08)' : 'none',
+      },
+    }));
+
+    const selectedCase = { ...cases.find(c => c.id === this.state.selectedCaseId), severityStyle: undefined };
+    selectedCase.severityStyle = this.sevStyle(selectedCase.sevLevel);
+
+    const timeline = [
+      { time: '23:41:02', actor: 'System', action: 'Detection created — vehicle, 0.88 confidence', hash: 'a3f9…21c4' },
+      { time: '23:41:05', actor: 'System', action: 'Plate OCR resolved — JZ 84 KL GP, 0.96 confidence', hash: 'b71e…08aa' },
+      { time: '00:02:10', actor: 'System', action: 'Repeat sighting linked — Camera 07', hash: 'c204…f31b' },
+      { time: '00:14:00', actor: 'System', action: 'Fused assessment computed — 74%, watch candidate', hash: 'd88c…7702' },
+      { time: '00:14:22', actor: 'Op. N. Dlamini', action: 'Flagged for response — reason recorded', hash: 'e015…c4d9' },
+      { time: '00:14:23', actor: 'System', action: 'Escalation queued — 15s cancel window opened', hash: 'f3a1…9e6f' },
+      { time: '00:14:38', actor: 'System', action: 'Escalation window closed — dispatch confirmed', hash: '12bd…4a58' },
+      { time: '00:16:02', actor: 'Patrol — Team Bravo', action: 'Unit dispatched — ETA 6 min', hash: '774e…b021' },
+      { time: '00:21:47', actor: 'Patrol — Team Bravo', action: 'Unit arrived on scene', hash: '90fa…3dc6' },
+    ];
+
+    const factors = [
+      { name: 'F1 · Recurrence', contribution: 32 },
+      { name: 'F2 · Timing', contribution: 24 },
+      { name: 'F3 · Near-repeat zone', contribution: 28 },
+      { name: 'F6 · Audio corroboration', contribution: 16 },
+    ];
+
+    const sightings = [
+      { label: 'Cam 04 · 23:41' },
+      { label: 'Cam 07 · 00:02' },
+      { label: 'Cam 04 · 00:14' },
+      { label: 'Cam 11 · 00:16' },
+    ];
+
+    return {
+      navItems, caseItems, selectedCase, timeline, factors, sightings,
+      showReport: this.state.showReport, openReport: this.openReport, closeReport: this.closeReport,
+    };
+  }
+}
+
+</script>
+</body>
+</html>

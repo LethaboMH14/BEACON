@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; background: #E5E7EB; font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    @keyframes livePulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+  </style>
+</helmet>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402,874">
+  <div style="position:relative; height:100%; background:#F7F9FC;">
+    <div style="height:100%; overflow-y:auto; display:flex; flex-direction:column;">
+      <div style="padding:58px 20px 0;">
+
+        <!-- header -->
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <div>
+            <div style="font-size:20px; font-weight:700; color:#0F172A;">Good evening, Naledi</div>
+            <div style="font-size:13px; color:#94A3B8; margin-top:2px;">Sandton, Johannesburg</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px; background:rgba(34,211,238,0.1); border:1px solid rgba(34,211,238,0.25); border-radius:999px; padding:6px 12px;">
+            <span style="width:6px; height:6px; border-radius:999px; background:#22D3EE; display:inline-block; animation:livePulse 1.8s ease-in-out infinite;"></span>
+            <span style="font-size:12px; font-weight:600; color:#0E7490;">Home protected</span>
+          </div>
+        </div>
+
+        <!-- hero gauge -->
+        <div style="display:flex; flex-direction:column; align-items:center; margin-top:22px;">
+          <div style="position:relative; width:160px; height:160px;">
+            <svg width="160" height="160" viewBox="0 0 160 160" style="transform:rotate(-90deg);">
+              <circle cx="80" cy="80" r="70" fill="none" stroke="rgba(15,23,42,0.06)" stroke-width="12"></circle>
+              <circle cx="80" cy="80" r="70" fill="none" stroke="#F59E0B" stroke-width="12" stroke-linecap="round" stroke-dasharray="439.8" stroke-dashoffset="{{ gaugeOffset }}"></circle>
+            </svg>
+            <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+              <span style="font-size:40px; font-weight:700; color:#0F172A; font-variant-numeric:tabular-nums; line-height:1;">62</span>
+              <span style="font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#94A3B8; margin-top:4px;">Street safety</span>
+            </div>
+          </div>
+          <div style="font-size:13px; color:#475569; text-align:center; line-height:1.5; margin-top:14px; max-width:300px;">Slightly elevated for your area tonight — vehicle theft risk peaks around midnight.</div>
+        </div>
+
+        <!-- tiles -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:22px;">
+          <div style="background:#FFFFFF; border:1px solid rgba(15,23,42,0.07); border-radius:12px; padding:14px;">
+            <div style="width:32px; height:32px; border-radius:8px; background:rgba(11,95,165,0.08); display:flex; align-items:center; justify-content:center; margin-bottom:10px;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="2" y="6" width="16" height="12" rx="2" stroke="#0B5FA5" stroke-width="2"></rect><path d="M18 9l4-2v10l-4-2z" fill="#0B5FA5"></path></svg>
+            </div>
+            <div style="font-size:14px; font-weight:600; color:#0F172A;">My cameras</div>
+            <div style="font-size:12px; color:#94A3B8; margin-top:2px;">2 live</div>
+          </div>
+          <div style="background:#FFFFFF; border:1px solid rgba(15,23,42,0.07); border-radius:12px; padding:14px;">
+            <div style="width:32px; height:32px; border-radius:8px; background:rgba(11,95,165,0.08); display:flex; align-items:center; justify-content:center; margin-bottom:10px;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="5" cy="6" r="2.5" stroke="#0B5FA5" stroke-width="2"></circle><circle cx="19" cy="18" r="2.5" stroke="#0B5FA5" stroke-width="2"></circle><path d="M7 8c0 6 10 4 10 10" stroke="#0B5FA5" stroke-width="2" fill="none" stroke-dasharray="3 3"></path></svg>
+            </div>
+            <div style="font-size:14px; font-weight:600; color:#0F172A;">Safe route</div>
+            <div style="font-size:12px; color:#94A3B8; margin-top:2px;">Active tonight</div>
+          </div>
+          <div style="background:#FFFFFF; border:1px solid rgba(15,23,42,0.07); border-radius:12px; padding:14px;">
+            <div style="width:32px; height:32px; border-radius:8px; background:rgba(11,95,165,0.08); display:flex; align-items:center; justify-content:center; margin-bottom:10px;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3" stroke="#0B5FA5" stroke-width="2"></circle><circle cx="17" cy="9" r="2.4" stroke="#0B5FA5" stroke-width="2"></circle><path d="M3 20c0-3.5 3-6 6-6s6 2.5 6 6" stroke="#0B5FA5" stroke-width="2" fill="none"></path></svg>
+            </div>
+            <div style="font-size:14px; font-weight:600; color:#0F172A;">My guardians</div>
+            <div style="font-size:12px; color:#94A3B8; margin-top:2px;">3 linked</div>
+          </div>
+          <div style="background:#FFFFFF; border:1px solid rgba(15,23,42,0.07); border-radius:12px; padding:14px;">
+            <div style="width:32px; height:32px; border-radius:8px; background:rgba(11,95,165,0.08); display:flex; align-items:center; justify-content:center; margin-bottom:10px;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2l7 3v6c0 5-3 8-7 9-4-1-7-4-7-9V5z" stroke="#0B5FA5" stroke-width="2" fill="none"></path></svg>
+            </div>
+            <div style="font-size:14px; font-weight:600; color:#0F172A;">Privacy centre</div>
+            <div style="font-size:12px; color:#94A3B8; margin-top:2px;">Full control</div>
+          </div>
+        </div>
+
+        <!-- active alert -->
+        <sc-if value="{{ true }}">
+          <div style="background:#FFFFFF; border:1px solid rgba(245,166,35,0.3); border-radius:12px; padding:14px; margin-top:14px;">
+            <div style="display:flex; gap:10px;">
+              <div style="width:56px; height:56px; border-radius:8px; flex-shrink:0; background:repeating-linear-gradient(135deg, #101725, #101725 4px, #182130 4px, #182130 8px);"></div>
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:14px; font-weight:600; color:#0F172A;">Unusual activity at your driveway</div>
+                <div style="font-size:12px; color:#94A3B8; margin-top:2px;">2 minutes ago</div>
+              </div>
+            </div>
+            <div style="margin-top:10px;">
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <span style="font-size:12px; color:#475569;">Detection confidence</span>
+                <span style="font-size:13px; font-weight:700; color:#0F172A; font-variant-numeric:tabular-nums;">58%</span>
+              </div>
+              <div style="height:5px; background:rgba(15,23,42,0.07); border-radius:999px; overflow:hidden; margin-top:5px;">
+                <div style="height:100%; width:58%; background:#F59E0B; border-radius:999px;"></div>
+              </div>
+              <div style="font-size:11.5px; color:#94A3B8; margin-top:6px;">Likely nothing urgent, but worth a quick look.</div>
+            </div>
+            <div style="display:flex; gap:8px; margin-top:12px;">
+              <button style="flex:1; font-size:13px; font-weight:700; color:#FFFFFF; background:#0B5FA5; border:none; border-radius:10px; padding:10px; cursor:pointer;">I'm fine</button>
+              <button style="flex:1; font-size:13px; font-weight:600; color:#475569; background:#FFFFFF; border:1px solid rgba(15,23,42,0.14); border-radius:10px; padding:10px; cursor:pointer;">Alert my guardian</button>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- vitality strip -->
+        <div style="background:#E8F1F9; border-radius:12px; padding:14px; margin-top:14px; display:flex; align-items:center; justify-content:space-between;">
+          <div>
+            <div style="font-size:13px; font-weight:600; color:#0B5FA5;">Vitality Protect · 1,240 points this month</div>
+            <div style="font-size:11.5px; color:#0B5FA5; opacity:0.75; margin-top:2px;">Active monitoring is saving you up to 15% on premium</div>
+          </div>
+        </div>
+
+        <div style="height:100px;"></div>
+      </div>
+
+      <!-- bottom nav -->
+      <div style="position:sticky; bottom:0; margin-top:auto; background:rgba(247,249,252,0.92); backdrop-filter:blur(8px); border-top:1px solid rgba(15,23,42,0.07); display:flex; padding:10px 8px 28px;">
+        <sc-for list="{{ navTabs }}" as="tab" hint-placeholder-count="5">
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px;">
+            <span style="{{ tab.dotStyle }}"></span>
+            <span style="{{ tab.labelStyle }}">{{ tab.label }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <!-- SOS control -->
+    <div
+      onMouseDown="{{ startHold }}" onMouseUp="{{ endHold }}" onMouseLeave="{{ endHold }}"
+      onTouchStart="{{ startHold }}" onTouchEnd="{{ endHold }}"
+      style="position:absolute; right:18px; bottom:110px; width:64px; height:64px; cursor:pointer;">
+      <svg width="64" height="64" viewBox="0 0 64 64" style="position:absolute; inset:0; transform:rotate(-90deg);">
+        <circle cx="32" cy="32" r="28" fill="none" stroke="rgba(225,29,72,0.15)" stroke-width="4"></circle>
+        <circle cx="32" cy="32" r="28" fill="none" stroke="#E11D48" stroke-width="4" stroke-linecap="round" stroke-dasharray="175.9" stroke-dashoffset="{{ sosDashOffset }}"></circle>
+      </svg>
+      <div style="position:absolute; inset:6px; border-radius:999px; background:linear-gradient(135deg,#F0653A,#E11D48); display:flex; align-items:center; justify-content:center; box-shadow:0 4px 14px rgba(225,29,72,0.35);">
+        <span style="font-size:13px; font-weight:800; color:#FFFFFF; letter-spacing:0.02em;">SOS</span>
+      </div>
+      <div style="position:absolute; top:70px; left:50%; transform:translateX(-50%); font-size:10px; color:#94A3B8; white-space:nowrap;">{{ sosHint }}</div>
+    </div>
+  </div>
+</x-import>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+
+class Component extends DCLogic {
+  state = { holding: false, holdMs: 0, activated: false };
+
+  startHold = () => {
+    if (this.state.activated) return;
+    this.setState({ holding: true, holdMs: 0 });
+    this._start = Date.now();
+    this._interval = setInterval(() => {
+      const elapsed = Date.now() - this._start;
+      if (elapsed >= 3000) {
+        clearInterval(this._interval);
+        this.setState({ holding: false, holdMs: 3000, activated: true });
+      } else {
+        this.setState({ holdMs: elapsed });
+      }
+    }, 40);
+  };
+
+  endHold = () => {
+    clearInterval(this._interval);
+    if (!this.state.activated) this.setState({ holding: false, holdMs: 0 });
+  };
+
+  renderVals() {
+    const navNames = ['Home', 'Cameras', 'Routes', 'Alerts', 'Profile'];
+    const navTabs = navNames.map((label, i) => ({
+      label,
+      dotStyle: { width: '6px', height: '6px', borderRadius: '999px', background: i === 0 ? '#F5A623' : 'rgba(15,23,42,0.15)' },
+      labelStyle: { fontSize: '10.5px', fontWeight: i === 0 ? 700 : 500, color: i === 0 ? '#0F172A' : '#94A3B8' },
+    }));
+
+    const holdMs = this.state.activated ? 3000 : this.state.holdMs;
+    const circumference = 175.9;
+    const sosDashOffset = circumference * (1 - holdMs / 3000);
+
+    return {
+      gaugeOffset: 439.8 * (1 - 62 / 100),
+      navTabs,
+      startHold: this.startHold,
+      endHold: this.endHold,
+      sosDashOffset,
+      sosHint: this.state.activated ? 'SOS sent' : 'Hold 3s',
+    };
+  }
+}
+
+</script>
+</body>
+</html>

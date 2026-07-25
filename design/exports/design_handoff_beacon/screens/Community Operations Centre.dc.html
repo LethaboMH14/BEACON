@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; background: #0A0F1A; font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    * { box-sizing: border-box; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 999px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    @keyframes livePulse { 0%,100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34,211,238,0.5); } 50% { opacity: 0.6; box-shadow: 0 0 0 4px rgba(34,211,238,0); } }
+    @keyframes escalGlow { 0%,100% { box-shadow: 0 0 0 1px rgba(245,166,35,0.35), 0 0 24px rgba(245,166,35,0.18); } 50% { box-shadow: 0 0 0 1px rgba(245,166,35,0.55), 0 0 32px rgba(245,166,35,0.3); } }
+  </style>
+</helmet>
+<div style="width:100%; min-width:1360px; min-height:100vh; background:#0A0F1A; color:#F1F5F9; display:flex; flex-direction:column; overflow-x:auto;">
+
+  <!-- TOP BAR -->
+  <div style="height:60px; flex-shrink:0; display:flex; align-items:center; justify-content:space-between; padding:0 20px; border-bottom:1px solid rgba(255,255,255,0.08); background:#0A0F1A;">
+    <div style="display:flex; align-items:baseline; gap:8px; flex-shrink:0; white-space:nowrap;">
+      <span style="font-size:16px; font-weight:800; letter-spacing:0.02em; color:#F1F5F9;">BEACON</span>
+      <span style="font-size:11px; color:#64748B; font-weight:500;">by Discovery</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:2px; background:#101725; border:1px solid rgba(255,255,255,0.08); border-radius:999px; padding:4px; flex-shrink:0;">
+      <sc-for list="{{ navItems }}" as="item" hint-placeholder-count="6">
+        <div onClick="{{ item.onClick }}" style="{{ item.style }}">{{ item.label }}</div>
+      </sc-for>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px; flex-shrink:0; white-space:nowrap; justify-content:flex-end;">
+      <span style="font-size:13px; font-variant-numeric:tabular-nums; color:#94A3B8; letter-spacing:0.02em;">00:14</span>
+      <div style="display:flex; align-items:center; gap:5px; font-size:12px; color:#94A3B8;">
+        <span style="width:6px; height:6px; border-radius:999px; background:#10B981; display:inline-block; flex-shrink:0;"></span>
+        12 online
+      </div>
+      <div style="display:flex; align-items:center; gap:5px; font-size:12px; color:#94A3B8;">
+        <span style="width:6px; height:6px; border-radius:999px; background:#F59E0B; display:inline-block; flex-shrink:0;"></span>
+        2 offline
+      </div>
+      <div style="display:flex; align-items:center; gap:8px; padding-left:10px; border-left:1px solid rgba(255,255,255,0.08);">
+        <div style="width:26px; height:26px; border-radius:999px; background:#182130; border:1px solid rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600; color:#94A3B8; flex-shrink:0;">TM</div>
+        <span style="font-size:13px; color:#F1F5F9;">T. Mahlangu</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- BODY -->
+  <div style="flex:1; display:flex; gap:14px; padding:14px; min-height:0;">
+
+    <!-- LEFT: MAP -->
+    <div style="flex:1 1 55%; position:relative; border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,0.08); background:radial-gradient(circle at 30% 20%, #10192a 0%, #0A0F1A 60%);">
+      <div style="position:absolute; inset:0; overflow:hidden;">
+        <sc-for list="{{ hexCells }}" as="hex" hint-placeholder-count="80">
+          <div style="{{ hex.style }}"></div>
+        </sc-for>
+        <sc-for list="{{ cameraPins }}" as="cam" hint-placeholder-count="10">
+          <div style="{{ cam.wrapStyle }}" title="{{ cam.label }}">
+            <div style="{{ cam.dotStyle }}"></div>
+          </div>
+        </sc-for>
+      </div>
+
+      <!-- layer toggle -->
+      <div style="position:absolute; top:16px; left:16px; background:rgba(16,23,37,0.92); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:10px; display:flex; flex-direction:column; gap:2px; backdrop-filter:blur(6px); min-width:168px;">
+        <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#64748B; padding:4px 8px 6px;">Map layers</div>
+        <sc-for list="{{ layerToggles }}" as="layer" hint-placeholder-count="4">
+          <div onClick="{{ layer.onClick }}" style="{{ layer.rowStyle }}">
+            <div style="{{ layer.boxStyle }}">{{ layer.check }}</div>
+            <span style="font-size:13px; color:#F1F5F9;">{{ layer.label }}</span>
+          </div>
+        </sc-for>
+      </div>
+
+      <!-- legend -->
+      <div style="position:absolute; top:16px; right:16px; background:rgba(16,23,37,0.92); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:10px 12px; display:flex; align-items:center; gap:10px;">
+        <sc-for list="{{ riskLegend }}" as="lg" hint-placeholder-count="4">
+          <div style="display:flex; align-items:center; gap:5px;">
+            <span style="{{ lg.dotStyle }}"></span>
+            <span style="font-size:11px; color:#94A3B8;">{{ lg.label }}</span>
+          </div>
+        </sc-for>
+      </div>
+
+      <!-- time scrubber -->
+      <div style="position:absolute; left:16px; right:16px; bottom:16px; background:rgba(16,23,37,0.92); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:12px 16px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+          <span style="font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#64748B;">24h claim density</span>
+          <span style="font-size:13px; font-weight:600; color:#F5A623; font-variant-numeric:tabular-nums;">00:14</span>
+        </div>
+        <div style="position:relative; height:34px;">
+          <div style="position:absolute; left:0; right:0; bottom:0; display:flex; align-items:flex-end; gap:2px; height:100%;">
+            <sc-for list="{{ histogramBars }}" as="bar" hint-placeholder-count="24">
+              <div style="{{ bar.style }}"></div>
+            </sc-for>
+          </div>
+          <div style="{{ scrubberHandleStyle }}"></div>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-top:4px;">
+          <span style="font-size:10px; color:#64748B;">00h</span>
+          <span style="font-size:10px; color:#64748B;">06h</span>
+          <span style="font-size:10px; color:#64748B;">12h</span>
+          <span style="font-size:10px; color:#64748B;">18h</span>
+          <span style="font-size:10px; color:#64748B;">23h</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div style="flex:1 1 45%; display:flex; flex-direction:column; gap:14px; min-height:0;">
+
+      <!-- LIVE FEED -->
+      <div style="flex:1 1 60%; background:#F7F9FC; border-radius:12px; border:1px solid rgba(15,23,42,0.08); display:flex; flex-direction:column; min-height:0; overflow:hidden;">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid rgba(15,23,42,0.08); flex-shrink:0;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="width:7px; height:7px; border-radius:999px; background:#22D3EE; display:inline-block; animation:livePulse 1.8s ease-in-out infinite;"></span>
+            <span style="font-size:15px; font-weight:600; color:#0F172A;">Live feed</span>
+          </div>
+          <span style="font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#94A3B8;">Newest first</span>
+        </div>
+        <div style="flex:1; overflow-y:auto; padding:10px 12px; display:flex; flex-direction:column; gap:10px;">
+          <sc-for list="{{ feedCards }}" as="card" hint-placeholder-count="4">
+            <div style="{{ card.wrapStyle }}">
+              <sc-if value="{{ card.simulated }}">
+                <div style="position:absolute; top:0; right:0; font-size:9px; font-weight:700; letter-spacing:0.06em; color:#94A3B8; background:#F1F5F9; border:1px solid rgba(15,23,42,0.1); border-radius:0 12px 0 8px; padding:3px 8px;">SIMULATED</div>
+              </sc-if>
+              <div style="display:flex; gap:10px;">
+                <div style="{{ card.thumbStyle }}">
+                  <div style="{{ card.boxStyle }}"></div>
+                </div>
+                <div style="flex:1; min-width:0;">
+                  <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding-right:14px;">
+                    <span style="font-size:14px; font-weight:600; color:#0F172A; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ card.entity }}</span>
+                    <span style="font-size:11px; color:#94A3B8; flex-shrink:0; font-variant-numeric:tabular-nums;">{{ card.time }}</span>
+                  </div>
+                  <div style="display:flex; align-items:center; gap:8px; margin-top:5px;">
+                    <div style="flex:1; height:5px; background:rgba(15,23,42,0.08); border-radius:999px; overflow:hidden;">
+                      <div style="{{ card.confBarStyle }}"></div>
+                    </div>
+                    <span style="font-size:13px; font-weight:700; color:#0F172A; font-variant-numeric:tabular-nums; width:36px; text-align:right;">{{ card.confidence }}%</span>
+                  </div>
+                  <div style="display:flex; flex-wrap:wrap; gap:5px; margin-top:7px;">
+                    <sc-for list="{{ card.chips }}" as="chip" hint-placeholder-count="3">
+                      <span style="font-size:11px; color:#475569; background:rgba(15,23,42,0.05); border:1px solid rgba(15,23,42,0.07); border-radius:999px; padding:3px 8px;">{{ chip }}</span>
+                    </sc-for>
+                  </div>
+                  <sc-if value="{{ card.escalating }}" hint-placeholder-val="{{ false }}">
+                    <div style="display:flex; align-items:center; gap:10px; margin-top:10px; background:rgba(245,166,35,0.08); border:1px solid rgba(245,166,35,0.25); border-radius:8px; padding:8px 10px;">
+                      <div style="{{ ringOuterStyle }}">
+                        <svg width="30" height="30" viewBox="0 0 30 30" style="transform:rotate(-90deg);">
+                          <circle cx="15" cy="15" r="12.5" fill="none" stroke="rgba(245,166,35,0.2)" stroke-width="3"></circle>
+                          <circle cx="15" cy="15" r="12.5" fill="none" stroke="#F5A623" stroke-width="3" stroke-linecap="round" stroke-dasharray="78.5" stroke-dashoffset="{{ ringDashOffset }}"></circle>
+                        </svg>
+                        <span style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:#0F172A; font-variant-numeric:tabular-nums;">{{ countdown }}</span>
+                      </div>
+                      <div style="flex:1;">
+                        <div style="font-size:12px; font-weight:600; color:#0F172A;">{{ escalationText }}</div>
+                        <div style="font-size:11px; color:#94A3B8;">Auto-executes unless cancelled</div>
+                      </div>
+                      <button onClick="{{ cancelDispatch }}" style="font-size:12px; font-weight:600; color:#475569; background:#FFFFFF; border:1px solid rgba(15,23,42,0.14); border-radius:10px; padding:7px 14px; cursor:pointer;">Cancel</button>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ card.showActions }}" hint-placeholder-val="{{ true }}">
+                    <div style="display:flex; gap:8px; margin-top:10px;">
+                      <button style="font-size:12px; font-weight:700; color:#0A0F1A; background:linear-gradient(135deg,#F5A623 0%, #F27B21 100%); border:none; border-radius:10px; padding:7px 16px; cursor:pointer; box-shadow: inset 0 1px 0 rgba(255,255,255,0.3);">Verify</button>
+                      <button style="font-size:12px; font-weight:600; color:#64748B; background:transparent; border:1px solid rgba(15,23,42,0.14); border-radius:10px; padding:7px 16px; cursor:pointer;">Dismiss</button>
+                    </div>
+                  </sc-if>
+                </div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <!-- STATS + FORECAST -->
+      <div style="flex:1 1 40%; background:#F7F9FC; border-radius:12px; border:1px solid rgba(15,23,42,0.08); padding:14px; display:flex; flex-direction:column; gap:12px; min-height:0; overflow:hidden;">
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px;">
+          <sc-for list="{{ statTiles }}" as="tile" hint-placeholder-count="3">
+            <div style="background:#FFFFFF; border:1px solid rgba(15,23,42,0.07); border-radius:12px; padding:10px 12px;">
+              <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#94A3B8;">{{ tile.label }}</div>
+              <div style="display:flex; align-items:flex-end; justify-content:space-between; margin-top:4px;">
+                <span style="font-size:24px; font-weight:700; color:#0F172A; font-variant-numeric:tabular-nums;">{{ tile.value }}</span>
+                <svg width="56" height="24" viewBox="0 0 56 24">
+                  <polyline points="{{ tile.sparkPoints }}" fill="none" stroke="{{ tile.sparkColor }}" stroke-width="2"></polyline>
+                </svg>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="flex:1; display:flex; flex-direction:column; min-height:0;">
+          <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#94A3B8; margin-bottom:6px;">Tonight's forecast</div>
+          <div style="display:flex; flex-direction:column; gap:6px; overflow-y:auto;">
+            <sc-for list="{{ forecastItems }}" as="fc" hint-placeholder-count="3">
+              <div style="display:flex; align-items:center; justify-content:space-between; background:#FFFFFF; border:1px solid rgba(15,23,42,0.07); border-radius:10px; padding:9px 12px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="{{ fc.dotStyle }}"></span>
+                  <span style="font-size:13px; font-weight:500; color:#0F172A;">{{ fc.suburb }}</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <span style="font-size:13px; font-weight:700; color:#0F172A; font-variant-numeric:tabular-nums;">{{ fc.risk }}%</span>
+                  <span style="{{ fc.trendStyle }}">{{ fc.trendArrow }}</span>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+
+class Component extends DCLogic {
+  state = { activeNav: 'Overview', countdown: 15, cancelled: false };
+
+  componentDidMount() {
+    this._tick = setInterval(() => {
+      this.setState(s => {
+        if (s.cancelled || s.countdown <= 0) return s;
+        return { countdown: s.countdown - 1 };
+      });
+    }, 1000);
+  }
+  componentWillUnmount() { clearInterval(this._tick); }
+
+  cancelDispatch = () => this.setState({ cancelled: true, countdown: 15 });
+  setNav = (name) => this.setState({ activeNav: name });
+
+  riskColor(level) {
+    return { safe: '#10B981', watch: '#F59E0B', high: '#F0653A', critical: '#E11D48' }[level];
+  }
+
+  buildHexCells() {
+    const cols = 15, rows = 9, w = 46, h = 40;
+    const hotspots = [
+      { c: 12, r: 1, level: 'critical' },
+      { c: 4, r: 6, level: 'high' },
+      { c: 8, r: 4, level: 'watch' },
+    ];
+    const cells = [];
+    for (let c = 0; c < cols; c++) {
+      for (let r = 0; r < rows; r++) {
+        const x = c * (w * 0.76);
+        const y = r * h + (c % 2 === 1 ? h / 2 : 0);
+        let minD = 99;
+        for (const hs of hotspots) {
+          const d = Math.hypot(c - hs.c, r - hs.r);
+          if (d < minD) minD = d;
+        }
+        let level = 'safe';
+        let opacity = 0.05;
+        if (minD < 1.2) { level = 'critical'; opacity = 0.55; }
+        else if (minD < 2.2) { level = 'high'; opacity = 0.4; }
+        else if (minD < 3.2) { level = 'watch'; opacity = 0.28; }
+        else if (minD < 4.4) { level = 'safe'; opacity = 0.14; }
+        else { opacity = 0.045; }
+        cells.push({
+          id: c + '-' + r,
+          style: {
+            position: 'absolute', left: x + 'px', top: y + 'px', width: w + 'px', height: h + 'px',
+            background: this.riskColor(level), opacity,
+            clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)',
+            border: '1px solid rgba(255,255,255,0.04)',
+          },
+        });
+      }
+    }
+    return cells;
+  }
+
+  buildCameraPins() {
+    const pins = [
+      { label: 'Sandton Gate — online', x: 78, y: 22, status: 'online' },
+      { label: 'Alexandra Rd — pre-armed', x: 82, y: 14, status: 'armed' },
+      { label: 'Randburg Sq — online', x: 30, y: 30, status: 'online' },
+      { label: 'Midrand N1 — offline', x: 60, y: 12, status: 'offline' },
+      { label: 'Roodepoort W — online', x: 18, y: 55, status: 'online' },
+      { label: 'Soweto Vilakazi — online', x: 22, y: 78, status: 'online' },
+      { label: 'Soweto Rockville — pre-armed', x: 30, y: 82, status: 'armed' },
+      { label: 'Sandton CBD — online', x: 74, y: 34, status: 'online' },
+      { label: 'Randburg N — offline', x: 34, y: 20, status: 'offline' },
+      { label: 'Midrand E — online', x: 66, y: 24, status: 'online' },
+    ];
+    const colors = { online: '#10B981', offline: '#64748B', armed: '#F5A623' };
+    return pins.map((p, i) => ({
+      id: i,
+      label: p.label,
+      wrapStyle: { position: 'absolute', left: p.x + '%', top: p.y + '%', width: '14px', height: '14px', transform: 'translate(-50%,-50%)' },
+      dotStyle: {
+        width: '9px', height: '9px', borderRadius: '999px', background: colors[p.status],
+        border: '2px solid rgba(10,15,26,0.9)', boxShadow: p.status === 'online' ? '0 0 6px rgba(16,185,129,0.7)' : 'none',
+      },
+    }));
+  }
+
+  buildHistogram() {
+    const heights = [88, 52, 30, 18, 12, 10, 14, 22, 30, 34, 30, 26, 32, 38, 92, 44, 36, 40, 48, 60, 70, 76, 66, 50];
+    return heights.map((h, i) => ({
+      id: i,
+      style: {
+        flex: 1, height: h + '%', borderRadius: '2px 2px 0 0',
+        background: i === 14 ? '#F5A623' : (i === 0 ? 'rgba(225,29,72,0.55)' : 'rgba(255,255,255,0.12)'),
+      },
+    }));
+  }
+
+  buildFeedCards() {
+    const raw = [
+      { entity: 'Vehicle · JZ 84 KL GP', time: 'now', confidence: 74, chips: ['3rd sighting', '00:14', 'near-repeat zone', 'weapon-candidate'], escalating: true, simulated: false },
+      { entity: 'Person · unusual activity', time: '2m ago', confidence: 61, chips: ['loitering 6 min', 'perimeter breach'], escalating: false, simulated: true },
+      { entity: 'Vehicle · HD 12 XZ GP', time: '6m ago', confidence: 48, chips: ['possible repeat sighting', 'plate partial match'], escalating: false, simulated: false },
+      { entity: 'Person · unusual activity', time: '11m ago', confidence: 39, chips: ['after-hours', 'low light'], escalating: false, simulated: false },
+    ];
+    return raw.map((c, i) => ({
+      id: i,
+      entity: c.entity,
+      time: c.time,
+      confidence: c.confidence,
+      chips: c.chips,
+      escalating: c.escalating,
+      simulated: c.simulated,
+      showActions: !c.escalating,
+      wrapStyle: {
+        position: 'relative', background: '#FFFFFF', borderRadius: '12px', padding: '12px',
+        border: c.escalating ? '1px solid rgba(245,166,35,0.4)' : '1px solid rgba(15,23,42,0.07)',
+        animation: c.escalating ? 'escalGlow 2.4s ease-in-out infinite' : 'none',
+      },
+      thumbStyle: {
+        position: 'relative', width: '84px', height: '64px', flexShrink: 0, borderRadius: '8px', overflow: 'hidden',
+        background: 'repeating-linear-gradient(135deg, #182130, #182130 6px, #101725 6px, #101725 12px)',
+      },
+      boxStyle: {
+        position: 'absolute', left: '28px', top: '18px', width: '34px', height: '30px',
+        border: '2px solid #F5A623', borderRadius: '3px',
+      },
+      confBarStyle: {
+        height: '100%', width: c.confidence + '%', borderRadius: '999px',
+        background: c.confidence > 65 ? '#F0653A' : (c.confidence > 45 ? '#F59E0B' : '#10B981'),
+      },
+    }));
+  }
+
+  buildStatTiles() {
+    const spark = (arr, color) => ({ pts: arr.map((v, i) => `${i * (56 / (arr.length - 1))},${24 - v * 20}`).join(' '), color });
+    const s1 = spark([0.3,0.4,0.5,0.45,0.6,0.55,0.7], '#E11D48');
+    const s2 = spark([0.5,0.55,0.5,0.65,0.6,0.7,0.68], '#F59E0B');
+    const s3 = spark([0.6,0.6,0.65,0.6,0.7,0.66,0.67], '#0B5FA5');
+    return [
+      { label: 'Active alerts', value: '3', sparkPoints: s1.pts, sparkColor: s1.color },
+      { label: 'Awaiting verification', value: '7', sparkPoints: s2.pts, sparkColor: s2.color },
+      { label: 'Units deployed', value: '4/6', sparkPoints: s3.pts, sparkColor: s3.color },
+    ];
+  }
+
+  buildForecast() {
+    const items = [
+      { suburb: 'Alexandra', risk: 82, trend: 'up' },
+      { suburb: 'Roodepoort West', risk: 58, trend: 'up' },
+      { suburb: 'Soweto — Rockville', risk: 47, trend: 'down' },
+    ];
+    return items.map((it, i) => ({
+      id: i,
+      suburb: it.suburb,
+      risk: it.risk,
+      dotStyle: { width: '7px', height: '7px', borderRadius: '999px', display: 'inline-block', background: it.risk > 70 ? '#E11D48' : (it.risk > 50 ? '#F0653A' : '#F59E0B') },
+      trendArrow: it.trend === 'up' ? '▲' : '▼',
+      trendStyle: { fontSize: '11px', color: it.trend === 'up' ? '#E11D48' : '#10B981' },
+    }));
+  }
+
+  renderVals() {
+    const navNames = ['Overview', 'Live Camera', 'Intelligence', 'Patrol', 'Investigations', 'Claims'];
+    const navItems = navNames.map(name => ({
+      label: name,
+      onClick: () => this.setNav(name),
+      style: {
+        fontSize: '12.5px', fontWeight: 600, padding: '7px 13px', borderRadius: '999px', cursor: 'pointer',
+        whiteSpace: 'nowrap', flexShrink: 0,
+        color: this.state.activeNav === name ? '#0A0F1A' : '#94A3B8',
+        background: this.state.activeNav === name ? 'linear-gradient(135deg,#F5A623 0%, #F27B21 100%)' : 'transparent',
+      },
+    }));
+
+    const layerNames = ['Past claims', 'Forecast (next 24h)', 'Patrol routes', 'Cameras'];
+    const layerToggles = layerNames.map((label, i) => ({
+      label,
+      onClick: () => {},
+      rowStyle: { display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', borderRadius: '8px', cursor: 'pointer' },
+      boxStyle: {
+        width: '14px', height: '14px', borderRadius: '4px', flexShrink: 0,
+        border: i < 3 ? '1px solid #F5A623' : '1px solid rgba(255,255,255,0.2)',
+        background: i < 3 ? '#F5A623' : 'transparent',
+        color: '#0A0F1A', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      },
+      check: i < 3 ? '✓' : '',
+    }));
+
+    const riskLegend = [
+      { label: 'Safe', dotStyle: { width: '8px', height: '8px', borderRadius: '2px', display: 'inline-block', background: '#10B981' } },
+      { label: 'Watch', dotStyle: { width: '8px', height: '8px', borderRadius: '2px', display: 'inline-block', background: '#F59E0B' } },
+      { label: 'High', dotStyle: { width: '8px', height: '8px', borderRadius: '2px', display: 'inline-block', background: '#F0653A' } },
+      { label: 'Critical', dotStyle: { width: '8px', height: '8px', borderRadius: '2px', display: 'inline-block', background: '#E11D48' } },
+    ];
+
+    const countdown = this.state.cancelled ? 0 : this.state.countdown;
+    const circumference = 78.5;
+    const ringDashOffset = this.state.cancelled ? circumference : circumference * (1 - countdown / 15);
+
+    return {
+      navItems,
+      hexCells: this.buildHexCells(),
+      cameraPins: this.buildCameraPins(),
+      layerToggles,
+      riskLegend,
+      histogramBars: this.buildHistogram(),
+      scrubberHandleStyle: {
+        position: 'absolute', left: (14 / 23 * 100) + '%', top: 0, bottom: 0, width: '2px',
+        background: '#F5A623', boxShadow: '0 0 6px rgba(245,166,35,0.8)',
+      },
+      feedCards: this.buildFeedCards(),
+      statTiles: this.buildStatTiles(),
+      forecastItems: this.buildForecast(),
+      countdown,
+      ringDashOffset,
+      ringOuterStyle: { position: 'relative', width: '30px', height: '30px', flexShrink: 0 },
+      escalationText: this.state.cancelled ? 'Dispatch cancelled' : 'Dispatching armed response',
+      cancelDispatch: this.cancelDispatch,
+    };
+  }
+}
+
+</script>
+</body>
+</html>
