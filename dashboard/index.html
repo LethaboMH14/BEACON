@@ -101,7 +101,7 @@
       card.innerHTML = `
         <div>
           <div class="kind ${s.kind}">${s.kind}</div>
-          <div class="meta">${s.camera_id} · ${s.hex} · ${new Date(s.ts).toLocaleTimeString()}</div>
+          <div class="meta">${s.camera_id} · ${s.hex_id ?? "no-hex"} · ${new Date(s.ts).toLocaleTimeString()}</div>
         </div>
         <div class="conf">${(s.confidence * 100).toFixed(0)}%</div>
       `;
