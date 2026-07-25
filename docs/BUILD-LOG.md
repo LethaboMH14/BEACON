@@ -4,6 +4,18 @@ Every behaviour change gets an entry in the same commit. Plain-language section 
 
 ---
 
+## 2026-07-25 — Backend review follow-up: plate-match scaling, per-severity cancel windows, rate limiting
+
+**What:** Three items from a self-directed backend review. (1) `src/suspicion/entity_resolution.py::resolve_plate_entity` — added an exact length-based prefilter before running the O(L^2) Levenshtein DP: edit distance is always >= the length gap between two plates, so if that gap alone already fails `MATCH_THRESHOLD`, the full comparison can't succeed either and is skipped. `src/api/sightings.py`'s two `known_plates` queries also capped at `KNOWN_PLATES_QUERY_LIMIT=2000`, ordered by most-recently-seen — previously loaded every entity with a plate on every single sighting, unbounded. (2) `src/api/alerts.py` — cancel window is now sized per severity (`CANCEL_WINDOW_SECONDS_BY_SEVERITY`: critical=15s, high=20s, medium=30s, low=45s) instead of one flat 30s regardless of urgency. (3) New `src/middleware/rate_limit.py::RateLimitMiddleware` — in-process, per-IP-per-path fixed-window limit (`RATE_LIMIT_PER_MINUTE`, default 120) on state-changing methods only; wired into `main.py`. Deliberately not distributed (no Redis) — a single Container Apps instance is the actual deploy target (ADR-0004).
+
+**Why:** None of these were reported bugs — found by re-reading the server code with the same "nitpick, don't just implement" mandate as the G0 pass. Plate matching had no bound at all; cancel windows didn't distinguish a weapon alert from a loitering report; and there was no protection anywhere against a client hammering a write endpoint.
+
+**Plain language:** Three efficiency/safety improvements, not bug fixes. Matching a car's plate to one already seen now skips comparisons that can't possibly match instead of checking every single one, and only looks at the most recent couple thousand cars rather than every car ever recorded. A critical alert (like a weapon detected) now gives an operator less time to second-guess cancelling it than a low-severity one, instead of the same 30 seconds for everything. And the server now pushes back if something tries to hammer it with requests, instead of accepting unlimited traffic.
+
+**Verified:** 89/89 server tests pass (7 new: severity-scaled cancel window, 4 rate-limit unit tests against a standalone Starlette app, plus the `conftest.py` fix needed to stop the shared-app rate limiter from tripping across the whole test session — documented inline).
+
+---
+
 ## 2026-07-25 — dashboard read the wrong field name for hex location (contract drift)
 
 **What:** `dashboard/index.html`'s WS message handler built each sighting card's location text from `s.hex`. The server (`server/src/api/sightings.py`) has only ever broadcast `hex_id`, never `hex` — there is no `hex` key anywhere in the contract. Changed the template literal to read `s.hex_id ?? "no-hex"`.

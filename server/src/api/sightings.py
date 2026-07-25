@@ -16,6 +16,13 @@ import uuid
 
 router = APIRouter()
 
+# Safety cap on the plate-matching candidate pool (see entity_resolution.py's
+# length-prefilter docstring for the algorithmic side of this fix). Most
+# recently-seen entities first — a plate reappearing after months is rare
+# enough that missing it isn't worse than scanning every entity ever created
+# on every single sighting.
+KNOWN_PLATES_QUERY_LIMIT = 2000
+
 
 class BoundingBox(BaseModel):
     """Bounding box coordinates."""
@@ -97,6 +104,8 @@ async def create_sighting(
         known_plates = dict(
             db.query(Entity.id, Entity.plate_text)
             .filter(Entity.plate_text.isnot(None))
+            .order_by(Entity.last_seen.desc())
+            .limit(KNOWN_PLATES_QUERY_LIMIT)
             .all()
         )
         matched_id, match_quality = resolve_plate_entity(sighting_data.plate_text, known_plates)
@@ -209,6 +218,8 @@ async def create_sightings_batch(
             known_plates = dict(
                 db.query(Entity.id, Entity.plate_text)
                 .filter(Entity.plate_text.isnot(None))
+                .order_by(Entity.last_seen.desc())
+                .limit(KNOWN_PLATES_QUERY_LIMIT)
                 .all()
             )
             matched_id, _quality = resolve_plate_entity(sighting_data.plate_text, known_plates)

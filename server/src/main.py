@@ -14,6 +14,7 @@ from .api import (
     incidents_router, events_router, cameras_router,
 )
 from .ws import ws_router
+from .middleware import RateLimitMiddleware
 
 # Load environment variables
 load_dotenv()
@@ -46,6 +47,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Rate limiting on state-changing requests (backend review backlog, 2026-07-25)
+# — in-process, per-IP-per-path fixed window; see middleware/rate_limit.py's
+# module header for why this is intentionally not a distributed limiter.
+app.add_middleware(RateLimitMiddleware)
 
 # Include routers
 app.include_router(sightings_router, prefix="/v1", tags=["sightings"])

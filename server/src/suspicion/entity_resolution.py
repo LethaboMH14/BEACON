@@ -65,10 +65,27 @@ def resolve_plate_entity(plate_text: str, known_plates: dict[str, str]) -> tuple
     known_plates: {entity_id: plate_text} for existing entities.
     Returns (best_entity_id_or_None, quality). Caller creates a new entity
     when entity_id is None or quality < MATCH_THRESHOLD.
+
+    Length prefilter (exact, not an approximation): edit distance is always
+    >= abs(len(a) - len(b)) — every extra/missing character needs at least
+    one insertion or deletion. So if the length gap alone already pushes
+    quality below MATCH_THRESHOLD, the full O(L^2) Levenshtein DP can never
+    reach threshold either — skip computing it. This was recomputing a full
+    edit distance against every known plate in the DB on every sighting
+    regardless of length; this cuts most of that work for free on any fleet
+    with varied plate lengths, with zero change in which matches are found.
     """
+    plate_len = len(plate_text)
     best_id: str | None = None
     best_quality = 0.0
     for entity_id, known_plate in known_plates.items():
+        longest = max(plate_len, len(known_plate))
+        if longest == 0:
+            continue
+        min_possible_dist = abs(plate_len - len(known_plate))
+        if 1.0 - (min_possible_dist / longest) < MATCH_THRESHOLD:
+            continue
+
         quality = match_quality(plate_text, known_plate)
         if quality > best_quality:
             best_quality = quality

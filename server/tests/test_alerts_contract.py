@@ -218,3 +218,32 @@ def test_cancel_alert_rejects_mismatched_operator_token(client, sample_entity):
         headers={"X-Operator-Token": "wrong-token"},
     )
     assert cancel_resp.status_code == 401
+
+
+def test_cancel_window_scales_with_severity(client):
+    """
+    Regression test: cancel window is now sized per severity, not a flat
+    30s for everything — critical should get less time than low.
+    """
+    from datetime import datetime
+
+    critical_resp = client.post("/v1/alerts", json={
+        "alert_type": "hard_trigger", "recipient_id": "op_007", "recipient_type": "ops",
+        "message": "Weapon detected", "severity": "critical",
+    })
+    low_resp = client.post("/v1/alerts", json={
+        "alert_type": "suspicious_activity", "recipient_id": "op_007", "recipient_type": "ops",
+        "message": "Loitering", "severity": "low",
+    })
+
+    critical_expires = datetime.fromisoformat(critical_resp.json()["cancel_window_expires"])
+    critical_created = datetime.fromisoformat(critical_resp.json()["created_at"])
+    low_expires = datetime.fromisoformat(low_resp.json()["cancel_window_expires"])
+    low_created = datetime.fromisoformat(low_resp.json()["created_at"])
+
+    critical_window = (critical_expires - critical_created).total_seconds()
+    low_window = (low_expires - low_created).total_seconds()
+
+    assert critical_window == 15
+    assert low_window == 45
+    assert critical_window < low_window
