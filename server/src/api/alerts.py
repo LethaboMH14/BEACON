@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -19,6 +19,7 @@ from ..db import get_db
 from ..db.models import Alert, Entity, Incident, EvidenceChain
 from ..ws.manager import ws_manager
 from ..api.entities import _write_evidence
+from ..auth import require_operator_token
 
 router = APIRouter()
 
@@ -181,11 +182,17 @@ async def ack_alert(
     alert_id: str,
     payload: AckPayload,
     db: Session = Depends(get_db),
+    x_operator_token: Optional[str] = Header(default=None, alias="X-Operator-Token"),
 ):
     """
     Acknowledge an alert.
     Writes WHO/WHEN to evidence_chain. Emits alert.acked WS event.
+    operator_id is authenticated the same way as POST /v1/entities/{id}/verify
+    (require_operator_token) — this endpoint writes the same kind of WHO-did-
+    WHAT-WHEN evidence and had the identical unauthenticated-free-text gap.
     """
+    require_operator_token(payload.operator_id, x_operator_token)
+
     alert = _assert_alert_exists(alert_id, db)
     _assert_not_terminal(alert)
 
@@ -221,13 +228,17 @@ async def cancel_alert(
     alert_id: str,
     payload: CancelPayload,
     db: Session = Depends(get_db),
+    x_operator_token: Optional[str] = Header(default=None, alias="X-Operator-Token"),
 ):
     """
     Cancel an alert — only valid within the cancel window (30 s).
     After the window expires the cancel is rejected; this enforces that
     an operator cannot silently suppress a live alert after the fact.
-    Writes to evidence_chain regardless of outcome.
+    Writes to evidence_chain regardless of outcome. operator_id is
+    authenticated the same way as POST /v1/entities/{id}/verify.
     """
+    require_operator_token(payload.operator_id, x_operator_token)
+
     alert = _assert_alert_exists(alert_id, db)
     _assert_not_terminal(alert)
 
