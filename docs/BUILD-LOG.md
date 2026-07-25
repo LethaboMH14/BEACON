@@ -4,6 +4,20 @@ Every behaviour change gets an entry in the same commit. Plain-language section 
 
 ---
 
+## 2026-07-25 — vision/: land Sali's plate + weapon detection services from the orphaned computer-vision branch
+
+**What:** Pulled `vision/backend/app.py` (license plate detection) and `vision/weapen_backend/app.py` (weapon detection) — real FastAPI services, each wrapping a Roboflow-hosted inference workflow (`workspace_name="mbaye-salimata-icloud-com"`) — off the unmerged `origin/computer-vision` branch and into `main`, with `.env.example` templates and a `vision/README.md` explaining how to run them. Did not pull the `__pycache__` binaries or the sample face images that were also on that branch — not needed to run the services, and no reason to carry compiled artifacts or personal photos into the history. `Face_recog.md` (a one-line pip-install note) came along too.
+
+**Why:** These services existed only on a branch nobody was pointed at — real, working code, sitting disconnected from the rest of the system. Landing them on `main` makes them discoverable and runnable instead of orphaned. No `ROBOFLOW_API_KEY` exists anywhere in this environment, so this is code-only: the services aren't started, and no key was entered into any file by tooling — that has to be done by hand in a local, gitignored `.env`.
+
+**Not done:** No integration with `server/src/api/sightings.py` or `dashboard/app/`'s Live AI Camera screen — that screen's "Plate recognition" and "Audio" panels still honestly say no backing endpoint exists (see the 2026-07-25 Live AI Camera entry below), because these two services aren't wired to POST into `/v1/sightings` yet. That's the real next step if this is going further than the pitch.
+
+**Verified:** Files copied exactly from `origin/computer-vision` (diff-clean against that branch's versions), no secrets included, `git status` clean of anything beyond the intended files.
+
+**Plain language:** Sali's two vision services (license plate reading, weapon detection) existed only on a branch that never got merged — easy to lose track of. This brings the actual code onto `main` so it's not sitting in a corner of the repo nobody looks at. It still needs a Roboflow API key to actually run, and that key has to be added by hand, not by this tool — API keys don't get typed into files automatically.
+
+---
+
 ## 2026-07-25 — Wired Ndu's real hotspot_pipeline into RiskCell + Claim (closes the geocoding gap)
 
 **What:** New `server/scripts/load_hotspots.py`, reading Ndu's real `hotspot_pipeline/hotspots_geocoded.csv` (709 suburbs geocoded via Nominatim, composite frequency+cost `severity_score`, real `peak_hour`/`peak_month` per suburb). For each suburb it (1) backfills `hex_id`/`lat`/`lng` onto existing `Claim` rows that still had `hex_id=None` (only ones without a hex already, never overwritten), deriving a short deterministic `hex_id` from an md5 hash of the suburb name (not real H3 — already dropped from this repo, docs/07-TECH-STACK.md), and (2) writes one real `RiskCell` row per suburb at that suburb's own actual peak_hour, `risk_score=severity_score`, `model_version="ndu-hotspot-v1"` — deliberately only at the one hour Ndu's data actually supports, not invented for all 24.
