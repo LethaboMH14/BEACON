@@ -148,7 +148,7 @@ export default function LiveAICamera({ onOpenVerifyQueue }: { onOpenVerifyQueue:
   const audioSightings = feed.filter((s) => s.modality === 'audio');
 
   return (
-    <div style={{ minWidth: 1360, minHeight: '100vh', background: colors.bg900, color: colors.textHi, fontFamily: 'Inter, system-ui, sans-serif', padding: 14, display: 'flex', gap: 14 }}>
+    <div style={{ minWidth: 1360, height: '100vh', background: colors.bg900, color: colors.textHi, fontFamily: 'Inter, system-ui, sans-serif', padding: 14, display: 'flex', gap: 14, overflow: 'hidden' }}>
       {/* LEFT: camera frame */}
       <div style={{ flex: '1 1 65%', display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>

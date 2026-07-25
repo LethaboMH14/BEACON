@@ -37,6 +37,10 @@ export const colors = {
   // semantic
   live: '#22D3EE',
   stale: '#6B7280',
+
+  // soft elevation — used instead of flat borders alone on cards/buttons
+  shadowCard: '0 1px 2px rgba(15, 23, 42, 0.06), 0 6px 20px rgba(15, 23, 42, 0.06)',
+  shadowCardDark: '0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 28px rgba(0, 0, 0, 0.35)',
 } as const;
 
 export type RiskLevel = 'safe' | 'watch' | 'high' | 'critical';

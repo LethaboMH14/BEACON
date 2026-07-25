@@ -126,7 +126,7 @@ export default function CommunityOperationsCentre() {
   }
 
   return (
-    <div style={{ minWidth: 1360, minHeight: '100vh', background: colors.bg900, color: colors.textHi, fontFamily: 'Inter, system-ui, sans-serif', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minWidth: 1360, height: '100vh', background: colors.bg900, color: colors.textHi, fontFamily: 'Inter, system-ui, sans-serif', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* TOP BAR */}
       <div style={{ height: 60, flex: '0 0 60px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', borderBottom: `1px solid ${colors.lineDark}` }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
@@ -163,7 +163,7 @@ export default function CommunityOperationsCentre() {
       {/* BODY */}
       <div style={{ flex: 1, display: 'flex', gap: 14, padding: 14, minHeight: 0 }}>
         {/* LEFT: MAP */}
-        <div style={{ flex: '1 1 55%', position: 'relative', background: colors.bg800, borderRadius: 12, border: `1px solid ${colors.lineDark}`, overflow: 'hidden' }}>
+        <div style={{ flex: '1 1 55%', position: 'relative', background: colors.bg800, borderRadius: 16, border: `1px solid ${colors.lineDark}`, overflow: 'hidden', boxShadow: colors.shadowCardDark }}>
           <div style={{ position: 'absolute', inset: 0, display: 'grid', gridTemplateColumns: `repeat(${GRID_COLS}, 1fr)`, gridTemplateRows: `repeat(${GRID_ROWS}, 1fr)`, padding: 12, gap: 2 }}>
             {Array.from({ length: GRID_COLS * GRID_ROWS }, (_, i) => {
               const col = i % GRID_COLS;
@@ -248,7 +248,7 @@ export default function CommunityOperationsCentre() {
         {/* RIGHT COLUMN */}
         <div style={{ flex: '1 1 45%', display: 'flex', flexDirection: 'column', gap: 14, minHeight: 0 }}>
           {/* LIVE FEED */}
-          <div style={{ flex: '1 1 60%', background: colors.bg50, borderRadius: 12, padding: 14, overflowY: 'auto', color: colors.inkHi }}>
+          <div style={{ flex: '1 1 60%', background: colors.bg50, borderRadius: 16, padding: 14, overflowY: 'auto', color: colors.inkHi, boxShadow: colors.shadowCard }}>
             <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 10 }}>Live feed</div>
             {feed.length === 0 && <div style={{ fontSize: 12, color: colors.inkLo }}>No events in the last 24h.</div>}
             {feed.map((ev, i) => {
@@ -274,8 +274,8 @@ export default function CommunityOperationsCentre() {
                   )}
                   {ev.event === 'entity.candidate' && entityId && (
                     <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                      <button onClick={() => handleVerify(entityId, 'flag')} style={{ background: colors.beaconGrad, border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Verify</button>
-                      <button onClick={() => handleVerify(entityId, 'dismiss')} style={{ background: 'transparent', border: `1px solid ${colors.lineLight}`, borderRadius: 8, padding: '6px 12px', fontSize: 12, cursor: 'pointer' }}>Dismiss</button>
+                      <button onClick={() => handleVerify(entityId, 'flag')} style={{ background: colors.beaconGrad, border: 'none', borderRadius: 999, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', boxShadow: colors.shadowCard }}>Verify</button>
+                      <button onClick={() => handleVerify(entityId, 'dismiss')} style={{ background: 'transparent', border: `1px solid ${colors.lineLight}`, borderRadius: 999, padding: '6px 14px', fontSize: 12, cursor: 'pointer' }}>Dismiss</button>
                     </div>
                   )}
                 </div>
@@ -291,7 +291,7 @@ export default function CommunityOperationsCentre() {
                 ['Awaiting verification', awaitingVerification],
                 ['Units deployed', '—'],
               ].map(([label, value]) => (
-                <div key={label as string} style={{ background: colors.bg800, border: `1px solid ${colors.lineDark}`, borderRadius: 10, padding: 10 }}>
+                <div key={label as string} style={{ background: colors.bg800, border: `1px solid ${colors.lineDark}`, borderRadius: 14, padding: 10, boxShadow: colors.shadowCardDark }}>
                   <div style={{ fontSize: 20, fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>{value}</div>
                   <div style={{ fontSize: 10, color: colors.textLo, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
                   {label === 'Units deployed' && <div style={{ fontSize: 9, color: colors.watch, marginTop: 2 }}>no patrol endpoint yet</div>}
@@ -299,7 +299,7 @@ export default function CommunityOperationsCentre() {
               ))}
             </div>
 
-            <div style={{ flex: 1, background: colors.bg800, border: `1px solid ${colors.lineDark}`, borderRadius: 10, padding: 12, overflowY: 'auto' }}>
+            <div style={{ flex: 1, background: colors.bg800, border: `1px solid ${colors.lineDark}`, borderRadius: 14, padding: 12, overflowY: 'auto', boxShadow: colors.shadowCardDark }}>
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.06em', color: colors.textLo, marginBottom: 8 }}>
                 This hour's top hexes
               </div>

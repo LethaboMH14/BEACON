@@ -43,8 +43,16 @@ function App() {
     };
   }, []);
 
+  // Dev-only screen switcher for building/demoing — deliberately docked at the
+  // bottom so it never sits on top of a screen's own in-product header/nav
+  // (that was the literal cause of the reported "things are overlapping").
   const toggle = (
-    <div style={{ position: 'fixed', top: 8, right: 8, zIndex: 1000, display: 'flex', gap: 6 }}>
+    <div style={{
+      position: 'fixed', bottom: 10, left: '50%', transform: 'translateX(-50%)', zIndex: 1000,
+      display: 'flex', gap: 4, background: 'rgba(10,15,26,0.85)', backdropFilter: 'blur(6px)',
+      border: `1px solid ${colors.lineDark}`, borderRadius: 999, padding: 4,
+      boxShadow: colors.shadowCardDark,
+    }}>
       {([
         ['scaffold', 'Wiring scaffold'],
         ['ops-centre', 'Ops Centre'],
@@ -54,9 +62,9 @@ function App() {
         ['crime-intel', 'Crime Intelligence'],
       ] as const).map(([key, label]) => (
         <button key={key} onClick={() => setScreen(key)} style={{
-          background: screen === key ? colors.beacon : colors.bg700,
-          color: screen === key ? colors.bg900 : colors.textHi,
-          border: `1px solid ${colors.lineDark}`, borderRadius: 8, padding: '6px 10px', fontSize: 11, cursor: 'pointer',
+          background: screen === key ? colors.beaconGrad : 'transparent',
+          color: screen === key ? colors.bg900 : colors.textMid,
+          border: 'none', borderRadius: 999, padding: '6px 12px', fontSize: 11, cursor: 'pointer',
           fontWeight: screen === key ? 700 : 400,
         }}>
           {label}
