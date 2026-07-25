@@ -30,6 +30,11 @@ jobs:
       # unimportable without it — the wheel on its own is not enough.
       - run: sudo apt-get update && sudo apt-get install -y libportaudio2
       - run: pip install -r vision/requirements-test.txt
+      # test_agent.py validates against the real server contract (SightingCreate),
+      # which pulls in server/src/api/__init__.py's full router chain — fastapi,
+      # sqlalchemy, etc. Installing the server's own requirements is simpler and
+      # less drift-prone than hand-duplicating that dependency list here.
+      - run: pip install -r server/requirements.txt
       # `python -m pytest`, not bare `pytest`: the tests import `vision.*` and the
       # server contract, and only the module form puts the repo root on sys.path.
       # Bare pytest fails collection with ModuleNotFoundError: No module named 'vision'.
