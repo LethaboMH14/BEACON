@@ -16,6 +16,18 @@ Every behaviour change gets an entry in the same commit. Plain-language section 
 
 ---
 
+## 2026-07-25 — Same operator-auth gap found in alert ack/cancel — fixed to match
+
+**What:** Self-review of the operator-token fix above found the identical gap in `server/src/api/alerts.py`'s `ack_alert` and `cancel_alert` — both take `operator_id` as unauthenticated free text and write it into `evidence_chain` (`alert_acked`/`alert_cancelled`), exactly the pattern just fixed for `verify_entity`. Wired `require_operator_token` into both.
+
+**Why:** Missed the first time because the fix was scoped to "the verify endpoint" rather than "every endpoint that writes an operator_id into the evidence chain" — ack/cancel do the same WHO-did-WHAT-WHEN write and had the same unauthenticated hole.
+
+**Plain language:** Found the exact same security gap in two more places right after fixing it in the first one — acknowledging or cancelling an alert also let anyone claim to be any operator. Fixed both the same way: a valid token is now required.
+
+**Verified:** 84/84 server tests pass (2 new: missing token on ack rejected, mismatched token on cancel rejected; existing ack/cancel tests updated to send a valid test token).
+
+---
+
 ## 2026-07-25 — Demo concept menu + Claude Design prompt pack (docs only, nothing locked)
 
 **What:** Two exploratory documents ahead of the UI build. (1) `docs/DESIGN-BRIEF-demo-concepts.md` — eight candidate demo beats beyond the scripted detect-and-escalate path in docs/06, each rated for what's already real vs. what needs building, plus a recommended cut of four. (2) `design/PROMPT-PACK.md` — a reusable prompt pack for generating the twelve product screens: one constant preamble carrying the design language, the full colour/type token set, and the four UI laws from docs/04 §4 restated as design constraints; then one prompt block per screen; then the handoff convention for where PNGs, raw code exports, and ported screens live.
