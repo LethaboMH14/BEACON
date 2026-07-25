@@ -220,9 +220,14 @@ and fade. Text: "Here is what BEACON stores."
 BEAT 4: The figure itself dissolves — from the outline inward — into a dense grid of small
 --beacon amber numerals: a floating 128-dimension vector, drifting gently, unreadable as a
 person. Beside it, one line of plain text:
-    "A one-way mathematical signature. It cannot be turned back into a face.
-     No photo. No name. No address."
+    "A mathematical signature. No photo, no name, no address is stored."
 Then, smaller: "Matched against your own whitelist, on your own devices."
+
+HONESTY NOTE (docs/06 ledger — do not let this copy drift back): the claim is that we store
+the embedding and NOT the image. Do NOT write "cannot be turned back into a face" or
+"irreversible" — model-inversion attacks on face embeddings are published research, and a
+technical judge who knows that would take the ethics slide apart. What we store is defensible;
+an absolute irreversibility claim is not.
 
 BEAT 5: A second silhouette walks in. It converts to its own vector. The two vectors sit side by
 side, and a similarity score appears between them with a threshold line — visibly BELOW the
