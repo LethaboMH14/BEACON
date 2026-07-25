@@ -1,0 +1,114 @@
+{
+  "video": "Failed Hijacking After Cancer Treatment South Africa constant vigilance - CoffeecomRai (720p, h264).mp4",
+  "camera_id": "cam_ring_demo",
+  "interval_s": 1.0,
+  "generated_at": "2026-07-25T20:07:03.132812+00:00",
+  "counts": {
+    "plate": 0,
+    "plate_read": 0,
+    "weapon": 0,
+    "face": 5
+  },
+  "frames": [
+    {
+      "t": 18.0,
+      "frame": 540,
+      "width": 1280,
+      "height": 720,
+      "detections": [
+        {
+          "modality": "face",
+          "kind": "person",
+          "label": "face",
+          "confidence": 0.6268922090530396,
+          "bbox": {
+            "x": 982.6428527832031,
+            "y": 168.2807159423828,
+            "w": 22.38873291015625,
+            "h": 29.76287841796875
+          }
+        }
+      ]
+    },
+    {
+      "t": 19.0,
+      "frame": 570,
+      "width": 1280,
+      "height": 720,
+      "detections": [
+        {
+          "modality": "face",
+          "kind": "person",
+          "label": "face",
+          "confidence": 0.7635077238082886,
+          "bbox": {
+            "x": 704.2074584960938,
+            "y": 192.8420867919922,
+            "w": 26.010009765625,
+            "h": 32.427001953125
+          }
+        }
+      ]
+    },
+    {
+      "t": 20.0,
+      "frame": 600,
+      "width": 1280,
+      "height": 720,
+      "detections": [
+        {
+          "modality": "face",
+          "kind": "person",
+          "label": "face",
+          "confidence": 0.7670835256576538,
+          "bbox": {
+            "x": 541.3017272949219,
+            "y": 314.1415557861328,
+            "w": 37.37457275390625,
+            "h": 40.255218505859375
+          }
+        }
+      ]
+    },
+    {
+      "t": 21.0,
+      "frame": 630,
+      "width": 1280,
+      "height": 720,
+      "detections": [
+        {
+          "modality": "face",
+          "kind": "person",
+          "label": "face",
+          "confidence": 0.6313705444335938,
+          "bbox": {
+            "x": 487.31689453125,
+            "y": 590.9472961425781,
+            "w": 52.640869140625,
+            "h": 46.83123779296875
+          }
+        }
+      ]
+    },
+    {
+      "t": 23.0,
+      "frame": 690,
+      "width": 1280,
+      "height": 720,
+      "detections": [
+        {
+          "modality": "face",
+          "kind": "person",
+          "label": "face",
+          "confidence": 0.6368103623390198,
+          "bbox": {
+            "x": 521.1783752441406,
+            "y": 297.13360595703125,
+            "w": 25.74444580078125,
+            "h": 37.4468994140625
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -3,6 +3,23 @@
 Every behaviour change gets an entry in the same commit. Plain-language section mandatory — anyone on the team must be able to read it.
 
 ---
+## 2026-07-25 — Ring Cam: recorded-demo mode plays a real clip with synced live detection boxes
+
+**What:** `RingCam.tsx` gained a second mode alongside the existing live-camera lens: a "▶ Recorded demo clip" button that plays an actual video (`<video>` element, muted/autoplay/loop, `object-fit: cover`, clipped by the lens's existing circular `overflow: hidden`) inside the round lens instead of the STRIPE placeholder. Bounding boxes are drawn from a pre-computed detection track (`scripts/detections_ringcam.json`, mirrored to `dashboard/app/public/demo-clips/ring-demo-detections.json` for Vite to serve) and kept in sync with playback by finding the nearest sampled timestamp to the video's current `currentTime` (1.2s tolerance — beyond that, no box is shown rather than holding a stale one). Boxes scale against each sampled frame's own recorded `width`/`height` (1280x720), not the live-camera `SOURCE_FRAME` constant, since this is a different source clip. Explicitly labelled **RECORDED DEMO**, never LIVE (it's a stored clip, not a camera feed) and never SIMULATED (the detections are real model output from a real offline run, not fabricated).
+
+**Why:** the live-camera lens can only draw boxes over a striped placeholder because no stored video frame exists for a live feed — it answers "does the model see plates" honestly but can't show it "working" the way a real clip playing back can. The user supplied a real hijacking-footage clip and asked for it embedded in the lens so the overlay visibly tracks a moving scene, not just a static readout.
+
+**Data flow:** `scripts/vision_lens_demo.py --dry-run --interval 1.0` (the same real detectors used everywhere else in this repo — plate, weapon, face) ran once, offline, against the locally-stored clip and wrote a bbox/label/confidence JSON track with no image data in it, so it's safe to commit even though the source video (copyrighted broadcast footage) is not. The video itself lives only at `dashboard/app/public/demo-clips/ring-demo.mp4`, covered by the repo-wide `*.mp4` gitignore rule (confirmed via `git check-ignore -v`) — never committed, local use only.
+
+**Measured, not assumed:** the plate (`:8001`) and weapon (`:8002`) Roboflow-workflow services returned HTTP 500 on every call during this run — a real service fault, not simulated — so this clip's track has **0 plate boxes and 0 weapon detections**, only 5 face detections from the local in-process InsightFace pass, which doesn't depend on those services. The UI shows these real zero counts rather than hiding them or reusing numbers from a different clip.
+
+**Verified:** live in the browser (Vite dev server, `http://localhost:5173`, Ring Cam tab): clicked "Recorded demo clip," video played inside the circular lens with the RECORDED DEMO badge; readout showed the real counts (0 weapon, 0 plate/0 read, 5 face) and per-clip detections from `scripts/vision_lens_demo.py --dry-run`. Seeked to `t=20.0s` via `video.currentTime` and confirmed a FACE box rendered correctly positioned over the person's head in frame, with a 77% confidence label — bbox scaling against the frame's own 1280x720 size confirmed correct. No console errors.
+
+**Not done:** did not re-run the plate/weapon detectors after the 500s — the services were reachable (200 on their root path) but erroring on `/detect` specifically; that's a backend service issue outside this slice's scope, not patched around here. Did not add a route/URL param for demo mode (state-only toggle); did not attempt to fix or retune the plate/weapon microservices.
+
+**Plain language:** Ring Cam's live camera view can only draw boxes over a placeholder background because we don't keep actual video from real cameras. For a supplied hijacking clip, we now play the actual footage inside the round lens instead, with the same real detection boxes drawn on top in sync as the video moves — so you can watch the model "working" against real footage, not just read a static summary. Labelled clearly as a recorded clip, not a live camera, and everything shown is real model output — including the fact that the plate and weapon detectors happened to be down when this clip was processed, so only face detection has real numbers for this specific run.
+
+---
 ## 2026-07-25 — Dashboard UI polish: found the real overlap bug, loaded the font that was silently missing
 
 **What:** Four visual complaints ("things are overlapping", buttons not soft/round, font not modern, colors look blocky), each traced to a real cause and fixed:
