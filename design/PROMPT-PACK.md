@@ -1,8 +1,21 @@
 # BEACON — Claude Design prompt pack
 
-> Owner: Lethabo. Status: v1.0, 2026-07-25. Use with `design/README.md` (filenames, PR rules) and `docs/04-UI-BRIEF.md` (the four UI laws).
-> **How to use:** paste §1 **verbatim at the top of every prompt**, then paste the one screen block from §2 underneath it, then attach your reference images.
-> The preamble is what makes twelve separately-generated screens look like one product instead of twelve mockups — do not skip it, do not paraphrase it.
+> Owner: Lethabo. Status: v2.0, 2026-07-25. Use with `design/README.md` (filenames, PR rules) and `docs/04-UI-BRIEF.md` (the four UI laws).
+>
+> **There are TWO preambles. Pick the right one, paste it verbatim, then paste one screen block under it.**
+>
+> | Building… | Preamble | Screen blocks |
+> |---|---|---|
+> | Ops console (operator-facing, dense, dark) | **§1** | §2.1–2.6, 2.11, 2.12 |
+> | Member app (customer-facing, calm, light) | **§6.1** | §6.2–6.8 |
+>
+> The preamble is what makes separately-generated screens look like one product instead of a
+> pile of mockups — do not skip it, do not paraphrase it. **One screen per conversation.**
+> Never ask for two screens in one prompt; you get two half-screens.
+>
+> v2.0 adds the member-app track (§6), driven by `design/BEACON-V2-MASTER-BRIEF.md`. §1's
+> preamble is deliberately *not* used for member screens — it optimises for operator density,
+> which is the wrong instinct for a consumer app.
 
 ---
 
@@ -357,4 +370,307 @@ improves as we go rather than the same fix being re-typed every round.
 
 ## 5. Prompt refinements (append as we learn)
 
-_(empty — add dated notes here as screens come back and prompts get tuned)_
+- **2026-07-25** — Split the pack in two. §1's "Palantir / dense / zero playfulness" preamble
+  was producing operator-grade density on member screens, which reads as cold and complicated
+  to a customer. Member screens now use §6.1 instead. Same tokens, opposite density instinct.
+- **2026-07-25** — Design tokens are now live in code as Tailwind v4 `@theme` (see
+  `dashboard/app/src/index.css`). Generated screens may use `bg-bg-900`, `text-risk-critical`,
+  `shadow-card-dark`, `font-sans` etc. directly and they will resolve on port. Previously they
+  would not have — the old `tailwind.config.ts` generated nothing.
+
+---
+
+# 6. MEMBER APP TRACK (v2)
+
+Source of truth: `design/BEACON-V2-MASTER-BRIEF.md` §7. Build order — **6.4 (Safest route),
+6.3 (Drive), 6.5 (Hotspot map) first.** Those three are the demo. Everything else is upside.
+
+## 6.1 Member-app preamble (paste verbatim before every §6.x block)
+
+```
+You are designing the BEACON member app — a proactive personal safety companion built by
+Discovery (South African insurer) on top of their own real claims data. Tagline: "the light
+that stays on."
+
+THE USER IS NOT AN OPERATOR. She is a Discovery customer driving home from work. She is not
+trained, not paid to look at this, and may be opening it while stressed. Every screen must be
+readable in under three seconds and actionable in one tap.
+
+TONE
+Discovery's institutional credibility, not a startup safety app. Calm, precise, evidence-led.
+This app shows people crime data about where they live — alarmist design would be irresponsible
+and would destroy trust. Confident and quiet. NEVER a red-alert interface. The product's
+credibility is its entire differentiator.
+
+Reference feel: Apple Wallet, Monzo, Google Maps, Citymapper, Revolut, Discovery Vitality.
+Generous, rounded, soft, breathable. NOT Palantir, NOT a dashboard, NOT data-dense.
+
+DESIGN LANGUAGE
+- Mobile-first, 390x844 phone frame. Design the phone frame itself (rounded 32px, notch,
+  status bar) — these get shown side-by-side in a pitch.
+- Corner radii: 12px inputs/chips · 16px cards · 20px bottom sheets · 28px primary buttons
+  (full pill) · 32px phone frame.
+- Buttons: pill-shaped and generous. Minimum 48px tall, 44px minimum touch target. Primary is
+  the beacon gradient with a subtle inner highlight. Secondary is a bordered ghost.
+  Hover lifts translateY(-1px) + brightness(1.08); press settles to translateY(0) +
+  brightness(0.95); 120ms ease.
+- Soft elevation over hard borders, EVERYWHERE. Cards float on the canvas.
+- Whitespace is generous. 8px spacing grid. Cards get 20-24px internal padding. This app is
+  allowed to breathe in a way the ops console is not.
+- Motion: 120-200ms for state changes, 260-320ms for sheets and route transitions. Spring
+  easing ONLY on the map. Nothing bounces on an alert — alerts appear decisively and hold still.
+
+COLOUR TOKENS (exact values — these are live in our code as Tailwind v4 @theme)
+Light content (the member app's default surface):
+  --bg-50: #F7F9FC  canvas    --bg-0: #FFFFFF  card
+  --ink-hi: #0F172A          --ink-mid: #475569        --ink-lo: #94A3B8
+  --line-light: rgba(15,23,42,0.08)
+Dark chrome (ONLY the live camera screen and the phone lock-screen mockup):
+  --bg-900: #0A0F1A   --bg-800: #101725   --bg-700: #182130
+  --text-hi: #F1F5F9  --text-mid: #94A3B8 --text-lo: #64748B
+  --line-dark: rgba(255,255,255,0.08)
+Brand:
+  --beacon: #F5A623 → --beacon-deep: #F27B21
+  --beacon-grad: linear-gradient(135deg, #F5A623 0%, #F27B21 100%)
+  --discovery: #0B5FA5   --discovery-soft: #E8F1F9
+Risk ramp (RISK/SEVERITY ONLY — never decorative, never a brand colour):
+  --safe: #10B981   --watch: #F59E0B   --high: #F0653A   --critical: #E11D48
+Semantic:
+  --live: #22D3EE (pulsing dot)   --stale: #6B7280 (always paired with a timestamp)
+Elevation:
+  --shadow-card: 0 1px 2px rgba(15,23,42,.06), 0 6px 20px rgba(15,23,42,.06)
+  --shadow-card-dark: 0 1px 2px rgba(0,0,0,.3), 0 8px 28px rgba(0,0,0,.35)
+
+TYPE
+Inter Variable. 11/12 uppercase 0.06em tracking for small labels · 15 body (larger than the
+ops console — this is a consumer app) · 17 emphasis · 22 screen title · 34-44 for a single
+hero number. ALL numerals tabular so live values do not jitter. Sentence case throughout.
+
+NON-NEGOTIABLE HONESTY RULES (enforced in our code — the design must obey)
+1. NEVER claim identification of a person. Our pipeline detects that a face is present; it does
+   not match identities. Face copy reads "Possible match — flagged for review", NEVER
+   "high-risk individual identified". Only a human can promote a candidate.
+2. NEVER show a percentage that did not come from a real measurement. No "94% safe", no
+   "99.8% accurate", no invented precision.
+3. An unread licence plate reads "Plate seen, not read — below the confidence gate." Design the
+   honest failure states as first-class UI, not as errors. They are a feature.
+4. Risk is suburb-level, from historical claims — never street-level prediction. Any risk
+   surface carries a plain-language method line.
+5. Stale data is greyed and stamped with its age. NEVER blank, never silently fresh-looking.
+6. Simulated data carries a small "SIMULATED" corner tag.
+7. Never "guarantees your safety", never "100% safe", never "predicts crime".
+
+ACCESSIBILITY
+WCAG AA contrast minimum. Risk is NEVER encoded by colour alone — always colour + text label +
+shape/icon. Every touch target >= 44px.
+
+EVERY SCREEN MUST INCLUDE THESE STATES
+Loading (skeletons, never spinners on data screens) · empty · error · stale (explicitly marked)
+· offline. Show them as additional frames beside the main screen.
+
+DATA REALISM
+Real South African context. Johannesburg suburbs: Bryanston, Sandton, Randburg, Midrand,
+Roodepoort, Soweto, Alexandra, Fourways, Rivonia. Rands with thousands separators (R109,937).
+SA plate format, fake plates only (e.g. "JZ 84 KL GP"). No lorem ipsum. No stock-photo faces —
+neutral silhouettes or blurred placeholders only.
+
+OUTPUT
+A complete, self-contained, responsive React + TypeScript + Tailwind screen.
+```
+
+## 6.2 Member — Home / Today (`/home`)
+
+```
+SCREEN: Member app home. The first thing Sarah sees each morning. Calm, not a dashboard.
+
+Layout, top to bottom:
+- Greeting + date. Small "Discovery Insure" lockup.
+- HERO CARD: "Today's risk — Bryanston". A coloured severity ring (risk ramp) around a large
+  tabular number (the severity score, 0.85). Beside it: "89 claims on record · mostly Theft ·
+  peaks Fridays around 12:00". Beneath, in ink-lo: "From 15,712 Discovery claims."
+- NEXT TRIP card: "Home, usually around 17:30" with a single primary pill button
+  "Plan safest route".
+- VITALITY POINTS strip: current balance in the beacon gradient, plus "+150 this week from
+  safer routes". Tappable through to the rewards ledger.
+- RECENT ALERTS: max 3, each a compact row with a risk-ramp left rail, a title and a relative
+  timestamp. A "See all" ghost link.
+- Bottom tab bar: Home · Drive · Map · Assistant · Rewards. Active item in the beacon gradient.
+
+Also design the EMPTY state: a member with no trips yet and no alerts. It must read calm and
+intentional ("Nothing needs your attention"), never broken or unfinished.
+```
+
+## 6.3 Member — Live drive (`/drive`) — DEMO SCENE 1
+
+```
+SCREEN: The live dashcam view. This is the hero screen of the demo. Dark chrome (bg-900).
+
+Two halves, side by side on desktop, stacked on mobile:
+
+LEFT — the lens. A large CIRCULAR viewport showing the dashcam feed, with detection bounding
+boxes overlaid on it. Boxes are 2px, risk-ramp coloured by type, with a small label tag at the
+top-left corner of each box reading e.g. "WEAPON · pistol · 47%". A thin ring around the lens
+carries a live pulse (--live) and a running clock. Beneath the lens: a horizontal detection
+strip — small chips counting what has been seen this clip ("15 plates · 0 read", "9 weapon",
+"2 faces").
+
+RIGHT — the phone. A 390x844 phone frame showing the LOCK SCREEN, i.e. what the member actually
+receives. Large clock, "BEACON is connected to your dashcam", and ONE notification card:
+  "BEACON · now
+   Potential weapon detected
+   pistol · 47% confidence — tap to view the clip"
+The card is tinted by the risk ramp. This is the point of the whole screen: the operator sees
+bounding boxes, the member sees one sentence.
+
+Design ALL FOUR notification states as separate frames:
+  1. Weapon    → "Potential weapon detected"                    (critical)
+  2. Face      → "Possible match — flagged for review"          (watch)
+                 subtitle: "Face detected — not an identification, held for a human check"
+  3. Plate     → "Plate seen, not read"                         (ink-mid, deliberately quiet)
+                 subtitle: "Below the confidence gate — no read recorded"
+  4. Idle      → "No detection requiring attention right now"   (safe)
+
+State 3 and 4 are as important as state 1. The system refusing to guess is the product.
+```
+
+## 6.4 Member — Safest route (`/route`) — DEMO SCENE 3
+
+```
+SCREEN: Safest route planning. Deliberately Google-Maps-familiar so it needs no explanation.
+
+- Destination search field pinned to the top, rounded 12px, with a location pin icon and a
+  "Leave at 17:30" time chip beside it.
+- Map fills the screen. 2-3 alternative route polylines:
+    recommended = --safe #10B981, 6px, full opacity
+    alternatives = --ink-lo, 4px, 50% opacity
+    high-risk corridor segments on ANY route = --high #F0653A, and slightly thicker
+  Small severity circles for nearby hotspots, sized by severity.
+- BOTTOM SHEET (draggable, 20px top radius), showing route options as stacked cards:
+
+    [RECOMMENDED] via William Nicol          24 min · 18.2 km
+    Exposure  [■■□□□□□□□□]  61% lower
+    No high-severity suburb within 2 km.
+    (+150 Vitality Points badge, beacon gradient)
+
+    via N1                                    22 min · 17.4 km
+    Exposure  [■■■■■■■□□□]
+    Passes within 1.1 km of BRYANSTON — 89 claims, mostly Theft, peaks Fridays
+    around 12:00. Arrives 17:40, inside the local peak window.
+
+- ONE primary pill button, full width: "Start safer route".
+- A method line at the base of the sheet in ink-lo, 12px:
+  "Based on suburb-level claims history, not street-level prediction."
+  This line is REQUIRED. Do not remove it or shrink it into illegibility.
+
+Also design: the search/empty state before a destination is entered, and the loading state
+while routes are being scored (skeleton route cards, not a spinner).
+```
+
+## 6.5 Member — Hotspot map (`/map`) — DEMO SCENE 2
+
+```
+SCREEN: The claims hotspot map. IMPORTANT CONSTRAINT — the map markers themselves are inherited
+from an existing map the client has already seen and approved. Reproduce these rules EXACTLY
+and do not restyle them:
+    circle markers, fill opacity 0.7, 1px #333 border
+    severity >= 0.66 → #c0392b   |   >= 0.33 → #e67e22   |   below → #f1c40f
+    radius = 6 + (severity x 20) px, so 6px to 26px
+    OpenStreetMap tiles, full-bleed
+Your job is the CHROME AROUND the map, not the map.
+
+Design:
+- A floating FILTER BAR (rounded 16px, white, shadow-card, floating over the map with 16px
+  insets): an hour scrubber (0-23, currently 17:00), day-of-week pills (Mon-Sun, Friday
+  active), claim-type chips (Theft / Hijack / Armed Robbery / Burglary), and a severity
+  minimum slider. The hour scrubber is the money interaction — make it feel physical and
+  satisfying to drag.
+- A BOTTOM SHEET that slides up when a marker is tapped, showing the suburb detail:
+    BRYANSTON                                    severity 0.85 (ring, risk ramp)
+    89 incidents · Theft (80x), Armed Robbery (8x), Hijack (1x)
+    Peaks Fridays around 12:00 · busiest month May
+    Total claims R9,454,547 · average R109,937
+  and a primary pill "Route around this area" that hands off to 6.4.
+- A persistent PROVENANCE LINE, small, bottom-left, always visible:
+  "15,712 Discovery claims analysed · 709 suburbs mapped"
+- A legend matching the colour scale above.
+
+Design the sheet in both collapsed (peek) and expanded states.
+```
+
+## 6.6 Member — Home guard (`/home-guard`) — DEMO SCENE 4
+
+```
+SCREEN: Property audio monitoring. This screen is looked at mostly when NOTHING is wrong, so
+the resting state must be reassuring rather than tense.
+
+RESTING STATE:
+- Property card with an address and a live pulse dot (--live), "Monitoring since 21:04".
+- A soft, slow audio waveform visualisation — ambient, not a medical monitor.
+- The classes being listened for, as quiet chips: "Glass breaking · Raised voices · Distress".
+- A line in ink-lo: "Audio is analysed on the device. Nothing is recorded or stored."
+- A ghost secondary button: "Pause monitoring".
+
+ACTIVE DETECTION STATE (design as a separate frame):
+- A bottom sheet rises. Decisive but NOT panicking — no full-red screen, no flashing.
+    "We detected the sound of breaking glass at your property."
+    "21:47 · 12 seconds ago"
+  Two large full-width pill buttons, stacked:
+    [ I'm home ]        — safe colour, visually PRIMARY
+    [ I'm not home ]    — high colour, visually SECONDARY
+  Escalation must never be the easy click.
+- A countdown ring (30s) with a visible "Cancel" — if she doesn't answer, it escalates, and
+  she can always stop it.
+
+ESCALATION STATE (third frame): after "I'm not home" — a vertical ladder showing
+  Neighbours notified → Private security dispatched → SAPS contacted
+with each step's status and timestamp, and a persistent "Cancel — false alarm" ghost button.
+```
+
+## 6.7 Member — Beacon Assistant (`/assistant`)
+
+```
+SCREEN: The chat assistant. Clean and quiet — most of the screen is conversation.
+
+- Assistant messages: bg-0 cards, shadow-card, 16px radius, left-aligned.
+- Member messages: --discovery-soft fill, right-aligned.
+- Composer pinned to the bottom, 12px radius, with a subtle beacon-gradient send button.
+
+TWO THINGS MOST CHAT UIs SKIP — both are required here:
+
+1. DATA CITATION CHIP. Any assistant message containing a number carries a small chip beneath
+   it: "📍 from 89 claims in Bryanston" — tappable, and tapping it deep-links to that suburb on
+   the map. This is how we prove the assistant is not making things up. Design it so it reads
+   as a source, not a decoration.
+
+2. THE CONSENT CARD. An inline card inside the conversation:
+      "Want me to remember that you usually leave work around 17:30?
+       I'll use it to warn you before Friday peak hours."
+      [ Yes ]  [ No ]     (two pill buttons, equal visual weight)
+   This is a signature moment in the pitch — the app ASKS before it stores anything about her.
+   Make it feel considerate and human, absolutely not like a cookie banner.
+
+Also design: the opening empty state with 3-4 suggested prompt chips ("Is my area safe
+tonight?", "Safest way home?", "Why did I get that alert?"), and the assistant's "thinking"
+state showing WHICH tool it is calling ("Checking claims history for Bryanston…") — that
+transparency is part of the trust story.
+```
+
+## 6.8 Member — Vitality Points (`/rewards`)
+
+```
+SCREEN: The rewards ledger. This screen makes the business case visible: Discovery pays people
+to avoid becoming a claim.
+
+- HERO: points balance, 44px tabular, in the beacon gradient. "Safety points earned this month".
+- A progress arc toward the next Vitality tier, with what it unlocks.
+- LEDGER, a list of earned entries, each with an icon, a description and a points value:
+    "Took the safer route via William Nicol"          +150   Tue
+    "Avoided Bryanston during Friday peak hours"      +100   Fri
+    "Home monitoring active 30 nights"                +250   Mon
+    "Completed a safety check-in"                      +50   Sun
+- A quiet card at the bottom tying it to the product story:
+    "You've reduced your route exposure 38% this month."
+  with a small sparkline. Discovery-blue, not beacon — this is analysis, not a reward.
+
+Design the empty state for a brand-new member: zero points, and a clear first action.
+```
