@@ -3,6 +3,7 @@ Pytest configuration and fixtures.
 VUKA pattern: clean DB per test, real HTTP client.
 """
 import json
+import os
 import pytest
 import sys
 from pathlib import Path
@@ -14,6 +15,15 @@ from fastapi.testclient import TestClient
 # Add server/ to path so `src` resolves as a package (its modules use
 # package-relative imports — adding src/ itself to the path breaks them)
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
+# RateLimitMiddleware (src/middleware/rate_limit.py) reads its limit once at
+# import time and is instantiated once on the app singleton — every test in
+# this session shares the same instance and the same TestClient IP
+# ("testclient"), so its hit-counter would otherwise accumulate across the
+# WHOLE test run, not per test. Set effectively-unlimited before importing
+# app so contract tests exercise business logic, not rate limiting (that has
+# its own dedicated unit tests in test_rate_limit_middleware.py).
+os.environ.setdefault("RATE_LIMIT_PER_MINUTE", "1000000")
 
 from src.main import app
 from src.db.models import Base

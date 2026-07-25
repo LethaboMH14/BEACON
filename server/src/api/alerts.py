@@ -23,8 +23,22 @@ from ..auth import require_operator_token
 
 router = APIRouter()
 
-# Cancel window: 30 seconds default (tunable via env later)
-CANCEL_WINDOW_SECONDS = 30
+# Cancel window, per severity — a critical alert (e.g. hard_trigger/weapon)
+# should reach the member fast, so operators get less time to second-guess
+# it; a low-severity one can afford a longer window since the cost of a
+# few extra seconds' delay is much lower. Previously a single flat 30s for
+# every severity, which didn't match how urgently each should actually fire.
+CANCEL_WINDOW_SECONDS_BY_SEVERITY = {
+    "critical": 15,
+    "high": 20,
+    "medium": 30,
+    "low": 45,
+}
+DEFAULT_CANCEL_WINDOW_SECONDS = 30  # unrecognised severity string falls back here
+
+
+def _cancel_window_seconds(severity: str) -> int:
+    return CANCEL_WINDOW_SECONDS_BY_SEVERITY.get(severity, DEFAULT_CANCEL_WINDOW_SECONDS)
 
 
 # ── Pydantic schemas ──────────────────────────────────────────────────────────
@@ -101,8 +115,9 @@ async def create_alert(payload: AlertCreate, db: Session = Depends(get_db)):
     """
     Create an alert and fan it out over WebSocket.
 
-    A cancel window of 30 s is set on every new alert — operators can
-    cancel within that window before the alert reaches the member.
+    A cancel window is set on every new alert, sized by severity
+    (CANCEL_WINDOW_SECONDS_BY_SEVERITY) — operators can cancel within that
+    window before the alert reaches the member.
     """
     # Validate FK references (optional fields)
     if payload.entity_id:
@@ -130,7 +145,7 @@ async def create_alert(payload: AlertCreate, db: Session = Depends(get_db)):
         severity=payload.severity,
         status="pending",
         created_at=now,
-        cancel_window_expires=now + timedelta(seconds=CANCEL_WINDOW_SECONDS),
+        cancel_window_expires=now + timedelta(seconds=_cancel_window_seconds(payload.severity)),
     )
     db.add(alert)
 
@@ -231,7 +246,8 @@ async def cancel_alert(
     x_operator_token: Optional[str] = Header(default=None, alias="X-Operator-Token"),
 ):
     """
-    Cancel an alert — only valid within the cancel window (30 s).
+    Cancel an alert — only valid within the cancel window (severity-sized,
+    see CANCEL_WINDOW_SECONDS_BY_SEVERITY).
     After the window expires the cancel is rejected; this enforces that
     an operator cannot silently suppress a live alert after the fact.
     Writes to evidence_chain regardless of outcome. operator_id is
