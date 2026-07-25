@@ -6,6 +6,12 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "5500", "--directory", "dashboard"],
       "port": 5500
+    },
+    {
+      "name": "beacon-dashboard-app",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "dashboard/app"],
+      "port": 5173
     }
   ]
 }
