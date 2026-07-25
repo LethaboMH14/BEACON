@@ -3,6 +3,8 @@ import { colors, type RiskLevel, riskColor } from './theme/tokens';
 import { getHealth, getHotspots, type HotspotEntry } from './api/client';
 import { OpsSocket, type OpsEvent } from './api/ws';
 import CommunityOperationsCentre from './screens/CommunityOperationsCentre';
+import VerifyQueue from './screens/VerifyQueue';
+import LiveAICamera from './screens/LiveAICamera';
 
 function riskLevelFor(score: number): RiskLevel {
   if (score >= 0.75) return 'critical';
@@ -12,7 +14,8 @@ function riskLevelFor(score: number): RiskLevel {
 }
 
 function App() {
-  const [screen, setScreen] = useState<'scaffold' | 'ops-centre'>('ops-centre');
+  const [screen, setScreen] = useState<'scaffold' | 'ops-centre' | 'verify-queue' | 'live-camera'>('ops-centre');
+  const [handoffEntityId, setHandoffEntityId] = useState<string | null>(null);
   const [health, setHealth] = useState<'checking' | 'up' | 'down'>('checking');
   const [hotspots, setHotspots] = useState<HotspotEntry[]>([]);
   const [events, setEvents] = useState<OpsEvent[]>([]);
@@ -39,16 +42,23 @@ function App() {
   }, []);
 
   const toggle = (
-    <button
-      onClick={() => setScreen(screen === 'scaffold' ? 'ops-centre' : 'scaffold')}
-      style={{
-        position: 'fixed', top: 8, right: 8, zIndex: 1000,
-        background: colors.bg700, color: colors.textHi, border: `1px solid ${colors.lineDark}`,
-        borderRadius: 8, padding: '6px 10px', fontSize: 11, cursor: 'pointer',
-      }}
-    >
-      {screen === 'scaffold' ? 'View Community Operations Centre →' : '← View wiring scaffold'}
-    </button>
+    <div style={{ position: 'fixed', top: 8, right: 8, zIndex: 1000, display: 'flex', gap: 6 }}>
+      {([
+        ['scaffold', 'Wiring scaffold'],
+        ['ops-centre', 'Ops Centre'],
+        ['verify-queue', 'Verify Queue'],
+        ['live-camera', 'Live AI Camera'],
+      ] as const).map(([key, label]) => (
+        <button key={key} onClick={() => setScreen(key)} style={{
+          background: screen === key ? colors.beacon : colors.bg700,
+          color: screen === key ? colors.bg900 : colors.textHi,
+          border: `1px solid ${colors.lineDark}`, borderRadius: 8, padding: '6px 10px', fontSize: 11, cursor: 'pointer',
+          fontWeight: screen === key ? 700 : 400,
+        }}>
+          {label}
+        </button>
+      ))}
+    </div>
   );
 
   if (screen === 'ops-centre') {
@@ -56,6 +66,24 @@ function App() {
       <>
         {toggle}
         <CommunityOperationsCentre />
+      </>
+    );
+  }
+
+  if (screen === 'verify-queue') {
+    return (
+      <>
+        {toggle}
+        <VerifyQueue initialEntityId={handoffEntityId} />
+      </>
+    );
+  }
+
+  if (screen === 'live-camera') {
+    return (
+      <>
+        {toggle}
+        <LiveAICamera onOpenVerifyQueue={(entityId) => { setHandoffEntityId(entityId); setScreen('verify-queue'); }} />
       </>
     );
   }
