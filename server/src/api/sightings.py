@@ -4,14 +4,21 @@ Contract from docs/01-ARCHITECTURE.md §5.
 """
 from datetime import datetime
 from typing import Optional, List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
-from ..db import get_db, Sighting, Camera, Entity
+from ..db import get_db, Sighting, Camera, Entity, FaceEmbedding
 from ..ws.manager import ws_manager
 from ..suspicion import score_entity
 from ..suspicion.entity_resolution import resolve_plate_entity
+from ..suspicion.plate_text import clean_plate_text
+from ..suspicion.face_resolution import (
+    MAX_EMBEDDINGS_PER_ENTITY,
+    is_valid_embedding,
+    normalize,
+    resolve_face_entity,
+)
 import uuid
 
 router = APIRouter()
@@ -22,6 +29,12 @@ router = APIRouter()
 # enough that missing it isn't worse than scanning every entity ever created
 # on every single sighting.
 KNOWN_PLATES_QUERY_LIMIT = 2000
+
+# Same cap, same reasoning, for the face-embedding candidate pool. Counted in
+# stored VIEWS not entities (an entity holds up to MAX_EMBEDDINGS_PER_ENTITY),
+# so this is ~200+ distinct people — well beyond a demo's population, and the
+# comparison itself is one vectorized matmul regardless.
+KNOWN_FACES_QUERY_LIMIT = 2000
 
 
 class BoundingBox(BaseModel):
@@ -42,9 +55,31 @@ class SightingCreate(BaseModel):
     confidence: float = Field(..., ge=0.0, le=1.0, description="Detection confidence [0,1]")
     bbox: Optional[BoundingBox] = Field(None, description="Bounding box")
     embedding_ref: Optional[str] = Field(None, description="Reference to embedding storage")
+    embedding: Optional[List[float]] = Field(
+        None,
+        description=(
+            "512-d face embedding (InsightFace buffalo_l). Only used when "
+            "modality='face'; drives face entity resolution. A descriptor, not "
+            "an image — see server/src/suspicion/face_resolution.py."
+        ),
+    )
     plate_text: Optional[str] = Field(None, description="Normalized plate text")
     plate_quality: Optional[float] = Field(None, ge=0.0, le=1.0, description="Plate match quality")
     clip_ref: Optional[str] = Field(None, description="Short clip reference for escalation")
+
+    @field_validator("plate_text")
+    @classmethod
+    def _sanitize_plate_text(cls, v: Optional[str]) -> Optional[str]:
+        """
+        Normalize, or drop entirely if the OCR string can't be a plate.
+
+        Applied at the boundary rather than at each call site so the single and
+        batch paths cannot disagree. Implausible reads become None — the
+        sighting is still recorded (it IS a real detection of a plate-shaped
+        object), it just doesn't get to mint an identity. See plate_text.py for
+        the observed OCR failures that motivated this.
+        """
+        return clean_plate_text(v)
 
 
 class SightingBatchCreate(BaseModel):
@@ -63,9 +98,207 @@ class SightingResponse(BaseModel):
     modality: str
     confidence: float
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
+
+
+class SightingDetail(SightingResponse):
+    """
+    Full sighting record for the ops Live AI Camera view.
+
+    Adds the fields that were written on POST but had no GET route to read them
+    back — bbox, plate_text, plate_quality — which is why that screen carried
+    three "no backing endpoint yet" placeholders instead of real detections.
+    modality is inherited from SightingResponse and was likewise stored but not
+    surfaced by the events endpoint the screen was using.
+    """
+    bbox: Optional[BoundingBox] = None
+    plate_text: Optional[str] = None
+    plate_quality: Optional[float] = None
+    clip_ref: Optional[str] = None
+    embedding_ref: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+@router.get("/sightings", response_model=List[SightingDetail])
+async def list_sightings(
+    camera_id: Optional[str] = None,
+    entity_id: Optional[str] = None,
+    modality: Optional[str] = None,
+    since: Optional[datetime] = None,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+):
+    """
+    Recent sightings with their full detection detail, newest first.
+
+    Exists so the ops Live AI Camera screen can draw real bounding boxes and
+    real plate reads instead of placeholders. Filterable by camera (one lens),
+    entity (this person/vehicle's history), modality (face/plate/yolo/audio)
+    and time.
+    """
+    limit = max(1, min(limit, 500))
+
+    query = db.query(Sighting)
+    if camera_id:
+        query = query.filter(Sighting.camera_id == camera_id)
+    if entity_id:
+        query = query.filter(Sighting.entity_id == entity_id)
+    if modality:
+        query = query.filter(Sighting.modality == modality)
+    if since:
+        query = query.filter(Sighting.ts >= since)
+
+    return query.order_by(Sighting.ts.desc()).limit(limit).all()
+
+
+def _get_or_register_camera(sighting_data: SightingCreate, db: Session) -> Camera:
+    """
+    Auto-register unknown sensors (camera or mic node) on first sighting —
+    there is no separate registration endpoint yet, and rejecting a
+    never-seen-before node_id would silently drop every audio/vision agent
+    started against a fresh DB.
+    """
+    camera = db.query(Camera).filter(Camera.id == sighting_data.camera_id).first()
+    if not camera:
+        camera = Camera(
+            id=sighting_data.camera_id,
+            name=sighting_data.camera_id,
+            hex_id=sighting_data.hex_id,
+            status="active",
+        )
+        db.add(camera)
+        db.flush()
+    camera.last_seen_at = sighting_data.ts  # G3 camera health
+    return camera
+
+
+def _resolve_plate_entity_row(sighting_data: SightingCreate, db: Session) -> Entity:
+    """
+    Confusion-aware plate match (docs/01 §3) — an OCR misread like "0" vs "O"
+    still resolves to the same car, not a new entity.
+    """
+    known_plates = dict(
+        db.query(Entity.id, Entity.plate_text)
+        .filter(Entity.plate_text.isnot(None))
+        .order_by(Entity.last_seen.desc())
+        .limit(KNOWN_PLATES_QUERY_LIMIT)
+        .all()
+    )
+    matched_id, _quality = resolve_plate_entity(sighting_data.plate_text, known_plates)
+    entity = db.query(Entity).filter(Entity.id == matched_id).first() if matched_id else None
+
+    if not entity:
+        entity = Entity(
+            id=f"ent_{uuid.uuid4().hex[:16]}",
+            kind=sighting_data.kind,
+            plate_text=sighting_data.plate_text,
+            embedding_ref=sighting_data.embedding_ref,
+            first_seen=sighting_data.ts,
+            last_seen=sighting_data.ts,
+            sighting_count=1,
+        )
+        db.add(entity)
+        db.flush()
+    else:
+        entity.last_seen = sighting_data.ts
+        entity.sighting_count += 1
+        entity.last_updated = datetime.utcnow()
+
+    return entity
+
+
+def _resolve_face_entity_row(sighting_data: SightingCreate, db: Session) -> tuple[Entity, bool]:
+    """
+    Cosine-similarity face match against previously stored embeddings.
+    Returns (entity, should_store_this_view).
+
+    Until this existed, a face sighting stored entity_id=NULL — no entity, no
+    suspicion score, no "seen here before". Plates were tracked and people
+    weren't, which is exactly backwards from what the product claims to do.
+
+    A view is stored when the entity is new, or when it still has room under
+    MAX_EMBEDDINGS_PER_ENTITY. Not every view: a person loitering in frame for
+    a minute would otherwise write hundreds of near-identical vectors and
+    crowd every other face out of the candidate pool.
+    """
+    rows = (
+        db.query(FaceEmbedding.entity_id, FaceEmbedding.vector)
+        .order_by(FaceEmbedding.created_at.desc())
+        .limit(KNOWN_FACES_QUERY_LIMIT)
+        .all()
+    )
+    known: dict[str, list[list[float]]] = {}
+    for entity_id, vector in rows:
+        known.setdefault(entity_id, []).append(vector)
+
+    matched_id, _similarity = resolve_face_entity(sighting_data.embedding, known)
+    entity = db.query(Entity).filter(Entity.id == matched_id).first() if matched_id else None
+
+    if not entity:
+        entity = Entity(
+            id=f"ent_{uuid.uuid4().hex[:16]}",
+            kind=sighting_data.kind,
+            embedding_ref=sighting_data.embedding_ref,
+            first_seen=sighting_data.ts,
+            last_seen=sighting_data.ts,
+            sighting_count=1,
+        )
+        db.add(entity)
+        db.flush()
+        return entity, True
+
+    entity.last_seen = sighting_data.ts
+    entity.sighting_count += 1
+    entity.last_updated = datetime.utcnow()
+
+    stored_views = (
+        db.query(FaceEmbedding).filter(FaceEmbedding.entity_id == entity.id).count()
+    )
+    return entity, stored_views < MAX_EMBEDDINGS_PER_ENTITY
+
+
+def _resolve_entity(sighting_data: SightingCreate, db: Session) -> tuple[Optional[str], bool]:
+    """
+    Route a sighting to an entity by whichever modality carries identity.
+    Returns (entity_id, should_store_face_view).
+
+    Plate first: an OCR'd plate is a far stronger identifier than an
+    uncalibrated face similarity, so when a detection somehow carries both, the
+    plate decides and the face embedding is not used to override it.
+    """
+    if sighting_data.plate_text:
+        return _resolve_plate_entity_row(sighting_data, db).id, False
+
+    if sighting_data.modality == "face" and is_valid_embedding(sighting_data.embedding):
+        entity, should_store = _resolve_face_entity_row(sighting_data, db)
+        return entity.id, should_store
+
+    # No identity-bearing signal (e.g. a weapon detection): a real sighting with
+    # no entity, stored as such rather than invented one.
+    return None, False
+
+
+def _store_face_view(sighting: Sighting, sighting_data: SightingCreate, db: Session) -> None:
+    """Persist the L2-normalized view and point both refs at it."""
+    embedding = FaceEmbedding(
+        entity_id=sighting.entity_id,
+        sighting_id=sighting.id,
+        vector=[float(v) for v in normalize(sighting_data.embedding)],
+        dim=len(sighting_data.embedding),
+        det_score=sighting_data.confidence,
+    )
+    db.add(embedding)
+    db.flush()
+
+    ref = f"face:{embedding.id}"
+    sighting.embedding_ref = ref
+    entity = db.query(Entity).filter(Entity.id == sighting.entity_id).first()
+    if entity is not None and not entity.embedding_ref:
+        entity.embedding_ref = ref
 
 
 @router.post("/sightings", response_model=SightingResponse, status_code=status.HTTP_201_CREATED)
@@ -80,57 +313,10 @@ async def create_sighting(
     The sighting is stored, linked to an entity (if resolvable), and a 
     WebSocket event is emitted to connected ops clients.
     """
-    # Auto-register unknown sensors (camera or mic node) on first sighting —
-    # there is no separate registration endpoint yet, and rejecting a
-    # never-seen-before node_id would silently drop every audio/vision agent
-    # started against a fresh DB.
-    camera = db.query(Camera).filter(Camera.id == sighting_data.camera_id).first()
-    if not camera:
-        camera = Camera(
-            id=sighting_data.camera_id,
-            name=sighting_data.camera_id,
-            hex_id=sighting_data.hex_id,
-            status="active",
-        )
-        db.add(camera)
-        db.flush()
-    camera.last_seen_at = sighting_data.ts
+    camera = _get_or_register_camera(sighting_data, db)
 
-    # Entity resolution (simplified for G0 — full logic in suspicion/)
-    entity_id = None
-    if sighting_data.plate_text:
-        # Confusion-aware plate match (docs/01 §3) — an OCR misread like
-        # "0" vs "O" still resolves to the same car, not a new entity.
-        known_plates = dict(
-            db.query(Entity.id, Entity.plate_text)
-            .filter(Entity.plate_text.isnot(None))
-            .order_by(Entity.last_seen.desc())
-            .limit(KNOWN_PLATES_QUERY_LIMIT)
-            .all()
-        )
-        matched_id, match_quality = resolve_plate_entity(sighting_data.plate_text, known_plates)
-        entity = db.query(Entity).filter(Entity.id == matched_id).first() if matched_id else None
-
-        if not entity:
-            # Create new entity
-            entity = Entity(
-                id=f"ent_{uuid.uuid4().hex[:16]}",
-                kind=sighting_data.kind,
-                plate_text=sighting_data.plate_text,
-                embedding_ref=sighting_data.embedding_ref,
-                first_seen=sighting_data.ts,
-                last_seen=sighting_data.ts,
-                sighting_count=1
-            )
-            db.add(entity)
-            db.flush()
-        else:
-            # Update existing entity
-            entity.last_seen = sighting_data.ts
-            entity.sighting_count += 1
-            entity.last_updated = datetime.utcnow()
-
-        entity_id = entity.id
+    # Entity resolution — plate (confusion-aware) or face (cosine similarity)
+    entity_id, should_store_face = _resolve_entity(sighting_data, db)
 
     # Create sighting
     sighting = Sighting(
@@ -150,6 +336,11 @@ async def create_sighting(
     )
 
     db.add(sighting)
+    db.flush()
+
+    if should_store_face:
+        _store_face_view(sighting, sighting_data, db)
+
     db.commit()
     db.refresh(sighting)
 
@@ -200,50 +391,12 @@ async def create_sightings_batch(
     created = []
     
     for sighting_data in batch.sightings:
-        # Auto-register unknown sensors, same as the single-sighting path
-        camera = db.query(Camera).filter(Camera.id == sighting_data.camera_id).first()
-        if not camera:
-            camera = Camera(
-                id=sighting_data.camera_id,
-                name=sighting_data.camera_id,
-                hex_id=sighting_data.hex_id,
-                status="active",
-            )
-            db.add(camera)
-            db.flush()
+        # Identical resolution to the single-sighting path — shared helpers
+        # rather than a second copy that drifts (the plate logic was previously
+        # duplicated here, so the face path would have been too).
+        camera = _get_or_register_camera(sighting_data, db)
+        entity_id, should_store_face = _resolve_entity(sighting_data, db)
 
-        # Entity resolution (confusion-aware plate match, same as the single path)
-        entity_id = None
-        if sighting_data.plate_text:
-            known_plates = dict(
-                db.query(Entity.id, Entity.plate_text)
-                .filter(Entity.plate_text.isnot(None))
-                .order_by(Entity.last_seen.desc())
-                .limit(KNOWN_PLATES_QUERY_LIMIT)
-                .all()
-            )
-            matched_id, _quality = resolve_plate_entity(sighting_data.plate_text, known_plates)
-            entity = db.query(Entity).filter(Entity.id == matched_id).first() if matched_id else None
-
-            if not entity:
-                entity = Entity(
-                    id=f"ent_{uuid.uuid4().hex[:16]}",
-                    kind=sighting_data.kind,
-                    plate_text=sighting_data.plate_text,
-                    embedding_ref=sighting_data.embedding_ref,
-                    first_seen=sighting_data.ts,
-                    last_seen=sighting_data.ts,
-                    sighting_count=1
-                )
-                db.add(entity)
-            else:
-                entity.last_seen = sighting_data.ts
-                entity.sighting_count += 1
-                entity.last_updated = datetime.utcnow()
-            
-            db.flush()
-            entity_id = entity.id
-        
         # Create sighting
         sighting = Sighting(
             camera_id=sighting_data.camera_id,
@@ -262,8 +415,13 @@ async def create_sightings_batch(
         )
         
         db.add(sighting)
+        db.flush()
+
+        if should_store_face:
+            _store_face_view(sighting, sighting_data, db)
+
         created.append(sighting)
-    
+
     db.commit()
 
     # Run scorer for all entities that appeared in this batch

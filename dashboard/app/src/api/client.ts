@@ -143,3 +143,44 @@ export async function verifyEntityAction(
   if (!res.ok) throw new Error(`verify ${entityId} (${action}) -> ${res.status} ${res.statusText}`);
   return res.json();
 }
+
+export interface DetectionBox {
+  x: number; // centre-x in source-frame pixels
+  y: number; // centre-y in source-frame pixels
+  w: number;
+  h: number;
+}
+
+/**
+ * Full sighting record from GET /v1/sightings.
+ *
+ * bbox / plate_text / plate_quality / modality have been written on POST since
+ * migration 001, but until ADR-0006 no GET route returned them — which is why
+ * this screen previously carried three "no backing endpoint" placeholders.
+ */
+export interface SightingDetail extends SightingBrief {
+  entity_id: string | null;
+  modality: string;
+  created_at: string;
+  bbox: DetectionBox | null;
+  plate_text: string | null;
+  plate_quality: number | null;
+  clip_ref: string | null;
+  embedding_ref: string | null;
+}
+
+export async function getSightings(opts: {
+  cameraId?: string;
+  entityId?: string;
+  modality?: string;
+  since?: string;
+  limit?: number;
+} = {}): Promise<SightingDetail[]> {
+  const params = new URLSearchParams();
+  if (opts.cameraId) params.set('camera_id', opts.cameraId);
+  if (opts.entityId) params.set('entity_id', opts.entityId);
+  if (opts.modality) params.set('modality', opts.modality);
+  if (opts.since) params.set('since', opts.since);
+  params.set('limit', String(opts.limit ?? 100));
+  return get(`/v1/sightings?${params.toString()}`);
+}

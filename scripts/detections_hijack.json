@@ -1,0 +1,281 @@
+{
+  "video": "WATCH Gun-wielding hijackers outsmarted by fast-thinking driver - News24 (1080p, h264).mp4",
+  "camera_id": "cam_hijack_demo",
+  "interval_s": 2.0,
+  "generated_at": "2026-07-25T16:50:54.544142+00:00",
+  "counts": {
+    "plate": 8,
+    "weapon": 5,
+    "face": 2
+  },
+  "frames": [
+    {
+      "t": 2.0,
+      "frame": 50,
+      "width": 1920,
+      "height": 1080,
+      "detections": [
+        {
+          "modality": "plate",
+          "kind": "vehicle",
+          "label": "plate",
+          "confidence": 0.5359119176864624,
+          "bbox": {
+            "x": 410.5,
+            "y": 186.0,
+            "w": 49.0,
+            "h": 22.0
+          },
+          "ocr_raw": "```markdown\n\n```"
+        }
+      ]
+    },
+    {
+      "t": 6.0,
+      "frame": 150,
+      "width": 1920,
+      "height": 1080,
+      "detections": [
+        {
+          "modality": "plate",
+          "kind": "vehicle",
+          "label": "plate",
+          "confidence": 0.6316308379173279,
+          "bbox": {
+            "x": 91.0,
+            "y": 428.0,
+            "w": 72.0,
+            "h": 26.0
+          },
+          "ocr_raw": "1234567890"
+        }
+      ]
+    },
+    {
+      "t": 8.0,
+      "frame": 200,
+      "width": 1920,
+      "height": 1080,
+      "detections": [
+        {
+          "modality": "yolo",
+          "kind": "weapon",
+          "label": "pistol",
+          "confidence": 0.4921737313270569,
+          "bbox": {
+            "x": 303.5,
+            "y": 131.5,
+            "w": 607.0,
+            "h": 263.0
+          }
+        },
+        {
+          "modality": "plate",
+          "kind": "vehicle",
+          "label": "plate",
+          "confidence": 0.7802831530570984,
+          "bbox": {
+            "x": 285.0,
+            "y": 689.5,
+            "w": 124.0,
+            "h": 67.0
+          },
+          "ocr_raw": "1000000000000"
+        },
+        {
+          "modality": "plate",
+          "kind": "vehicle",
+          "label": "plate",
+          "confidence": 0.44452908635139465,
+          "bbox": {
+            "x": 407.0,
+            "y": 184.5,
+            "w": 56.0,
+            "h": 27.0
+          },
+          "ocr_raw": "CASE 2000"
+        },
+        {
+          "modality": "plate",
+          "kind": "vehicle",
+          "label": "plate",
+          "confidence": 0.41758784651756287,
+          "bbox": {
+            "x": 731.0,
+            "y": 131.0,
+            "w": 58.0,
+            "h": 24.0
+          },
+          "ocr_raw": "BUSINESS"
+        }
+      ]
+    },
+    {
+      "t": 14.0,
+      "frame": 350,
+      "width": 1920,
+      "height": 1080,
+      "detections": [
+        {
+          "modality": "yolo",
+          "kind": "weapon",
+          "label": "pistol",
+          "confidence": 0.5643596053123474,
+          "bbox": {
+            "x": 935.5,
+            "y": 802.5,
+            "w": 1143.0,
+            "h": 553.0
+          }
+        }
+      ]
+    },
+    {
+      "t": 16.0,
+      "frame": 400,
+      "width": 1920,
+      "height": 1080,
+      "detections": [
+        {
+          "modality": "yolo",
+          "kind": "weapon",
+          "label": "pistol",
+          "confidence": 0.4712067246437073,
+          "bbox": {
+            "x": 955.0,
+            "y": 802.5,
+            "w": 1202.0,
+            "h": 553.0
+          }
+        }
+      ]
+    },
+    {
+      "t": 20.0,
+      "frame": 500,
+      "width": 1920,
+      "height": 1080,
+      "detections": [
+        {
+          "modality": "yolo",
+          "kind": "weapon",
+          "label": "pistol",
+          "confidence": 0.5306107401847839,
+          "bbox": {
+            "x": 499.5,
+            "y": 186.5,
+            "w": 665.0,
+            "h": 361.0
+          }
+        },
+        {
+          "modality": "face",
+          "kind": "person",
+          "label": "face",
+          "confidence": 0.5185424089431763,
+          "bbox": {
+            "x": 363.38829040527344,
+            "y": 167.45225524902344,
+            "w": 15.651641845703125,
+            "h": 22.52880859375
+          }
+        }
+      ]
+    },
+    {
+      "t": 22.0,
+      "frame": 550,
+      "width": 1920,
+      "height": 1080,
+      "detections": [
+        {
+          "modality": "face",
+          "kind": "person",
+          "label": "face",
+          "confidence": 0.7607916593551636,
+          "bbox": {
+            "x": 678.9064025878906,
+            "y": 282.93678283691406,
+            "w": 32.40435791015625,
+            "h": 42.065155029296875
+          }
+        }
+      ]
+    },
+    {
+      "t": 26.0,
+      "frame": 650,
+      "width": 1920,
+      "height": 1080,
+      "detections": [
+        {
+          "modality": "yolo",
+          "kind": "weapon",
+          "label": "pistol",
+          "confidence": 0.6328389644622803,
+          "bbox": {
+            "x": 741.0,
+            "y": 418.0,
+            "w": 230.0,
+            "h": 152.0
+          }
+        },
+        {
+          "modality": "plate",
+          "kind": "vehicle",
+          "label": "plate",
+          "confidence": 0.45371732115745544,
+          "bbox": {
+            "x": 1197.5,
+            "y": 668.5,
+            "w": 93.0,
+            "h": 37.0
+          },
+          "ocr_raw": "1"
+        }
+      ]
+    },
+    {
+      "t": 28.0,
+      "frame": 700,
+      "width": 1920,
+      "height": 1080,
+      "detections": [
+        {
+          "modality": "plate",
+          "kind": "vehicle",
+          "label": "plate",
+          "confidence": 0.6017357707023621,
+          "bbox": {
+            "x": 229.0,
+            "y": 279.5,
+            "w": 54.0,
+            "h": 31.0
+          },
+          "ocr_raw": "6"
+        }
+      ]
+    },
+    {
+      "t": 30.0,
+      "frame": 750,
+      "width": 1920,
+      "height": 1080,
+      "detections": [
+        {
+          "modality": "plate",
+          "kind": "vehicle",
+          "label": "plate",
+          "confidence": 0.5124121308326721,
+          "bbox": {
+            "x": 408.5,
+            "y": 184.5,
+            "w": 53.0,
+            "h": 25.0
+          },
+          "ocr_raw": "0000"
+        }
+      ]
+    }
+  ]
+}
