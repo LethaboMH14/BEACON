@@ -75,3 +75,23 @@
 **Decision.** `server/src/suspicion/scorer.py` is canonical — it's the one actually reachable from the frozen API contract (docs/01 §5) and the one the evidence chain / human-verify gate is built against. `brain/fusion.py` is retained as a reference prototype (its F1 window logic and human-gate discipline are sound and match) but must not be wired into `server/` or the dashboard; no new factor work should land there. If `brain/`'s author wants F2–F5 parity or a different modelling approach, extend `scorer.py` directly rather than completing the parallel file.
 
 **Consequences.** No code deleted (PR #7's author's call whether to remove or keep `brain/` as a design note). Any future PR wiring entity scoring into an endpoint must import from `server/src/suspicion/scorer.py`, not `brain/fusion.py`.
+
+---
+
+## ADR-0006: Face-embedding entity resolution, and the two honesty limits that come with it | Status: Accepted | 2026-07-25
+
+**Context.** `Entity.embedding_ref` and `Sighting.embedding_ref` have existed since migration 001, described as "reference to embedding storage". No such storage was ever built. Consequently `POST /v1/sightings` ran entity resolution only when `plate_text` was present, and a face sighting stored `entity_id=NULL` — recorded, but carrying no identity, no suspicion score, and no ability to match a returning person. BEACON's central claim is recognising a *returning* threat; for people it was not doing that. This is also an API contract change (docs/01 §5), which requires an ADR.
+
+**Decision.**
+1. Add a `face_embeddings` table (migration 004) storing L2-normalised 512-d InsightFace `buffalo_l` vectors, several views per entity (capped at 10), which is the store the existing `embedding_ref` columns point at.
+2. `POST /v1/sightings` accepts an optional `embedding: list[float]`. When `modality == "face"` and the embedding is valid, resolve by **cosine similarity, max over an entity's stored views** (not a centroid — averaging poses blurs the discriminating detail).
+3. **Plate outranks face.** When a sighting somehow carries both, the plate decides. An OCR'd plate is a far stronger identifier than an uncalibrated face similarity, and must not be overridden by one.
+4. Add a syntactic plausibility gate on OCR plate strings at the request boundary. Forced by measurement, not theory: on real 1080p footage the plate service returned `` ```markdown ``, `1234567890`, `BUSINESS`, `CASE 2000` (news chyron text) among 8 "plates". Ungated, each became an Entity with a suspicion score, and the confusion-aware matcher would merge `1` and `6` into one vehicle.
+5. Add `GET /v1/sightings` exposing `bbox` / `plate_text` / `plate_quality` / `modality` — written on POST since 001 with no route to read them back.
+
+**Consequences.**
+- `MATCH_THRESHOLD = 0.40` is an **uncalibrated default**, not a measurement. Binding constraints, recorded here so they survive personnel change: (a) no false-match or accuracy rate may be quoted for face matching anywhere — pitch, UI, or docs; (b) a match means "this camera has seen this face before", never identification of a named person, because no identity database exists to name anyone from; (c) a match is a lead for human verification, consistent with ADR-0002's human gate. Lifting these requires a real ROC/DET curve on representative SA footage.
+- The plate gate is a **plausibility filter, not a verifier**. `CASE 2000` passes because it is plate-shaped; nothing syntactic can reject plate-shaped background text. Asserted in a test so the limitation can't regress into an unearned claim.
+- A wrong plate match names a car; a wrong face match accuses a person. The face threshold is deliberately set on the strict side of the usual range for that asymmetry.
+- Storing biometric descriptors raises a POPIA obligation that this repo does not yet discharge: no retention policy, no subject-access path, no deletion route. Required before anything resembling production.
+- Rejected: running face detection as a fourth microservice alongside the two Roboflow-backed ones. It is a local model with no credential to manage, and a demo that needs four servers running has four ways to fail on stage. It runs in-process in the analyzer script.

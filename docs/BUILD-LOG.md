@@ -4,6 +4,44 @@ Every behaviour change gets an entry in the same commit. Plain-language section 
 
 ---
 
+## 2026-07-25 — Faces become identities: face-embedding entity resolution, plate-OCR sanitising, and GET /v1/sightings
+
+**What:** Closed the gap that made "repeat offender" a plate-only feature. `Entity.embedding_ref` and `Sighting.embedding_ref` had existed since migration 001 as designed indirection to "embedding storage", but no such storage was ever built — and `POST /v1/sightings` only ran entity resolution `if sighting_data.plate_text`. A face sighting therefore stored `entity_id=NULL`: detected, then forgotten. Vehicles were tracked; people weren't.
+
+Five pieces:
+1. `server/src/suspicion/face_resolution.py` — cosine similarity over L2-normalised 512-d InsightFace (`buffalo_l`) embeddings, max-over-stored-views rather than a centroid (averaging two poses of one person blurs exactly what distinguishes people). All candidates compared in a single vectorised matmul, deliberately avoiding the per-candidate loop shape that made `rank_hotspots` take 58s.
+2. Migration `004` + `FaceEmbedding` model — the store those `embedding_ref` columns always pointed at. Several views per entity, capped at 10.
+3. `POST /v1/sightings` accepts an `embedding` field and resolves faces when `modality="face"`. Plate wins when a sighting somehow carries both — an OCR'd plate is a far stronger identifier than an uncalibrated face similarity. The plate resolution logic had been *duplicated* between the single and batch endpoints; both now share `_resolve_entity`, so the face path couldn't be added to one and not the other.
+4. `server/src/suspicion/plate_text.py` — a plausibility gate on OCR strings, written because of what the plate service actually returned on real footage (below). Applied as a pydantic `field_validator` at the request boundary so both endpoints get it automatically.
+5. `GET /v1/sightings` — returns `bbox`, `plate_text`, `plate_quality`, `modality`, `embedding_ref`, filterable by camera/entity/modality/time. These were all written on POST with no route to read them back, which is precisely why `dashboard/app/src/screens/LiveAICamera.tsx` carries three "no backing endpoint yet" placeholders.
+
+`scripts/vision_lens_demo.py` rewritten from a two-modality poster into a three-modality analyzer. Face detection runs **in-process**, not as a fourth microservice: it's a local model with no credential to manage, and a demo needing four servers up has four ways to fail on stage. `--out` writes a per-timestamp detection track for UI replay; `--dry-run` detects without touching the server.
+
+**Why:** The product claim is that BEACON recognises a returning threat. For people, it did not — it only recognised returning number plates. This was invisible from the outside because the sighting was still recorded; it just silently carried no identity.
+
+**What the detectors actually do** (measured on a 1080p SA hijacking clip, 48s, 24 frames at 2s intervals — not projected):
+- **weapons: 5 pistol detections, confidence 0.47–0.63.** Real and useful. This is the demo signal.
+- **faces: 2 detections**, det_score 0.52 and 0.76 — real, with real 512-d embeddings, but small in frame (16×22 and 32×42 px). Embeddings from faces that size are weak.
+- **plates: 8 detections, OCR unreliable.** Actual returned strings included `` ```markdown
+
+``` ``, `1234567890`, `1000000000000`, `BUSINESS` and `CASE 2000` — the last two read off the news chyron. The markdown fencing means that workflow's OCR stage is LLM-backed and sometimes emits its own formatting instead of a reading. Without the new sanitiser, all eight became Entities with suspicion scores, and the confusion-aware matcher would happily have merged `1` and `6` into one "car".
+
+The earlier 240p clip returned zero of all three, including after 4× upscaling and `det_size=(1600,1600)`. **Resolution is the binding constraint, not configuration** — worth knowing before promising camera-agnostic detection.
+
+**Not done / honesty boundary:**
+- `MATCH_THRESHOLD = 0.40` is **not calibrated** — not on South African faces, not on these cameras, not on any held-out set. It's the common default operating point for ArcFace-family embeddings. **No false-match rate may be quoted for this matcher**, and a match means "this camera has seen this face before", never identification of a named person — there is no identity database to name anyone from. A real ROC/DET curve on representative footage is required before any production claim.
+- The plate sanitiser is a *plausibility filter, not a verifier*. `CASE 2000` has the shape of a plate and passes; nothing syntactic can reject plate-shaped background text. There's a test asserting this limitation so it can't regress silently.
+- No calibration, no clustering/merge of entities that later prove to be the same person, no face quality gate (a 16×22 px face is accepted on equal terms with a good one — it shouldn't be).
+- `LiveAICamera.tsx` not yet rewired to the new endpoint; its three placeholders are still accurate as of this commit.
+
+**Verified:** 36 new tests, full server suite **128 passed**. Migration `004` applied to the live `beacon.db`. End-to-end against the real 1080p clip through real services: 5 weapon detections → 5 critical alerts to private security; 2 faces → 2 person entities created *with* embeddings stored (`face:1`, `face:2`) — the capability that did not previously exist; 7 of 8 junk plate reads correctly denied identity while still being recorded as sightings. **Repeat-match proven**: re-running the same two faces returned `ent_4f5caea67dfc490b` and `ent_26d34d27e9d5457f` — their own entities from the first pass, with `sighting_count` incremented 1→2, and no cross-matching between the two different people. `GET /v1/sightings?modality=face` confirmed returning real bboxes.
+
+**Plain language:** The system could already spot a number plate it had seen before and say "that car's been here twice". It could not do the same for a person's face — it would detect the face, then throw away everything that made them recognisable. Now it remembers faces properly, and we proved it: showed it the same two people twice and it correctly said "seen this one before" for each, without mixing them up.
+
+We also tested it on the real hijacking video. The gun detection works well — it found a pistol in five separate moments. The number-plate reader does not work on this footage: it was reading the news captions on screen as if they were plates, and once even returned its own formatting code as a "plate". Anything it reads that can't possibly be a plate is now thrown away before it can pollute the database with fake "repeat offenders". Worth being upfront about at the pitch — the gun detection is the strong part here, and video quality matters enormously: the earlier low-resolution clip detected nothing at all.
+
+---
+
 ## 2026-07-25 — dashboard/app: Crime Intelligence screen ported; fixed a real 58s server perf bug found while verifying it
 
 **What:** Fourth of the 12 Claude Design screens, `dashboard/app/src/screens/CrimeIntelligence.tsx`, rebuilt from `design/exports/design_handoff_beacon/README.md` §4 (same from-scratch approach as the prior three screens). Real data wired: hero tiles (avg. forecast risk, hexes ≥50%, model version) and the "Top risk areas" ranked list from `GET /v1/hotspots`, a 24h forecast line for the top-ranked hex from 24 parallel `GET /v1/risk?hex=&hour=` calls, and a "Contributing factors" panel showing the real `top_factors` (`claim_count`, `same_hour_claims`) from `server/src/risk/forecast.py`'s claims-fallback tier. Four design panels have no backing endpoint and say so inline instead of inventing data: forecast confidence interval, historical-baseline overlay, "Top peril" / "Incidents by peril" (`Claim.claim_type` is a real DB column but nothing exposes it over the API), and a 12-month claims trend (no time-series endpoint exists). `App.tsx`'s screen toggle extended from 4 to 5 buttons.

@@ -102,6 +102,42 @@ class Sighting(Base):
     )
 
 
+class FaceEmbedding(Base):
+    """
+    A stored 512-d face embedding (InsightFace buffalo_l), one row per view.
+
+    This is the concrete store that Entity.embedding_ref and Sighting.embedding_ref
+    were always designed to point at but which nothing implemented — before this,
+    a face sighting resolved to no entity at all, so "seen here before" existed for
+    plates and not for people.
+
+    Several rows per entity on purpose (capped by
+    suspicion.face_resolution.MAX_EMBEDDINGS_PER_ENTITY): matching takes the max
+    similarity over an entity's real views rather than one averaged vector.
+
+    PRIVACY: this stores a mathematical descriptor, not an image and not a name.
+    It is not linked to any identity database — there isn't one. See docs/06
+    honesty ledger and suspicion/face_resolution.py's module docstring for what a
+    match may and may not be presented as.
+    """
+    __tablename__ = "face_embeddings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    entity_id: Mapped[str] = mapped_column(String(64), ForeignKey("entities.id"), nullable=False)
+    sighting_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("sightings.id"), nullable=True)
+
+    vector: Mapped[list] = mapped_column(JSON, nullable=False)  # 512 floats, L2-normalized on write
+    dim: Mapped[int] = mapped_column(Integer, nullable=False, default=512)
+    model: Mapped[str] = mapped_column(String(64), nullable=False, default="buffalo_l")
+    det_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # detector's own face confidence
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index("idx_face_embeddings_entity", "entity_id"),
+    )
+
+
 class Whitelist(Base):
     """Residents/regulars known to a street — kills recurrence false positives."""
     __tablename__ = "whitelist"
