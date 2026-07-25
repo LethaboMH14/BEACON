@@ -114,7 +114,7 @@ export default function VerifyQueue({ initialEntityId }: { initialEntityId?: str
   const confidencePct = detail ? Math.round(detail.current_score * 100) : 0;
 
   return (
-    <div style={{ minWidth: 1360, minHeight: '100vh', background: colors.bg900, color: colors.textHi, fontFamily: 'Inter, system-ui, sans-serif', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minWidth: 1360, height: '100vh', background: colors.bg900, color: colors.textHi, fontFamily: 'Inter, system-ui, sans-serif', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <div style={{ height: 60, flex: '0 0 60px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', borderBottom: `1px solid ${colors.lineDark}` }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
           <span style={{ fontWeight: 700, fontSize: 15 }}>BEACON</span>
