@@ -45,9 +45,9 @@ function relativeTime(iso: string): string {
   return `${Math.floor(s / 3600)}h`;
 }
 
-export default function VerifyQueue() {
+export default function VerifyQueue({ initialEntityId }: { initialEntityId?: string | null } = {}) {
   const [queue, setQueue] = useState<QueueRow[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(initialEntityId ?? null);
   const [detail, setDetail] = useState<EntityDetail | null>(null);
   const [reason, setReason] = useState('');
   const [dispatchExpanded, setDispatchExpanded] = useState(false);
