@@ -3,6 +3,22 @@
 Every behaviour change gets an entry in the same commit. Plain-language section mandatory — anyone on the team must be able to read it.
 
 ---
+## 2026-07-25 — Ring Cam: one-question round-lens screen for "does it actually see plates?"
+
+**What:** New `dashboard/app/src/screens/RingCam.tsx`, wired into the nav in `App.tsx`. A doorbell-style circular camera lens (real bbox from `GET /v1/sightings`, clipped to a circle) plus one plain-language readout under it: NO PLATES SEEN / SEES PLATES, CAN'T READ THEM / READING PLATES, driven by the real count of plate detections vs. accepted reads on the selected camera. Same `GET /v1/cameras` + `GET /v1/sightings` data as `LiveAICamera.tsx`, same `SOURCE_FRAME` caveat (bbox pixels with no recorded frame size), same refusal to render a plate string OCR didn't accept.
+
+**Why:** After the plate-OCR gate landed (ADR-0007), the natural next question was simply "okay, but does it actually see plates?" — Live AI Camera answers that, but buried in a filmstrip, a bbox overlay and three side panels built for an operator, not a five-second answer. This is that one question, alone.
+
+**Verified:** `npx tsc --noEmit` clean. Live in the browser against the real `beacon.db`: `cam_lens_demo` renders **"SEES PLATES, CAN'T READ THEM — 8 plate boxes detected, 0 accepted"**; `cam_hijack_demo` renders the same status at **7 detected, 0 accepted**. Both numbers match the pipeline re-run in the plate-OCR-gate entry above. Plate/non-plate boxes render inside the circular lens correctly clipped by `overflow: hidden`.
+
+**Also this session:** cleared the stale `CASE2000` / `100` vehicle entities (and their sightings) from `server/beacon.db` — leftovers from before the plate-OCR gate existed, when the old OCR stage's junk reads were still creating fake vehicles. Nothing creates them any more after the gate, but they were sitting in demo data.
+
+**Not done / honesty boundary:** Same as Live AI Camera — no stored video frame, so the lens shows a striped placeholder with boxes over it, not real footage. No new capability is claimed here; this screen exists to make an existing honest answer easier to see at a glance, not to make plate reading work any better than it does.
+
+**Plain language:** A round camera view, like a doorbell app, with one straight answer under it: is this camera seeing number plates at all, and if so, can it actually read them? Right now the honest answer on both demo cameras is "it sees them, it just can't read them" — which is exactly what we want it to say, because the plates in this footage are too small and blurry for anything to read. Also cleaned out two fake cars that got left in the demo database from before we fixed the plate reader.
+
+---
+
 
 ## 2026-07-25 — Plate text is read locally now, and refused unless the pixels support it
 
