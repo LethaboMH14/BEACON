@@ -2,6 +2,7 @@
 Pytest configuration and fixtures.
 VUKA pattern: clean DB per test, real HTTP client.
 """
+import json
 import pytest
 import sys
 from pathlib import Path
@@ -21,6 +22,17 @@ from src.db.database import get_db
 
 # Use in-memory SQLite for tests
 TEST_DATABASE_URL = "sqlite:///:memory:"
+
+# Test operator roster (src/auth/operators.py) — every operator_id used
+# across the test suite maps to this one fixed token.
+TEST_OPERATOR_TOKEN = "test-token"
+
+
+@pytest.fixture(autouse=True)
+def operator_roster(monkeypatch):
+    roster = {op: TEST_OPERATOR_TOKEN for op in
+              ["op_001", "op_002", "op_003", "op_004", "op_005", "op_x", "ops"]}
+    monkeypatch.setenv("OPERATOR_TOKENS", json.dumps(roster))
 
 @pytest.fixture(scope="function")
 def db_engine():

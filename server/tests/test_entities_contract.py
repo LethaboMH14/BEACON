@@ -6,6 +6,8 @@ Contract from docs/01-ARCHITECTURE.md §5, ADR-0002.
 import pytest
 from datetime import datetime, timedelta
 
+HEADERS = {"X-Operator-Token": "test-token"}
+
 
 def test_get_entity_with_decay(client, sample_camera, db_session):
     """
@@ -128,7 +130,7 @@ def test_verify_entity_flag(client, db_session):
         "note": "Suspicious behaviour confirmed"
     }
     
-    response = client.post(f"/v1/entities/{entity.id}/verify", json=verify_payload)
+    response = client.post(f"/v1/entities/{entity.id}/verify", json=verify_payload, headers=HEADERS)
     
     # Contract: 200 OK with status
     assert response.status_code == 200
@@ -192,7 +194,7 @@ def test_verify_entity_flag_creates_incident_and_live_alert(client, db_session):
 
     response = client.post(f"/v1/entities/{entity.id}/verify", json={
         "action": "flag", "operator_id": "op_001", "note": "test"
-    })
+    }, headers=HEADERS)
     assert response.status_code == 200
     body = response.json()
     assert "incident_id" in body and body["incident_id"]
@@ -236,7 +238,7 @@ def test_verify_entity_dismiss(client, db_session):
         "note": "False positive"
     }
     
-    response = client.post(f"/v1/entities/{entity.id}/verify", json=verify_payload)
+    response = client.post(f"/v1/entities/{entity.id}/verify", json=verify_payload, headers=HEADERS)
     
     assert response.status_code == 200
     data = response.json()
@@ -276,7 +278,7 @@ def test_verify_entity_whitelist(client, db_session):
         "hex_id": "881f1d4a9ffffff"
     }
     
-    response = client.post(f"/v1/entities/{entity.id}/verify", json=verify_payload)
+    response = client.post(f"/v1/entities/{entity.id}/verify", json=verify_payload, headers=HEADERS)
     
     assert response.status_code == 200
     data = response.json()
@@ -323,7 +325,7 @@ def test_verify_entity_whitelist_missing_hex(client, db_session):
         # Missing hex_id
     }
     
-    response = client.post(f"/v1/entities/{entity.id}/verify", json=verify_payload)
+    response = client.post(f"/v1/entities/{entity.id}/verify", json=verify_payload, headers=HEADERS)
     
     # Contract: 400 Bad Request
     assert response.status_code == 400
@@ -355,8 +357,67 @@ def test_verify_entity_invalid_action(client, db_session):
         "operator_id": "op_005"
     }
     
-    response = client.post(f"/v1/entities/{entity.id}/verify", json=verify_payload)
-    
+    response = client.post(f"/v1/entities/{entity.id}/verify", json=verify_payload, headers=HEADERS)
+
     # Contract: 400 Bad Request
     assert response.status_code == 400
     assert "invalid action" in response.json()["detail"].lower()
+
+
+def test_verify_entity_rejects_missing_operator_token(client, db_session):
+    """
+    Regression test (team/SBU.md backlog, 2026-07-25): operator_id was
+    previously free text with no proof the caller actually was that
+    operator. Missing X-Operator-Token must be rejected, not silently
+    trusted.
+    """
+    from src.db.models import Entity
+
+    entity = Entity(
+        id="ent_test_auth_missing", kind="vehicle", base_score=0.5,
+        last_updated=datetime.utcnow(), state="candidate",
+        first_seen=datetime.utcnow(), last_seen=datetime.utcnow(), sighting_count=1,
+    )
+    db_session.add(entity)
+    db_session.commit()
+
+    response = client.post(f"/v1/entities/{entity.id}/verify", json={
+        "action": "dismiss", "operator_id": "op_001",
+    })  # no headers
+    assert response.status_code == 401
+
+
+def test_verify_entity_rejects_mismatched_operator_token(client, db_session):
+    """A token that doesn't match the claimed operator_id must be rejected."""
+    from src.db.models import Entity
+
+    entity = Entity(
+        id="ent_test_auth_mismatch", kind="vehicle", base_score=0.5,
+        last_updated=datetime.utcnow(), state="candidate",
+        first_seen=datetime.utcnow(), last_seen=datetime.utcnow(), sighting_count=1,
+    )
+    db_session.add(entity)
+    db_session.commit()
+
+    response = client.post(f"/v1/entities/{entity.id}/verify", json={
+        "action": "dismiss", "operator_id": "op_001",
+    }, headers={"X-Operator-Token": "wrong-token"})
+    assert response.status_code == 401
+
+
+def test_verify_entity_rejects_unknown_operator_id(client, db_session):
+    """An operator_id with no roster entry at all must be rejected."""
+    from src.db.models import Entity
+
+    entity = Entity(
+        id="ent_test_auth_unknown", kind="vehicle", base_score=0.5,
+        last_updated=datetime.utcnow(), state="candidate",
+        first_seen=datetime.utcnow(), last_seen=datetime.utcnow(), sighting_count=1,
+    )
+    db_session.add(entity)
+    db_session.commit()
+
+    response = client.post(f"/v1/entities/{entity.id}/verify", json={
+        "action": "dismiss", "operator_id": "op_nobody",
+    }, headers=HEADERS)
+    assert response.status_code == 401
