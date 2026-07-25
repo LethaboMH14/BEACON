@@ -95,3 +95,28 @@
 - A wrong plate match names a car; a wrong face match accuses a person. The face threshold is deliberately set on the strict side of the usual range for that asymmetry.
 - Storing biometric descriptors raises a POPIA obligation that this repo does not yet discharge: no retention policy, no subject-access path, no deletion route. Required before anything resembling production.
 - Rejected: running face detection as a fourth microservice alongside the two Roboflow-backed ones. It is a local model with no credential to manage, and a demo that needs four servers running has four ways to fail on stage. It runs in-process in the analyzer script.
+
+---
+
+## ADR-0007: Plate text is read locally by a purpose-built recogniser, and refused unless per-character confidence clears a floor | Status: Accepted | 2026-07-25
+
+**Context.** ADR-0006 added a *syntactic* plausibility gate on OCR plate strings and recorded its limit explicitly: "nothing syntactic can reject plate-shaped background text". That limit then bit. On the 1080p SA hijacking clip the Roboflow workflow's LLM-backed OCR stage returned, for eight detected plates: ` ```markdown `, `1234567890`, `1000000000000`, `CASE 2000`, `BUSINESS`, `1`, `6`, `0000`. `CASE 2000` — read off a news chyron — passed the syntactic gate and created a vehicle Entity that does not exist.
+
+Two faults there are structural, not tuning: the model emitted its own markdown fencing instead of a reading, and it read words off background text. Both are what an open-vocabulary model does when asked a closed-vocabulary question. Neither is fixable by prompt or threshold, and neither is a resolution problem.
+
+Generative super-resolution was considered as a fix and **rejected**: PULSE-style upscalers invent plausible characters, the invention is unfalsifiable from the output, and a hallucinated registration is exactly the wrong-person failure ADR-0002 exists to prevent. No generative model may sit between a camera and a plate string in this system.
+
+**Decision.**
+1. **Detection stays remote, reading moves local.** The Roboflow workflow is still the plate *detector*; `vision/plate_ocr.py` reads the crop with `fast-plate-ocr` (`cct-s-v2-global`, ~5 MB ONNX, CPU). A purpose-built recogniser *cannot* emit markdown fencing or a chyron word, because its output alphabet is plate characters and nothing else. This is a structural fix, not a guard on top of a bad output.
+2. **A quality gate that refuses rather than guesses.** A read becomes a `plate_text` only if the crop clears `MIN_CROP_W/H` (40×12 px) and the **weakest character** in the read scores ≥ `MIN_CHAR_PROB = 0.50`. Confidence is taken over `char_probs[:len(text)]` only: the model returns ten slots, and the trailing padding slots score ~0.89 precisely because the model is confident they are padding — a `min()` over all ten reads a blank plate as a confident one.
+3. **Refusals are recorded, not discarded.** The sighting is still POSTed with its bbox; only the text is withheld, alongside `ocr_reason`, `ocr_raw_local`, `ocr_raw_workflow` and `ocr_min_char_prob` in the detection track. The previous pipeline stored `None` and lost the evidence of its own failure. The Live AI Camera renders these as "plate detected · unreadable" rather than hiding them, so the UI cannot imply OCR succeeds more often than it does.
+4. The syntactic gate from ADR-0006 stays. It is now the second line, not the only one.
+
+**Consequences.**
+- Measured on the same eight crops, the local model returned empty for four and plate-shaped junk for the other four: `W444`, `00314247`, `444411`, `1W4114`. That junk is **more** dangerous than the workflow's, because `plate_text.py` cannot reject `00314247` — it has the exact shape of a real registration. What saves it is per-character confidence, which the LLM stage never exposed: all four scored a weakest character of 0.156–0.287. **Swapping the model is what made the gate possible; the gate is what does the real work.**
+- Expected end state on this footage: **8 plates detected, 0 accepted.** `CASE 2000` no longer creates a fake vehicle. Fewer reads is the correct outcome, not a regression.
+- **Honesty limit, binding:** this sample contains no *correctly*-read plates, because at 10–17 px character height none of these plates are legible to anything, human included. `MIN_CHAR_PROB` is therefore validated as a **junk suppressor (4 of 4 rejected)** and **not** as a true-positive filter — nothing measured here shows what a correct read scores. **No read rate, precision or accuracy figure for plate OCR may be quoted anywhere** — pitch, UI or docs — until it is measured on footage containing plates a human can read. The threshold is provisional until then.
+- Resolution remains the binding constraint on plate reading, and no software stage changes that. The honest statement is "we detect plates reliably and read them only when the pixels support it", never "we do ANPR".
+- Multi-frame voting across sightings of the same vehicle is the next improvement and is deliberately sequenced *after* this one: voting cancels noise, not bias, so voting over a biased recogniser would have produced a confident wrong plate.
+- `fast-plate-ocr` must be installed with `--no-deps` (see `vision/requirements.txt`): it pulls `opencv-python-headless`, which collides with `opencv-python` and fails mid-install on Windows.
+- CI gained a `vision-tests` job. `vision/tests` existed and was never run by CI; the gate logic is pure and testable without ONNX, so there is no excuse for it being unguarded.

@@ -30,11 +30,12 @@ clip (48s, 24 frames sampled at 2s):
   - faces:   2 detections, det_score 0.52 and 0.76. Real, but small in frame
              (16x22 and 32x42 px) — embeddings from faces that size are weak
              and should not be presented as reliable recognition.
-  - plates:  8 detections but the OCR is unreliable — it returned
-             '```markdown', '1234567890', 'BUSINESS' and 'CASE 2000' (reading
-             the news chyron). The server sanitises these away
-             (server/src/suspicion/plate_text.py); do not claim working plate
-             recognition on footage like this.
+  - plates:  8 detections, ZERO readable. The remote workflow's LLM OCR returned
+             '```markdown', '1234567890', 'BUSINESS' and 'CASE 2000' (reading the
+             news chyron). Plate text is now read locally instead
+             (vision/plate_ocr.py), which refuses all eight rather than inventing
+             them. Do not claim working plate recognition on footage like this —
+             at 10-17 px character height these plates are not legible to anything.
 Resolution is the binding constraint, not configuration: the same pipeline on
 240p CCTV returned zero of everything, including after 4x upscaling.
 
@@ -52,6 +53,7 @@ Prereqs:
     plates:   uvicorn app:app --port 8001        (from vision/backend/)
     weapons:  uvicorn app:app --port 8002        (from vision/weapen_backend/)
     faces:    pip install insightface onnxruntime  (model auto-downloads once)
+    plates:   pip install fast-plate-ocr           (model auto-downloads once)
 """
 from __future__ import annotations
 
@@ -64,6 +66,9 @@ from typing import Any, Optional
 
 import cv2
 import requests
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from vision.plate_ocr import read_plate  # noqa: E402
 
 SERVER_URL = "http://localhost:8000"
 PLATE_SERVICE_URL = "http://localhost:8001/detect"
@@ -191,6 +196,24 @@ def to_bbox(pred: dict[str, Any]) -> Optional[dict]:
     return None
 
 
+def crop_bbox(frame_bgr, bbox: Optional[dict]):
+    """
+    Cut a centre-origin bbox out of the frame, clamped to the frame edges.
+    Returns None when the box is missing or falls entirely outside — callers treat
+    that the same as an unreadable crop.
+    """
+    if frame_bgr is None or not bbox:
+        return None
+    height, width = frame_bgr.shape[:2]
+    x1 = max(0, int(bbox["x"] - bbox["w"] / 2))
+    y1 = max(0, int(bbox["y"] - bbox["h"] / 2))
+    x2 = min(width, int(bbox["x"] + bbox["w"] / 2))
+    y2 = min(height, int(bbox["y"] + bbox["h"] / 2))
+    if x2 <= x1 or y2 <= y1:
+        return None
+    return frame_bgr[y1:y2, x1:x2]
+
+
 # --------------------------------------------------------------- server client
 
 def post_sighting(camera_id: str, ts: datetime, kind: str, modality: str,
@@ -258,7 +281,7 @@ def run(video_path: Path, camera_id: str, interval_s: float,
 
     analyzer = load_face_analyzer() if use_faces else None
 
-    counts = {"plate": 0, "weapon": 0, "face": 0}
+    counts = {"plate": 0, "plate_read": 0, "weapon": 0, "face": 0}
     repeats = 0
     alerts_sent = 0
     track: list[dict[str, Any]] = []
@@ -299,27 +322,43 @@ def run(video_path: Path, camera_id: str, interval_s: float,
                 log(f"    -> CRITICAL alert to private security (id={alert.get('id')})")
 
         # ---- plates
+        # The remote workflow is used for DETECTION only. Its own OCR stage is
+        # LLM-backed and returned markdown fencing and news-chyron words as
+        # "plates" (vision/plate_ocr.py documents the measurements), so the text
+        # is read locally from the crop instead and kept only for comparison.
         plate_result = call_detector(PLATE_SERVICE_URL, frame, f"frame_{idx}.jpg")
         plate_preds = extract_predictions(plate_result)
-        # Top-level plate_text list is the workflow's own OCR, index-aligned
-        # with predictions — confirmed live. Prefer it over guessing from the
-        # prediction dict. The server decides whether it's a plausible plate.
-        ocr_texts = (plate_result or {}).get("plate_text") or []
+        workflow_texts = (plate_result or {}).get("plate_text") or []
 
         for i, pred in enumerate(plate_preds):
             counts["plate"] += 1
-            raw_text = ocr_texts[i] if i < len(ocr_texts) else None
+            workflow_text = workflow_texts[i] if i < len(workflow_texts) else None
             confidence = float(pred.get("confidence", 0.0))
             bbox = to_bbox(pred)
-            log(f"  t={video_ts:5.1f}s PLATE ocr={raw_text!r} conf={confidence:.2f}")
+            read = read_plate(crop_bbox(frame, bbox))
+            if read.accepted:
+                counts["plate_read"] += 1
+                log(f"  t={video_ts:5.1f}s PLATE ocr={read.text!r} "
+                    f"minchar={read.min_char_prob:.2f} conf={confidence:.2f}")
+            else:
+                log(f"  t={video_ts:5.1f}s PLATE unread ({read.reason}) "
+                    f"local={read.raw_text!r} workflow={workflow_text!r} conf={confidence:.2f}")
             frame_detections.append({
                 "modality": "plate", "kind": "vehicle", "label": "plate",
-                "confidence": confidence, "bbox": bbox, "ocr_raw": raw_text,
+                "confidence": confidence, "bbox": bbox,
+                # Both raw reads are retained so OCR quality stays measurable
+                # after the run — the previous pipeline stored only the accepted
+                # text and lost every rejected read.
+                "ocr_text": read.text,
+                "ocr_reason": read.reason,
+                "ocr_raw_local": read.raw_text,
+                "ocr_raw_workflow": workflow_text,
+                "ocr_min_char_prob": read.min_char_prob,
             })
             if dry_run:
                 continue
             sighting = post_sighting(camera_id, wall_ts, "vehicle", "plate",
-                                     confidence, bbox, plate_text=raw_text)
+                                     confidence, bbox, plate_text=read.text)
             repeats += _route_entity(sighting, camera_id, "vehicle", video_ts)
 
         # ---- faces (local)
@@ -347,7 +386,8 @@ def run(video_path: Path, camera_id: str, interval_s: float,
                 "detections": frame_detections,
             })
 
-    log(f"Done. plates={counts['plate']} weapons={counts['weapon']} faces={counts['face']} "
+    log(f"Done. plates={counts['plate']} (read {counts['plate_read']}) "
+        f"weapons={counts['weapon']} faces={counts['face']} "
         f"| repeat-entity routings={repeats} alerts={alerts_sent}")
 
     if out_path:

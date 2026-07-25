@@ -30,10 +30,16 @@ path as everything else, and `dashboard/app/`'s Live AI Camera screen draws them
 
 ## Known limits (measured, not assumed)
 
-- **Plate OCR is unreliable.** Over a 1080p SA hijacking clip it returned markdown fencing, digit
-  runs, and words read off a news chyron. `server/src/suspicion/plate_text.py` rejects what it can
-  syntactically, but a plate-shaped piece of background text still gets through — a read is a lead,
-  never an identification.
+- **Plate text is read locally and refused by default** (`plate_ocr.py`, ADR-0007). The Roboflow
+  workflow detects plates; its LLM OCR stage does not read them — over a 1080p SA hijacking clip it
+  returned markdown fencing, digit runs, and words off a news chyron. Reading now happens locally
+  with `fast-plate-ocr`, whose output alphabet is plate characters only, and a read only becomes a
+  `plate_text` if its **weakest character** clears 0.50. On that clip the result is **8 plates
+  detected, 0 accepted** — the correct outcome, since at 10–17 px character height none of them are
+  legible to anything. `MIN_CHAR_PROB` is validated as a junk suppressor (4/4 rejected), **not** as
+  a true-positive filter: no read rate or accuracy figure may be quoted for plate OCR yet.
+  Resolution is the binding constraint and no software stage changes that. Refused reads are still
+  stored as sightings with their bbox — only the text is withheld — so OCR quality stays measurable.
 - **Face matching is uncalibrated.** The 0.40 cosine threshold is a starting point, not a tuned one.
   There is no face quality gate, so a 16×22 px face is accepted on the same terms as a good one.
 - **No POPIA retention/deletion path for stored embeddings yet** (`docs/adr.md`, ADR-0006).

@@ -7,7 +7,16 @@ ai-edge-litert>=2.1
 sounddevice>=0.4
 numpy>=1.23
 
-# Land at G2 (docs/03): weapon fine-tune, faces, plates
-# insightface
-# easyocr
-# onnxruntime
+# plate_ocr.py — local plate recognition (~5 MB ONNX, CPU, downloads on first run).
+# INSTALL WITH --no-deps: it pulls opencv-python-headless, which collides with the
+# opencv-python above and fails mid-install on Windows (cv2.pyd access denied):
+#     pip install --no-deps fast-plate-ocr
+# onnxruntime and cv2 are already present via the lines above / insightface.
+fast-plate-ocr>=0.3
+
+# Faces — scripts/vision_lens_demo.py runs buffalo_l in-process
+insightface>=0.7
+onnxruntime>=1.17
+
+# Land at G2 (docs/03): weapon fine-tune
+# easyocr — never used; plate reading went to fast-plate-ocr instead (ADR-0007)
