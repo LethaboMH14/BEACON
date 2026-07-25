@@ -4,6 +4,24 @@ Every behaviour change gets an entry in the same commit. Plain-language section 
 
 ---
 
+## 2026-07-25 — dashboard/app: Crime Intelligence screen ported; fixed a real 58s server perf bug found while verifying it
+
+**What:** Fourth of the 12 Claude Design screens, `dashboard/app/src/screens/CrimeIntelligence.tsx`, rebuilt from `design/exports/design_handoff_beacon/README.md` §4 (same from-scratch approach as the prior three screens). Real data wired: hero tiles (avg. forecast risk, hexes ≥50%, model version) and the "Top risk areas" ranked list from `GET /v1/hotspots`, a 24h forecast line for the top-ranked hex from 24 parallel `GET /v1/risk?hex=&hour=` calls, and a "Contributing factors" panel showing the real `top_factors` (`claim_count`, `same_hour_claims`) from `server/src/risk/forecast.py`'s claims-fallback tier. Four design panels have no backing endpoint and say so inline instead of inventing data: forecast confidence interval, historical-baseline overlay, "Top peril" / "Incidents by peril" (`Claim.claim_type` is a real DB column but nothing exposes it over the API), and a 12-month claims trend (no time-series endpoint exists). `App.tsx`'s screen toggle extended from 4 to 5 buttons.
+
+While verifying this live, `GET /v1/hotspots?limit=20` was taking **58 seconds** — the page looked hung, not slow. Root cause: `rank_hotspots()` in `server/src/risk/forecast.py` called `estimate_hex_risk()` once per known hex (~700+ hexes with real claims), and each call issued its own `db.query(Claim).filter(hex_id==...)` — roughly 700+ sequential SQLite round-trips per request. Fixed by batching: one query for all matching `RiskCell` rows (tier 1) and one query for all matching `Claim` rows (tier 2/3) across every hex at once, grouped in Python, with the scoring math factored into a shared `_score_from_claims()` helper so `estimate_hex_risk()` (used by the single-hex `/v1/risk` endpoint) and `rank_hotspots()` share one implementation. `/v1/hotspots?limit=20` now returns in ~5s.
+
+Separately, the demo server's `beacon.db` was empty going into this — re-ran `server/scripts/load_claims.py` (15,712 claims) and `server/scripts/load_hotspots.py` (hex/lat/lng backfill + RiskCell rows) against it, and restarted the already-running uvicorn process (with explicit user permission, since it wasn't started by this session) so it picked up both the seeded data and the perf fix.
+
+**Why:** Continuing the screen-by-screen porting sequence, user's chosen next step ("one more design screen") given time pressure ahead of the pitch. The perf bug was found, not planned — the screen's live-verification step surfaced it before it could hit the actual demo.
+
+**Not done:** 5s for a 20-hex ranking is still not the ≤2s budget CLAUDE.md sets for interactive p95 targets elsewhere — good enough for this demo's data volume, not something to leave unexamined if `/v1/hotspots` sees real traffic later (an index on `Claim.hex_id`, or precomputing tier-2 scores, would be the next step).
+
+**Verified:** `npx tsc --noEmit` clean. Opened live in the browser against the running server: hero tiles, all 20 ranked hexes, the 24h forecast curve, and real contributing-factor bars for the top hex all rendered with live data (`hex_082b76925df` at 57%, `claim_count: 20`, `same_hour_claims: 2`). Confirmed via direct curl timing before/after the fix (58s → 4.9s) and via the browser network log showing the real request/response cycle completing.
+
+**Plain language:** Built the fourth real screen — crime hotspot rankings and a 24-hour risk forecast for the highest-risk area, all from real claims data. While testing it, found that the server's hotspot-ranking endpoint was accidentally doing hundreds of tiny database lookups one at a time instead of a few big ones, making it take almost a minute to respond — slow enough that the screen looked broken even though nothing was actually wrong with it. Fixed the database code so it batches those lookups properly; the same request now takes about 5 seconds.
+
+---
+
 ## 2026-07-25 — vision/: land Sali's plate + weapon detection services from the orphaned computer-vision branch
 
 **What:** Pulled `vision/backend/app.py` (license plate detection) and `vision/weapen_backend/app.py` (weapon detection) — real FastAPI services, each wrapping a Roboflow-hosted inference workflow (`workspace_name="mbaye-salimata-icloud-com"`) — off the unmerged `origin/computer-vision` branch and into `main`, with `.env.example` templates and a `vision/README.md` explaining how to run them. Did not pull the `__pycache__` binaries or the sample face images that were also on that branch — not needed to run the services, and no reason to carry compiled artifacts or personal photos into the history. `Face_recog.md` (a one-line pip-install note) came along too.
