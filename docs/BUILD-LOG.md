@@ -4,6 +4,18 @@ Every behaviour change gets an entry in the same commit. Plain-language section 
 
 ---
 
+## 2026-07-25 — dashboard read the wrong field name for hex location (contract drift)
+
+**What:** `dashboard/index.html`'s WS message handler built each sighting card's location text from `s.hex`. The server (`server/src/api/sightings.py`) has only ever broadcast `hex_id`, never `hex` — there is no `hex` key anywhere in the contract. Changed the template literal to read `s.hex_id ?? "no-hex"`.
+
+**Why:** Found while doing a live end-to-end integration check (real server on a throwaway SQLite DB, a real WebSocket client subscribed to `/ws/ops`, a real `POST /v1/sightings`) in response to a direct question about whether the software actually integrates end-to-end for a live demo. Same bug class as the earlier `vision/agent.py` `hex`/`hex_id` fix this session — a second, independent instance of the same contract-drift pattern, this time in the one file a judge would actually be looking at during a live run.
+
+**Verified:** started `uvicorn` against `sqlite:///./_e2e_check.db`, confirmed `/health` healthy, opened a real WS connection to `/ws/ops`, POSTed a test sighting with `hex_id: "881f1d4a9ffffff"`, confirmed the server accepted it (201) and the WS channel was live and reachable. (The dashboard's own live render wasn't screenshotted — this repo's browser preview tooling only has `file://`/static-snapshot access to this project's folder, not the HTTP-served route needed to exercise its WebSocket — but the underlying field-name bug is fixed and the server side of the contract is confirmed correct.)
+
+**Plain language:** The ops feed page was asking the server for a field called `hex` on every incoming sighting, but the server has only ever sent a field called `hex_id`. Every live card on that screen would have shown "undefined" where the location hex should be — during an actual demo, in front of judges. Fixed the page to read the field the server actually sends.
+
+---
+
 ## 2026-07-25 — Azure deploy artifacts (G3-optional flex, per ADR-0004)
 
 **What:** `server/Dockerfile` (multi-stage: full `python:3.11-slim` builder installs `requirements.txt` including `ortools`/`pandas`, only the resulting site-packages + app code ship in the runtime stage), `server/.dockerignore`, `deploy/provision-azure.sh` — a one-shot Azure CLI script provisioning the resource group, Postgres Flexible Server (Burstable B1ms), Key Vault, and Container Apps environment per ADR-0004's service map, then `az containerapp up`-ing `server/` directly.
