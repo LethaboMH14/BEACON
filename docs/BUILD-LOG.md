@@ -4,6 +4,18 @@ Every behaviour change gets an entry in the same commit. Plain-language section 
 
 ---
 
+## 2026-07-25 — Azure deploy artifacts (G3-optional flex, per ADR-0004)
+
+**What:** `server/Dockerfile` (multi-stage: full `python:3.11-slim` builder installs `requirements.txt` including `ortools`/`pandas`, only the resulting site-packages + app code ship in the runtime stage), `server/.dockerignore`, `deploy/provision-azure.sh` — a one-shot Azure CLI script provisioning the resource group, Postgres Flexible Server (Burstable B1ms), Key Vault, and Container Apps environment per ADR-0004's service map, then `az containerapp up`-ing `server/` directly.
+
+**Why:** team/SBU.md backlog (2026-07-25). ADR-0004 picked the Azure services months — days — ago but nothing was actually deployed; if a judge asks "is this live" the honest answer was no. Explicitly optional (docs/01 §6): the real demo runs on localhost + cloudflared regardless of whether this ever gets run.
+
+**Verified locally (Docker Desktop started mid-session) — and found a real bug in the process:** built the image, ran it against a real `postgres:16-alpine` container on a Docker network (not SQLite — SQLite can't run this repo's `001_initial_schema` migration at all, a separate pre-existing Alembic/SQLite limitation, unrelated to this change). First run crashed on startup: `ModuleNotFoundError: No module named 'psycopg2'` — `requirements.txt` had no Postgres driver at all, so the Azure deploy target in ADR-0004 would never have actually connected to the database it names. Added `psycopg2-binary==2.9.10`, rebuilt, reran: all three migrations (001→003) applied cleanly against real Postgres, server started, `GET /health` returned `{"status":"healthy","database":"connected","websocket":"ready"}`. `pytest server/` still 79/79 after adding the driver. `provision-azure.sh` itself was still not run against a real Azure subscription — that step needs real cloud credentials this environment doesn't have.
+
+**Plain language:** Got Docker running and actually tested the deployment recipe end-to-end against a real Postgres database, not just a real SQLite file. It initially crashed immediately — the piece of code that lets Python talk to Postgres was completely missing from the dependency list, so the container would have failed the moment anyone tried to actually deploy it to Azure. Fixed that, rebuilt, and this time it started up cleanly and answered a real health check. The one thing still untested is actually running the Azure provisioning script against a real Azure account, since that needs real cloud credentials.
+
+---
+
 ## 2026-07-25 — operator_id is now authenticated, not free text (evidence-chain honesty gap)
 
 **What:** `POST /v1/entities/{id}/verify` previously took `operator_id` straight from the request body and wrote it verbatim into `EvidenceChain.actor_id`, `Watchlist.added_by`, and the Incident's evidence entry — no check the caller actually was that operator. New `server/src/auth/operators.py::require_operator_token(operator_id, x_operator_token)`: reads a static `OPERATOR_TOKENS` roster (`.env`, JSON `{operator_id: token}`), requires a matching `X-Operator-Token` header, 401s on missing/mismatched/unknown operator_id, and **fails closed** (401) if no roster is configured at all rather than accepting everything. Wired into `verify_entity` in `server/src/api/entities.py`.
