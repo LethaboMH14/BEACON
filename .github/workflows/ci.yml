@@ -18,3 +18,18 @@ jobs:
           python-version: "3.11"
       - run: pip install -r requirements.txt
       - run: pytest -q
+
+  vision-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      # sounddevice loads libportaudio at import time, so vision/audio_agent.py is
+      # unimportable without it — the wheel on its own is not enough.
+      - run: sudo apt-get update && sudo apt-get install -y libportaudio2
+      - run: pip install -r vision/requirements-test.txt
+      # Run from the repo root: the tests import `vision.*` and the server contract,
+      # so cd-ing into vision/ breaks them.
+      - run: pytest -q vision/tests

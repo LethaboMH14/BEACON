@@ -1,10 +1,11 @@
 {
   "video": "WATCH Gun-wielding hijackers outsmarted by fast-thinking driver - News24 (1080p, h264).mp4",
-  "camera_id": "cam_hijack_demo",
+  "camera_id": "cam_lens_demo",
   "interval_s": 2.0,
-  "generated_at": "2026-07-25T16:50:54.544142+00:00",
+  "generated_at": "2026-07-25T17:42:24.987896+00:00",
   "counts": {
     "plate": 8,
+    "plate_read": 0,
     "weapon": 5,
     "face": 2
   },
@@ -19,14 +20,18 @@
           "modality": "plate",
           "kind": "vehicle",
           "label": "plate",
-          "confidence": 0.5359119176864624,
+          "confidence": 0.5359251499176025,
           "bbox": {
             "x": 410.5,
             "y": 186.0,
             "w": 49.0,
             "h": 22.0
           },
-          "ocr_raw": "```markdown\n\n```"
+          "ocr_text": null,
+          "ocr_reason": "low_char_confidence",
+          "ocr_raw_local": "W444",
+          "ocr_raw_workflow": "```markdown\n\n```",
+          "ocr_min_char_prob": 0.23314480483531952
         }
       ]
     },
@@ -40,14 +45,18 @@
           "modality": "plate",
           "kind": "vehicle",
           "label": "plate",
-          "confidence": 0.6316308379173279,
+          "confidence": 0.6315785646438599,
           "bbox": {
             "x": 91.0,
             "y": 428.0,
             "w": 72.0,
             "h": 26.0
           },
-          "ocr_raw": "1234567890"
+          "ocr_text": null,
+          "ocr_reason": "empty_read",
+          "ocr_raw_local": "",
+          "ocr_raw_workflow": "1234567890",
+          "ocr_min_char_prob": null
         }
       ]
     },
@@ -73,40 +82,52 @@
           "modality": "plate",
           "kind": "vehicle",
           "label": "plate",
-          "confidence": 0.7802831530570984,
+          "confidence": 0.780272901058197,
           "bbox": {
             "x": 285.0,
             "y": 689.5,
             "w": 124.0,
             "h": 67.0
           },
-          "ocr_raw": "1000000000000"
+          "ocr_text": null,
+          "ocr_reason": "low_char_confidence",
+          "ocr_raw_local": "00314247",
+          "ocr_raw_workflow": "1000000000000",
+          "ocr_min_char_prob": 0.28690674901008606
         },
         {
           "modality": "plate",
           "kind": "vehicle",
           "label": "plate",
-          "confidence": 0.44452908635139465,
+          "confidence": 0.4444991648197174,
           "bbox": {
             "x": 407.0,
             "y": 184.5,
             "w": 56.0,
             "h": 27.0
           },
-          "ocr_raw": "CASE 2000"
+          "ocr_text": null,
+          "ocr_reason": "low_char_confidence",
+          "ocr_raw_local": "444411",
+          "ocr_raw_workflow": "CASE 2000",
+          "ocr_min_char_prob": 0.15572960674762726
         },
         {
           "modality": "plate",
           "kind": "vehicle",
           "label": "plate",
-          "confidence": 0.41758784651756287,
+          "confidence": 0.4179993271827698,
           "bbox": {
             "x": 731.0,
             "y": 131.0,
             "w": 58.0,
             "h": 24.0
           },
-          "ocr_raw": "BUSINESS"
+          "ocr_text": null,
+          "ocr_reason": "empty_read",
+          "ocr_raw_local": "",
+          "ocr_raw_workflow": "BUSINESS",
+          "ocr_min_char_prob": null
         }
       ]
     },
@@ -224,14 +245,18 @@
           "modality": "plate",
           "kind": "vehicle",
           "label": "plate",
-          "confidence": 0.45371732115745544,
+          "confidence": 0.45372098684310913,
           "bbox": {
             "x": 1197.5,
             "y": 668.5,
             "w": 93.0,
             "h": 37.0
           },
-          "ocr_raw": "1"
+          "ocr_text": null,
+          "ocr_reason": "empty_read",
+          "ocr_raw_local": "",
+          "ocr_raw_workflow": "1",
+          "ocr_min_char_prob": null
         }
       ]
     },
@@ -245,14 +270,18 @@
           "modality": "plate",
           "kind": "vehicle",
           "label": "plate",
-          "confidence": 0.6017357707023621,
+          "confidence": 0.601729691028595,
           "bbox": {
             "x": 229.0,
             "y": 279.5,
             "w": 54.0,
             "h": 31.0
           },
-          "ocr_raw": "6"
+          "ocr_text": null,
+          "ocr_reason": "empty_read",
+          "ocr_raw_local": "",
+          "ocr_raw_workflow": "6",
+          "ocr_min_char_prob": null
         }
       ]
     },
@@ -266,14 +295,18 @@
           "modality": "plate",
           "kind": "vehicle",
           "label": "plate",
-          "confidence": 0.5124121308326721,
+          "confidence": 0.512411892414093,
           "bbox": {
             "x": 408.5,
             "y": 184.5,
             "w": 53.0,
             "h": 25.0
           },
-          "ocr_raw": "0000"
+          "ocr_text": null,
+          "ocr_reason": "low_char_confidence",
+          "ocr_raw_local": "1W4114",
+          "ocr_raw_workflow": "0000",
+          "ocr_min_char_prob": 0.19169306755065918
         }
       ]
     }

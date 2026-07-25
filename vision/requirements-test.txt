@@ -1,0 +1,12 @@
+# Just enough to import and test the vision modules in CI — deliberately NOT
+# requirements.txt, which pulls ultralytics/torch (~2 GB) that no test needs.
+#
+# Note for local installs: fast-plate-ocr is not listed here because the tests cover
+# the gate logic, not the ONNX model. See requirements.txt for the runtime dependency.
+pytest>=8.0
+numpy>=1.23
+requests>=2.31
+opencv-python-headless>=4.9
+sounddevice>=0.4        # needs libportaudio2 on Linux; CI installs it via apt
+ai-edge-litert>=2.1
+pydantic>=2.0           # vision/tests/test_agent.py validates against the server contract

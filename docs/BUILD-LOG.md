@@ -4,6 +4,26 @@ Every behaviour change gets an entry in the same commit. Plain-language section 
 
 ---
 
+## 2026-07-25 — Plate text is read locally now, and refused unless the pixels support it
+
+**What:** New `vision/plate_ocr.py` reads plate crops locally with `fast-plate-ocr` (`cct-s-v2-global`, ~5 MB ONNX, CPU) and gates every read; `scripts/vision_lens_demo.py` now uses the Roboflow workflow as a plate *detector* only and takes its text from the local model. A read becomes a `plate_text` only if the crop is at least 40x12 px and the **weakest character** in the read scores >= 0.50. Refused reads still POST the sighting with its bbox — only the text is withheld — and the detection track keeps `ocr_reason`, `ocr_raw_local`, `ocr_raw_workflow` and `ocr_min_char_prob` for audit. ADR-0007 records the decision; `vision/tests/test_plate_ocr.py` (11 tests) locks the gate; CI gained a `vision-tests` job, since `vision/tests` existed and had never been run by CI.
+
+**Why:** ADR-0006 added a *syntactic* plate-text filter and wrote down its limit — "nothing syntactic can reject plate-shaped background text". That limit then bit: `CASE 2000`, read off a news chyron, passed the filter and created a vehicle entity that does not exist. The workflow's OCR stage is LLM-backed, and its two worst outputs (markdown fencing instead of a reading; words off background text) are what an open-vocabulary model does when asked a closed-vocabulary question — not tuning problems. A purpose-built recogniser structurally cannot emit either, because its output alphabet is plate characters only.
+
+**Measured, and it is not "better reads":** over the same eight crops the local model returned empty for four and plate-shaped junk for the other four — `W444`, `00314247`, `444411`, `1W4114`. That junk is *more* dangerous than the workflow's, because `plate_text.py` cannot reject `00314247`. What saves it is per-character confidence, which the LLM stage never exposed: all four scored a weakest character of 0.156-0.287. **Swapping the model is what made the gate possible; the gate is what does the real work.**
+
+**Not done / honesty boundary:**
+- This sample contains **no correctly-read plates** — at 10-17 px character height none of these plates are legible to anything, human included. `MIN_CHAR_PROB = 0.50` is therefore validated as a **junk suppressor (4 of 4 rejected)** and **not** as a true-positive filter. **No read rate, precision or accuracy figure for plate OCR may be quoted anywhere** until it is measured on footage with plates a human can read. The threshold is provisional.
+- Resolution stays the binding constraint and no software stage changes that. Generative super-resolution was considered and **rejected**: it invents plausible characters, the invention is unfalsifiable from the output, and a hallucinated registration is exactly the wrong-person failure ADR-0002 exists to prevent.
+- Multi-frame voting across sightings of the same vehicle is next, deliberately sequenced after this: voting cancels noise, not bias, so voting over a biased recogniser would have produced a confident wrong plate.
+- The local demo `beacon.db` still holds the `CASE2000` and `100` vehicle entities created by earlier runs. Nothing creates them any more, but they are stale junk sitting in demo data.
+
+**Verified:** `pytest vision/tests/test_plate_ocr.py` -> 11 passed. Full pipeline re-run against the 1080p hijacking clip with all three services live: `plates=8 (read 0) weapons=5 faces=2 | repeat-entity routings=2 alerts=5`. Every one of the eight plates was refused with its reason logged (`low_char_confidence` x4, `empty_read` x4) — including the frame where the workflow said `CASE 2000`. Zero new vehicle entities created.
+
+**Plain language:** The camera can find number plates in the footage, but it could not actually *read* them — and worse, the old reader was making things up. It read a word off the news ticker at the bottom of the screen ("CASE 2000") and our system dutifully created a car with that number plate. Now we read plates with a tool that only knows plate characters, so it physically cannot report a word it saw in the background. On top of that, it has to tell us how sure it is about **every single character**, and if its weakest character is a coin-flip we throw the whole reading away and record "plate detected, unreadable". On this video that means we now read zero of the eight plates — which is the honest answer, because those plates are about 12 pixels tall and no human could read them either. Saying "we found a plate but can't read it" is worth far more than confidently inventing one, especially when the number could point at a real person's car.
+
+---
+
 ## 2026-07-25 — Live AI Camera draws real detections: bbox overlay, frame grouping, plate reads
 
 **What:** Rewired `dashboard/app/src/screens/LiveAICamera.tsx` off `GET /v1/events/since` and onto the new `GET /v1/sightings`, and deleted the three "no backing endpoint yet" placeholders it had been carrying for bounding boxes, plate/OCR reads and modality. All three now render real rows. Added `getSightings()` + `SightingDetail`/`DetectionBox` to `dashboard/app/src/api/client.ts`.
