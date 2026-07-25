@@ -5,6 +5,7 @@ import { OpsSocket, type OpsEvent } from './api/ws';
 import CommunityOperationsCentre from './screens/CommunityOperationsCentre';
 import VerifyQueue from './screens/VerifyQueue';
 import LiveAICamera from './screens/LiveAICamera';
+import CrimeIntelligence from './screens/CrimeIntelligence';
 
 function riskLevelFor(score: number): RiskLevel {
   if (score >= 0.75) return 'critical';
@@ -14,7 +15,7 @@ function riskLevelFor(score: number): RiskLevel {
 }
 
 function App() {
-  const [screen, setScreen] = useState<'scaffold' | 'ops-centre' | 'verify-queue' | 'live-camera'>('ops-centre');
+  const [screen, setScreen] = useState<'scaffold' | 'ops-centre' | 'verify-queue' | 'live-camera' | 'crime-intel'>('ops-centre');
   const [handoffEntityId, setHandoffEntityId] = useState<string | null>(null);
   const [health, setHealth] = useState<'checking' | 'up' | 'down'>('checking');
   const [hotspots, setHotspots] = useState<HotspotEntry[]>([]);
@@ -48,6 +49,7 @@ function App() {
         ['ops-centre', 'Ops Centre'],
         ['verify-queue', 'Verify Queue'],
         ['live-camera', 'Live AI Camera'],
+        ['crime-intel', 'Crime Intelligence'],
       ] as const).map(([key, label]) => (
         <button key={key} onClick={() => setScreen(key)} style={{
           background: screen === key ? colors.beacon : colors.bg700,
@@ -84,6 +86,15 @@ function App() {
       <>
         {toggle}
         <LiveAICamera onOpenVerifyQueue={(entityId) => { setHandoffEntityId(entityId); setScreen('verify-queue'); }} />
+      </>
+    );
+  }
+
+  if (screen === 'crime-intel') {
+    return (
+      <>
+        {toggle}
+        <CrimeIntelligence />
       </>
     );
   }

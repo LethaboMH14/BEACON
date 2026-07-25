@@ -87,17 +87,22 @@ def estimate_hex_risk(hex_id: str, hour: int, db: Session) -> RiskEstimate:
         )
 
     # Tier 2/3: fall back to real claim counts in this hex.
-    claims = db.query(Claim).filter(Claim.hex_id == hex_id).all()
+    claims = db.query(Claim.hour, Claim.hour_known).filter(Claim.hex_id == hex_id).all()
     if not claims:
         return RiskEstimate(
             hex_id=hex_id, hour=hour, risk_score=0.0,
             label=NO_DATA_LABEL, source="no_data",
         )
 
-    same_hour = sum(1 for c in claims if c.hour_known and c.hour == hour)
+    return _score_from_claims(hex_id, hour, claims)
+
+
+def _score_from_claims(hex_id: str, hour: int, claims: list) -> RiskEstimate:
+    """Tier 2 scoring shared by estimate_hex_risk and rank_hotspots's batched path."""
+    same_hour = sum(1 for claim_hour, hour_known in claims if hour_known and claim_hour == hour)
     base = min(len(claims) / _SATURATION_CLAIM_COUNT, 1.0)
     boost = _PEAK_HOUR_BOOST if hour in _PEAK_HOURS else 1.0
-    hour_weight = 1.0 + (same_hour / len(claims)) if claims else 1.0
+    hour_weight = 1.0 + (same_hour / len(claims))
     risk_score = min(base * boost * hour_weight / 2.0, 0.99)  # /2.0 keeps boosts from saturating trivially
 
     return RiskEstimate(
@@ -109,10 +114,11 @@ def estimate_hex_risk(hex_id: str, hour: int, db: Session) -> RiskEstimate:
 
 def rank_hotspots(hour: int, db: Session, limit: int = 20) -> list[RiskEstimate]:
     """
-    Rank every hex with at least one recorded claim by estimate_hex_risk, for
-    the given hour. Real model rows (tier 1) still win per-hex where they
-    exist — this just iterates every known hex_id and calls the same function
-    above, so there is exactly one place the tiering logic lives.
+    Rank every hex with at least one recorded claim by the same tiering logic
+    as estimate_hex_risk, for the given hour. Batches the DB access (one query
+    for tier-1 RiskCell rows, one for tier-2/3 claim rows, both filtered to
+    the known hex_ids) instead of issuing one query pair per hex — with ~700+
+    distinct hexes, the naive per-hex version took ~60s per request.
     """
     if not (0 <= hour < 24):
         raise ValueError("hour must be in [0, 24)")
@@ -123,7 +129,52 @@ def rank_hotspots(hour: int, db: Session, limit: int = 20) -> list[RiskEstimate]
     hex_ids |= {
         row[0] for row in db.query(RiskCell.hex_id).filter(RiskCell.hour == hour).distinct().all()
     }
+    if not hex_ids:
+        return []
 
-    estimates = [estimate_hex_risk(hex_id, hour, db) for hex_id in hex_ids]
+    # Tier 1: latest RiskCell row per hex, for this hour, in one query.
+    cells = (
+        db.query(RiskCell)
+        .filter(RiskCell.hex_id.in_(hex_ids), RiskCell.hour == hour)
+        .order_by(RiskCell.generated_at.desc())
+        .all()
+    )
+    cell_by_hex: dict[str, RiskCell] = {}
+    for cell in cells:
+        cell_by_hex.setdefault(cell.hex_id, cell)  # first seen = latest, since ordered desc
+
+    # Tier 2/3: every claim for the remaining hexes, in one query.
+    remaining = hex_ids - cell_by_hex.keys()
+    claims_by_hex: dict[str, list] = {}
+    if remaining:
+        rows = (
+            db.query(Claim.hex_id, Claim.hour, Claim.hour_known)
+            .filter(Claim.hex_id.in_(remaining))
+            .all()
+        )
+        for hex_id, claim_hour, hour_known in rows:
+            claims_by_hex.setdefault(hex_id, []).append((claim_hour, hour_known))
+
+    estimates: list[RiskEstimate] = []
+    for hex_id in hex_ids:
+        cell = cell_by_hex.get(hex_id)
+        if cell is not None:
+            estimates.append(RiskEstimate(
+                hex_id=hex_id, hour=hour, risk_score=cell.risk_score,
+                label=f"model:{cell.model_version}", source="model",
+                top_factors=cell.top_factors, model_version=cell.model_version,
+            ))
+            continue
+
+        claims = claims_by_hex.get(hex_id)
+        if not claims:
+            estimates.append(RiskEstimate(
+                hex_id=hex_id, hour=hour, risk_score=0.0,
+                label=NO_DATA_LABEL, source="no_data",
+            ))
+            continue
+
+        estimates.append(_score_from_claims(hex_id, hour, claims))
+
     estimates.sort(key=lambda e: e.risk_score, reverse=True)
     return estimates[:limit]
