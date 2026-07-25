@@ -5,74 +5,85 @@
  * These are the source of truth (PROMPT-PACK.md §3 rule 3): every ported
  * screen's hardcoded hex values get replaced with references to these,
  * that's what stops screens drifting apart from each other.
+ *
+ * Tokens are available as:
+ * 1. CSS custom properties (--bg-900, etc.) for use in React inline styles
+ * 2. Tailwind theme extensions (see tailwind.config.ts) for use in class names
+ * 3. @apply directives where both are needed together
  */
-:root {
-  /* dark chrome (headers, nav, ops shell) */
-  --bg-900: #0A0F1A;
-  --bg-800: #101725;
-  --bg-700: #182130;
-  --line-dark: rgba(255, 255, 255, 0.08);
-  --text-hi: #F1F5F9;
-  --text-mid: #94A3B8;
-  --text-lo: #64748B;
+@layer base {
+  :root {
+    /* dark chrome (headers, nav, ops shell) */
+    --bg-900: #0A0F1A;
+    --bg-800: #101725;
+    --bg-700: #182130;
+    --line-dark: rgba(255, 255, 255, 0.08);
+    --text-hi: #F1F5F9;
+    --text-mid: #94A3B8;
+    --text-lo: #64748B;
 
-  /* light content (data panels, member view, exec view) */
-  --bg-50: #F7F9FC;
-  --bg-0: #FFFFFF;
-  --line-light: rgba(15, 23, 42, 0.08);
-  --ink-hi: #0F172A;
-  --ink-mid: #475569;
-  --ink-lo: #94A3B8;
+    /* light content (data panels, member view, exec view) */
+    --bg-50: #F7F9FC;
+    --bg-0: #FFFFFF;
+    --line-light: rgba(15, 23, 42, 0.08);
+    --ink-hi: #0F172A;
+    --ink-mid: #475569;
+    --ink-lo: #94A3B8;
 
-  /* brand */
-  --beacon: #F5A623;
-  --beacon-grad: linear-gradient(135deg, #F5A623 0%, #F27B21 100%);
-  --discovery: #0B5FA5;
-  --discovery-soft: #E8F1F9;
+    /* brand */
+    --beacon: #F5A623;
+    --beacon-grad: linear-gradient(135deg, #F5A623 0%, #F27B21 100%);
+    --discovery: #0B5FA5;
+    --discovery-soft: #E8F1F9;
 
-  /* risk ramp — ONLY for risk/severity, never decoration */
-  --safe: #10B981;
-  --watch: #F59E0B;
-  --high: #F0653A;
-  --critical: #E11D48;
+    /* risk ramp — ONLY for risk/severity, never decoration */
+    --safe: #10B981;
+    --watch: #F59E0B;
+    --high: #F0653A;
+    --critical: #E11D48;
 
-  /* semantic */
-  --live: #22D3EE;
-  --stale: #6B7280;
+    /* semantic */
+    --live: #22D3EE;
+    --stale: #6B7280;
 
-  /* soft elevation — used instead of flat borders alone on cards/buttons */
-  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.06), 0 6px 20px rgba(15, 23, 42, 0.06);
-  --shadow-card-dark: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 28px rgba(0, 0, 0, 0.35);
+    /* soft elevation — used instead of flat borders alone on cards/buttons */
+    --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.06), 0 6px 20px rgba(15, 23, 42, 0.06);
+    --shadow-card-dark: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 28px rgba(0, 0, 0, 0.35);
 
-  font-family: 'Inter Variable', 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
-  color-scheme: light dark;
+    font-family: 'Inter Variable', 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+    color-scheme: light dark;
+  }
+
+  body {
+    margin: 0;
+    background: var(--bg-50);
+    color: var(--ink-hi);
+  }
 }
 
-body {
-  margin: 0;
-  background: var(--bg-50);
-  color: var(--ink-hi);
-}
+@layer components {
+  /* tabular figures everywhere so live-updating numbers don't jitter */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
 
-/* tabular figures everywhere so live-updating numbers don't jitter (§1) */
-.tabular-nums {
-  font-variant-numeric: tabular-nums;
-}
+  /* consistent button baseline for all buttons */
+  button {
+    font-family: inherit;
+  }
 
-button {
-  font-family: inherit;
-}
+  /* smooth interactions on non-disabled buttons */
+  button:not(:disabled) {
+    transition: transform 0.12s ease, filter 0.12s ease, box-shadow 0.12s ease, background-color 0.12s ease;
+  }
 
-button:not(:disabled) {
-  transition: transform 0.12s ease, filter 0.12s ease, box-shadow 0.12s ease, background-color 0.12s ease;
-}
+  button:not(:disabled):hover {
+    filter: brightness(1.08);
+    transform: translateY(-1px);
+  }
 
-button:not(:disabled):hover {
-  filter: brightness(1.08);
-  transform: translateY(-1px);
-}
-
-button:not(:disabled):active {
-  transform: translateY(0);
-  filter: brightness(0.95);
+  button:not(:disabled):active {
+    transform: translateY(0);
+    filter: brightness(0.95);
+  }
 }
