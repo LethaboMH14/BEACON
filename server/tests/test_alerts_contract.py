@@ -13,6 +13,8 @@ import pytest
 
 from src.db.models import Camera, Entity
 
+HEADERS = {"X-Operator-Token": "test-token"}
+
 
 @pytest.fixture
 def sample_camera(db_session):
@@ -81,7 +83,7 @@ def test_ack_alert(client, sample_entity):
 
     # Ack it
     ack_payload = {"operator_id": "op_002", "note": "On scene, false alarm"}
-    ack_resp = client.post(f"/v1/alerts/{alert_id}/ack", json=ack_payload)
+    ack_resp = client.post(f"/v1/alerts/{alert_id}/ack", json=ack_payload, headers=HEADERS)
 
     assert ack_resp.status_code == 200
     data = ack_resp.json()
@@ -102,7 +104,7 @@ def test_cancel_alert_within_window(client, sample_entity):
     alert_id = create_resp.json()["id"]
 
     cancel_payload = {"operator_id": "op_003", "reason": "Duplicate"}
-    cancel_resp = client.post(f"/v1/alerts/{alert_id}/cancel", json=cancel_payload)
+    cancel_resp = client.post(f"/v1/alerts/{alert_id}/cancel", json=cancel_payload, headers=HEADERS)
 
     assert cancel_resp.status_code == 200
     data = cancel_resp.json()
@@ -134,7 +136,7 @@ def test_cancel_alert_after_window_rejected(client, sample_entity, db_session):
 
     # Try to cancel
     cancel_payload = {"operator_id": "op_004", "reason": "Too late"}
-    cancel_resp = client.post(f"/v1/alerts/{alert_id}/cancel", json=cancel_payload)
+    cancel_resp = client.post(f"/v1/alerts/{alert_id}/cancel", json=cancel_payload, headers=HEADERS)
 
     # Contract: 409 Conflict — cancel window expired
     assert cancel_resp.status_code == 409
@@ -154,10 +156,10 @@ def test_cancel_already_acked_rejected(client, sample_entity):
     alert_id = create_resp.json()["id"]
 
     # Ack first
-    client.post(f"/v1/alerts/{alert_id}/ack", json={"operator_id": "op_005"})
+    client.post(f"/v1/alerts/{alert_id}/ack", json={"operator_id": "op_005"}, headers=HEADERS)
 
     # Try to cancel
-    cancel_resp = client.post(f"/v1/alerts/{alert_id}/cancel", json={"operator_id": "op_005"})
+    cancel_resp = client.post(f"/v1/alerts/{alert_id}/cancel", json={"operator_id": "op_005"}, headers=HEADERS)
 
     # Contract: 409 Conflict — already in terminal state
     assert cancel_resp.status_code == 409
@@ -165,8 +167,8 @@ def test_cancel_already_acked_rejected(client, sample_entity):
 
 def test_alert_not_found(client):
     """Ack/cancel on non-existent alert returns 404."""
-    ack_resp = client.post("/v1/alerts/nonexistent/ack", json={"operator_id": "op_x"})
-    cancel_resp = client.post("/v1/alerts/nonexistent/cancel", json={"operator_id": "op_x"})
+    ack_resp = client.post("/v1/alerts/nonexistent/ack", json={"operator_id": "op_x"}, headers=HEADERS)
+    cancel_resp = client.post("/v1/alerts/nonexistent/cancel", json={"operator_id": "op_x"}, headers=HEADERS)
 
     assert ack_resp.status_code == 404
     assert cancel_resp.status_code == 404
@@ -185,3 +187,34 @@ def test_alert_create_with_invalid_entity(client):
 
     response = client.post("/v1/alerts", json=payload)
     assert response.status_code == 404
+
+
+def test_ack_alert_rejects_missing_operator_token(client, sample_entity):
+    """
+    Regression test: ack/cancel write WHO-did-WHAT-WHEN to evidence_chain
+    the same as POST /v1/entities/{id}/verify — they must be authenticated
+    the same way, not left as unauthenticated free text.
+    """
+    create_resp = client.post("/v1/alerts", json={
+        "alert_type": "hard_trigger", "recipient_id": "op_002", "recipient_type": "ops",
+        "message": "Panic button pressed", "severity": "critical",
+    })
+    alert_id = create_resp.json()["id"]
+
+    ack_resp = client.post(f"/v1/alerts/{alert_id}/ack", json={"operator_id": "op_002"})
+    assert ack_resp.status_code == 401
+
+
+def test_cancel_alert_rejects_mismatched_operator_token(client, sample_entity):
+    create_resp = client.post("/v1/alerts", json={
+        "alert_type": "forecast_spike", "recipient_id": "op_003", "recipient_type": "ops",
+        "message": "Risk spike predicted", "severity": "medium",
+    })
+    alert_id = create_resp.json()["id"]
+
+    cancel_resp = client.post(
+        f"/v1/alerts/{alert_id}/cancel",
+        json={"operator_id": "op_003", "reason": "test"},
+        headers={"X-Operator-Token": "wrong-token"},
+    )
+    assert cancel_resp.status_code == 401
