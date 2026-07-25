@@ -11,7 +11,8 @@ from dotenv import load_dotenv
 from .db import init_db
 from .api import (
     sightings_router, entities_router, alerts_router, risk_router, routes_router,
-    incidents_router, events_router, cameras_router,
+    incidents_router, events_router, cameras_router, hotspots_geo_router,
+    safest_route_router,
 )
 from .ws import ws_router
 from .middleware import RateLimitMiddleware
@@ -58,7 +59,9 @@ app.include_router(sightings_router, prefix="/v1", tags=["sightings"])
 app.include_router(entities_router, prefix="/v1", tags=["entities"])
 app.include_router(alerts_router, prefix="/v1", tags=["alerts"])
 app.include_router(risk_router, prefix="/v1", tags=["risk"])
+app.include_router(hotspots_geo_router, prefix="/v1", tags=["risk"])
 app.include_router(routes_router, prefix="/v1", tags=["routes"])
+app.include_router(safest_route_router, prefix="/v1", tags=["routes"])
 app.include_router(incidents_router, prefix="/v1", tags=["incidents"])
 app.include_router(events_router, prefix="/v1", tags=["events"])
 app.include_router(cameras_router, prefix="/v1", tags=["cameras"])

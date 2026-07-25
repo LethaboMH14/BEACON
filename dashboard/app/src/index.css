@@ -107,6 +107,29 @@
   }
 }
 
+/*
+ * Keyframes live outside @layer on purpose: @keyframes inside a cascade layer
+ * is legal but the animation name resolution is easy to get wrong when layers
+ * are reordered, and this one is referenced from React inline styles which sit
+ * outside the layer system entirely.
+ */
+@keyframes beacon-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@layer base {
+  /* Leaflet ships its own font-family and colours; scope them back to ours so
+     map popups and attribution don't arrive in a different typeface. */
+  .leaflet-container {
+    font-family: inherit;
+  }
+  .leaflet-control-attribution {
+    font-size: 9px;
+    background: rgba(255, 255, 255, 0.75);
+  }
+}
+
 @layer components {
   /* tabular figures everywhere so live-updating numbers don't jitter */
   .tabular-nums {

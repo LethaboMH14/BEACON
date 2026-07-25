@@ -3,6 +3,49 @@
 Every behaviour change gets an entry in the same commit. Plain-language section mandatory — anyone on the team must be able to read it.
 
 ---
+## 2026-07-26 — Member app: six delivered designs ported to seven live screens, wired to real endpoints
+
+**What:** BEACON now serves two surfaces from one build, behind a real router (`react-router-dom`, `createBrowserRouter` in `main.tsx`):
+- `/` — the **member phone app**: `member/MemberShell.tsx` (device frame, live status bar, 5-tab bar) wrapping seven screens in `member/screens/`.
+- `/ops` — the existing five-screen operations console (`App.tsx`, unchanged; it keeps its own tab state).
+
+Two new backend endpoints, because the member screens needed data no existing endpoint returned:
+- **`GET /v1/hotspots/geo`** (`server/src/api/hotspots_geo.py`) — the map-ready view of Ndu's hotspot pipeline. `GET /v1/hotspots` returns `hex_id`/`risk_score` only: no coordinates, no suburb name, so you cannot draw a map with it. This recovers suburb + lat/lng by joining back to `Claim` rows (necessary because `hex_id` is `md5(suburb)[:11]`, not a real H3 index, so it can't be decoded to a position), and returns the marker `color` and `radius` **server-side** using `build_hotspots.py`'s exact rules (≥0.66 → `#c0392b`, ≥0.33 → `#e67e22`, else `#f1c40f`; `radius = 6 + severity × 20`). Filters: `hour`, `day`, `peril`, `min_severity`.
+- **`POST /v1/routes/safest`** (`server/src/api/safest_route.py` + `server/src/routing/safest.py`) — scores candidate routes by claims exposure so a member can route *around* hotspots. Explicitly not `routing/planner.py`, which solves the opposite objective (send a patrol *towards* risk).
+
+**The route scoring, since it's the one piece of real IP here:** exposure = Σ over suburbs of `severity × exposed_km × time_multiplier`. The polyline is densified to 250 m samples at segment **midpoints** first, because a routing provider returns vertices at corners — a 6 km straight stretch can be two points, and scoring raw vertices would let it count for as little as a 50 m side street. Falloff inside the 2.5 km exposure radius is linear (1 at the centroid → 0 at the edge); anything sharper would be false precision over a centroid that is itself an approximation. Passing a suburb during its own historical peak hour costs ×1.6, shoulder hours ×1.25, with circular hour distance so 23:00 and 00:00 are one hour apart, not 23.
+
+**What is real and what isn't, precisely:**
+- Real: every hotspot scored is a genuine `RiskCell` row (709 geocoded suburbs, ≥5 claims each, from 15 712 claims); the exposure arithmetic; the comparison percentage.
+- Not ours: **road geometry**. Real routing needs a provider (OpenRouteService). `safest.py` takes geometry as *input* rather than inventing it, so wiring a provider changes nothing in the scoring module. Until then the client sends two bowed corridors and the response carries a required `geometry_source: "ors" | "approx"` field — a client physically cannot render an approximated line as road geometry without saying so.
+
+**Designs in, app out.** The six delivered Claude Design files were desktop *showcase* pages: each laid 2–4 phone frames side by side to display one screen's several states, with `MAP TILES PLACEHOLDER`, `dashcam frame placeholder`, per-frame captions and unresolved `{{ }}` template holes. That's the right format for a design spec and the wrong format for an app. Each ported screen collapses its state frames into **one** screen whose state comes from data — e.g. Live Drive's four separate notification frames became `levelFor(frame)` deriving critical/watch/info/clear from whatever detections are actually on screen at the current video time.
+
+**Three places the honesty line was held against the mockups:**
+1. The Live Drive weapon counter's caption in the design read *"9 weapon · 1 above gate"*. Grepped `scripts/vision_lens_demo.py`: **there is no weapon confidence gate in this pipeline** to be above. Inventing a threshold to make a mockup caption true is backwards, so the counter shows real peak confidence (63%, the max of the nine recorded confidences) instead.
+2. The AI assistant does **real** retrieval with **real** citations against the claims DB, but its answer *wording* is templated, not model-generated. It carries a `SIMULATED` tag and a footnote saying exactly which half is live.
+3. Rewards refuses to show an exposure-reduction figure until a route has actually been scored — the design's zero-state, as a real state, rather than a plausible number.
+Home Guard is tagged `SIMULATED` throughout: the response ladder and timings are real, the acoustic trigger is a scripted button because there is no audio classifier in this build.
+
+**Tests:** `server/tests/test_safest_route.py`, 18 new unit tests over the scoring math (densify preserves polyline length; long straight legs get walked; hotspots beyond the radius contribute exactly zero, not a little; distance-weighting beats count-weighting; severity scales linearly; peak/shoulder/midnight-wrap time weighting; `compare_routes` returns `None` rather than `0%` when both routes are clear). Full server suite **146 passed**. `npx tsc --noEmit` clean.
+
+**Verified live** (uvicorn `:8000` healthy, Vite `:5177`), every screen, against the real database:
+- `/home` — "BRYANSTON · 89 Discovery claims on record here, mostly theft. Historically busiest around 12:00 on Fridays. · #1 of 709 suburbs by severity · 10 780 claims analysed".
+- `/map` — 52 markers + 9 OSM tiles rendered (DOM probe), fills matching the server-computed colours. Tapping Bryanston opened the sheet with `0.85 / 89 claims / peaks 12:00 / Theft / Friday / R9 454 547 / R109 937` — identical to the figures hardcoded in the delivered design, but read from the DB rather than reproduced.
+- `/route` — "The recommended route has 29.3% less claims exposure than the alternative"; Eastern corridor (exposure 3.1, 19 min) over Western (4.4); advice "Passes 1.4 km through Bryanston, which has 89 Discovery claims on record, mostly theft."
+- `/rewards` — after starting that route, "You've cut your route exposure **29%** this session. Across 1 route planned" — computed from the two real scores, not a constant.
+- `/drive` — hijack clip playing, counters `15 plates / 0 read`, `9 weapon / peak 63%`, `2 faces` matching the track exactly; at t≈19.7 s a red `Weapon · pistol · 53%` box and an amber face box rendered in percentage space with the critical notification fired ("The camera model flagged a pistol at 53% confidence. Nothing has been reported yet — you decide."). At t≈36.8 s, no sampled frame within 1.2 s → "All clear", no stale box held.
+- `/assistant` — "How risky is Bryanston?" returned a real answer with the citation "From 89 claims in BRYANSTON · view on map".
+- `/home-guard` — ladder ran, cancel window counted down from 20 s, all four rungs listed with their offsets.
+Zero console errors.
+
+**Also:** `index.html`'s title was still "BEACON — ops dashboard" on the member surface; it's now the neutral product name with per-route titles set at runtime by `MemberShell` and `App`.
+
+**Plain language:** The designs we were given were poster-style — each screen shown two-to-four times side by side to display its different states, with grey boxes where the map and camera would go. This turned them into an actual working phone app: one screen per job, and the different states now happen because of real data instead of being drawn separately. The map draws 709 real suburbs from Discovery's claims history, the route planner really does compare two routes and tell you which one spends less time near past claims (29% less, in the demo), and the dashcam screen draws its boxes from the actual detections the model produced on that clip. Three things in the designs we deliberately did *not* copy, because they claimed more than we can back: a "confidence gate" the code doesn't have, an AI assistant that looks like it writes its own answers when it fills in templates, and a rewards figure that appears before you've planned any route.
+
+**Not done:** OpenRouteService is not wired in (needs a key — Lethabo adds it; only the candidate-building function in `SafestRoute.tsx` changes when it lands). The member is hardcoded as Thandi/Bryanston, flagged in-code, because there are no accounts in this build. Scenes 2–5 of the demo script and the third clip slot remain open. `hotspot_pipeline/Gradhack_Insure_Data.xlsx` is still tracked in this **public** repo, still awaiting a decision.
+
+---
 ## 2026-07-25 — Tailwind v4 tokens actually work now (previous config was dead) + BEACON v2 master brief
 
 **What:**
