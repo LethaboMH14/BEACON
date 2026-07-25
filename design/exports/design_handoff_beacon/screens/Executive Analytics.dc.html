@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; background: #0A0F1A; font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    * { box-sizing: border-box; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-thumb { background: rgba(15,23,42,0.15); border-radius: 999px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+  </style>
+</helmet>
+<div style="width:100%; min-width:1360px; min-height:100vh; background:#0A0F1A; color:#F1F5F9; display:flex; flex-direction:column; overflow-x:auto;">
+
+  <!-- TOP BAR -->
+  <div style="height:60px; flex-shrink:0; display:flex; align-items:center; justify-content:space-between; padding:0 20px; border-bottom:1px solid rgba(255,255,255,0.08); background:#0A0F1A;">
+    <div style="display:flex; align-items:baseline; gap:8px; flex-shrink:0; white-space:nowrap;">
+      <span style="font-size:16px; font-weight:800; letter-spacing:0.02em; color:#F1F5F9;">BEACON</span>
+      <span style="font-size:11px; color:#64748B; font-weight:500;">by Discovery</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:2px; background:#101725; border:1px solid rgba(255,255,255,0.08); border-radius:999px; padding:4px; flex-shrink:0;">
+      <sc-for list="{{ navItems }}" as="item" hint-placeholder-count="6">
+        <div onClick="{{ item.onClick }}" style="{{ item.style }}">{{ item.label }}</div>
+      </sc-for>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px; flex-shrink:0; white-space:nowrap; justify-content:flex-end;">
+      <span style="font-size:13px; font-variant-numeric:tabular-nums; color:#94A3B8; letter-spacing:0.02em;">00:14</span>
+      <div style="display:flex; align-items:center; gap:8px; padding-left:10px; border-left:1px solid rgba(255,255,255,0.08);">
+        <div style="width:26px; height:26px; border-radius:999px; background:#182130; border:1px solid rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600; color:#94A3B8; flex-shrink:0;">TM</div>
+        <span style="font-size:13px; color:#F1F5F9;">T. Mahlangu</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- BODY -->
+  <div style="flex:1; display:flex; gap:14px; padding:14px; min-height:0;">
+
+    <!-- MAIN -->
+    <div style="flex:1 1 76%; display:flex; flex-direction:column; gap:14px; min-height:0; overflow-y:auto;">
+
+      <!-- hero metrics -->
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px;">
+        <div style="background:#F7F9FC; border-radius:12px; border:1px solid rgba(15,23,42,0.08); padding:14px;">
+          <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#94A3B8;">Total claims value, ttm</div>
+          <div style="font-size:26px; font-weight:700; color:#0F172A; font-variant-numeric:tabular-nums; margin-top:4px;">R184.3M</div>
+        </div>
+        <div style="background:#F7F9FC; border-radius:12px; border:1px solid rgba(15,23,42,0.08); padding:14px;">
+          <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#94A3B8;">Claims count, ttm</div>
+          <div style="font-size:26px; font-weight:700; color:#0F172A; font-variant-numeric:tabular-nums; margin-top:4px;">15,712</div>
+        </div>
+        <div style="background:#F7F9FC; border-radius:12px; border:1px solid rgba(15,23,42,0.08); padding:14px;">
+          <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#94A3B8;">Average claim</div>
+          <div style="font-size:26px; font-weight:700; color:#0F172A; font-variant-numeric:tabular-nums; margin-top:4px;">R11,732</div>
+        </div>
+        <div style="background:#F7F9FC; border-radius:12px; border:1px solid rgba(15,23,42,0.08); padding:14px;">
+          <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#94A3B8;">Projected claims avoided</div>
+          <div style="font-size:26px; font-weight:700; color:#0B5FA5; font-variant-numeric:tabular-nums; margin-top:4px;">R9.4M</div>
+          <div style="font-size:10px; color:#94A3B8; margin-top:3px; line-height:1.4;">Projection — assumes a 12% reduction in near-repeat incidents across monitored zones</div>
+        </div>
+      </div>
+
+      <!-- main chart -->
+      <div style="background:#F7F9FC; border-radius:12px; border:1px solid rgba(15,23,42,0.08); padding:16px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+          <div style="font-size:13px; font-weight:600; color:#0F172A;">Claims value over time, 12 months</div>
+          <div style="display:flex; align-items:center; gap:14px;">
+            <span style="display:flex; align-items:center; gap:5px; font-size:11px; color:#94A3B8;"><span style="width:10px; height:2px; background:#0B5FA5; display:inline-block;"></span>Actual</span>
+            <span style="display:flex; align-items:center; gap:5px; font-size:11px; color:#94A3B8;"><span style="width:10px; height:0; border-top:2px dashed #0B5FA5; display:inline-block;"></span>Projected</span>
+            <span style="display:flex; align-items:center; gap:5px; font-size:11px; color:#94A3B8;"><span style="width:10px; height:0; border-top:2px dotted #94A3B8; display:inline-block;"></span>Without BEACON (modelled)</span>
+          </div>
+        </div>
+        <svg width="100%" height="200" viewBox="0 0 780 200" preserveAspectRatio="none">
+          <path d="{{ shadePath }}" fill="rgba(11,95,165,0.08)" stroke="none"></path>
+          <path d="{{ baselinePath }}" fill="none" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="2 3"></path>
+          <line x1="{{ markerX }}" y1="6" x2="{{ markerX }}" y2="194" stroke="#F5A623" stroke-width="1.5" stroke-dasharray="4 3"></line>
+          <path d="{{ actualPath }}" fill="none" stroke="#0B5FA5" stroke-width="2.5"></path>
+          <path d="{{ projectedPath }}" fill="none" stroke="#0B5FA5" stroke-width="2.5" stroke-dasharray="6 4"></path>
+        </svg>
+        <div style="position:relative; height:16px;">
+          <span style="position:absolute; left:{{ markerLabelX }}px; top:0; font-size:10.5px; font-weight:600; color:#F27B21; white-space:nowrap;">BEACON coverage began</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-top:2px;">
+          <sc-for list="{{ monthLabels }}" as="m" hint-placeholder-count="12">
+            <span style="font-size:9.5px; color:#64748B;">{{ m }}</span>
+          </sc-for>
+        </div>
+      </div>
+
+      <!-- supporting 2x2 -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+        <div style="background:#F7F9FC; border-radius:12px; border:1px solid rgba(15,23,42,0.08); padding:14px;">
+          <div style="font-size:13px; font-weight:600; color:#0F172A; margin-bottom:12px;">Peril split, ttm</div>
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <div>
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:3px;"><span style="font-size:12.5px; color:#0F172A;">Vehicle-related</span><span style="font-size:12.5px; color:#94A3B8; font-variant-numeric:tabular-nums;">93.6%</span></div>
+              <div style="height:9px; background:rgba(15,23,42,0.07); border-radius:4px; overflow:hidden;"><div style="height:100%; width:93.6%; background:#0B5FA5; border-radius:4px;"></div></div>
+            </div>
+            <div>
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:3px;"><span style="font-size:12.5px; color:#0F172A;">Other</span><span style="font-size:12.5px; color:#94A3B8; font-variant-numeric:tabular-nums;">6.1%</span></div>
+              <div style="height:9px; background:rgba(15,23,42,0.07); border-radius:4px; overflow:hidden;"><div style="height:100%; width:6.1%; background:#94A3B8; border-radius:4px;"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:#F7F9FC; border-radius:12px; border:1px solid rgba(15,23,42,0.08); padding:14px;">
+          <div style="font-size:13px; font-weight:600; color:#0F172A; margin-bottom:10px;">Claims by hour, ttm</div>
+          <div style="display:flex; align-items:flex-end; gap:2px; height:70px;">
+            <sc-for list="{{ hourBars }}" as="b" hint-placeholder-count="24">
+              <div style="{{ b.style }}"></div>
+            </sc-for>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-top:4px;">
+            <span style="font-size:9.5px; color:#64748B;">00h</span><span style="font-size:9.5px; color:#64748B;">06h</span><span style="font-size:9.5px; color:#64748B;">12h</span><span style="font-size:9.5px; color:#64748B;">18h</span><span style="font-size:9.5px; color:#64748B;">23h</span>
+          </div>
+        </div>
+
+        <div style="background:#F7F9FC; border-radius:12px; border:1px solid rgba(15,23,42,0.08); padding:14px;">
+          <div style="font-size:13px; font-weight:600; color:#0F172A; margin-bottom:10px;">Top 10 suburbs by claims value</div>
+          <div style="display:flex; flex-direction:column; gap:7px;">
+            <sc-for list="{{ topSuburbs }}" as="s" hint-placeholder-count="10">
+              <div>
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:2px;"><span style="font-size:12px; color:#0F172A; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ s.name }}</span><span style="font-size:11.5px; color:#94A3B8; font-variant-numeric:tabular-nums; flex-shrink:0; margin-left:8px;">{{ s.value }}</span></div>
+                <div style="height:5px; background:rgba(15,23,42,0.07); border-radius:999px; overflow:hidden;"><div style="{{ s.barStyle }}"></div></div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="background:#F7F9FC; border-radius:12px; border:1px solid rgba(15,23,42,0.08); padding:14px;">
+          <div style="font-size:13px; font-weight:600; color:#0F172A; margin-bottom:8px;">Network growth, 12 months</div>
+          <svg width="100%" height="90" viewBox="0 0 320 90" preserveAspectRatio="none">
+            <path d="{{ camerasPath }}" fill="none" stroke="#0B5FA5" stroke-width="2"></path>
+            <path d="{{ membersPath }}" fill="none" stroke="#F5A623" stroke-width="2"></path>
+          </svg>
+          <div style="display:flex; gap:14px; margin-top:6px;">
+            <span style="display:flex; align-items:center; gap:5px; font-size:11px; color:#94A3B8;"><span style="width:8px; height:8px; border-radius:2px; background:#0B5FA5; display:inline-block;"></span>Cameras (40 → 212)</span>
+            <span style="display:flex; align-items:center; gap:5px; font-size:11px; color:#94A3B8;"><span style="width:8px; height:8px; border-radius:2px; background:#F5A623; display:inline-block;"></span>Members (3,204 → 18,417)</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="font-size:10.5px; color:#64748B; padding:2px 2px 8px;">All figures derived from 15,712 claims records. Projections labelled as such and traceable to their query.</div>
+    </div>
+
+    <!-- RIGHT RAIL -->
+    <div style="flex:0 0 24%; background:#F7F9FC; border-radius:12px; border:1px solid rgba(15,23,42,0.08); padding:16px; display:flex; flex-direction:column; min-height:0;">
+      <div style="font-size:13px; font-weight:600; color:#0F172A; margin-bottom:14px;">Shared value loop</div>
+      <div style="display:flex; flex-direction:column; align-items:center; gap:0; position:relative;">
+        <sc-for list="{{ loopNodes }}" as="n" hint-placeholder-count="4">
+          <div style="width:100%;">
+            <div style="background:#FFFFFF; border:1px solid rgba(15,23,42,0.08); border-radius:10px; padding:12px; text-align:center;">
+              <div style="font-size:12.5px; font-weight:600; color:#0F172A;">{{ n.label }}</div>
+            </div>
+            <sc-if value="{{ n.showArrow }}" hint-placeholder-val="{{ true }}">
+              <div style="text-align:center; font-size:16px; color:#0B5FA5; padding:4px 0;">↓</div>
+            </sc-if>
+          </div>
+        </sc-for>
+        <div style="font-size:11px; color:#94A3B8; text-align:center; margin-top:4px;">↺ loops back to member protects</div>
+      </div>
+      <div style="flex:1;"></div>
+      <div style="font-size:11px; color:#94A3B8; line-height:1.5; padding-top:12px; border-top:1px solid rgba(15,23,42,0.07);">Vitality Protect ties member engagement directly to premium outcomes — the flywheel that funds network growth.</div>
+    </div>
+
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+
+class Component extends DCLogic {
+  state = { activeNav: 'Claims' };
+  setNav = (name) => this.setState({ activeNav: name });
+
+  buildMainChart() {
+    const actual = [15.2,15.8,16.1,15.65,14.9,14.1,13.2,12.1,11.4,10.8];
+    const projected = [10.8,10.2,9.7];
+    const baseline = [15.4,16.1,16.7,17.0,17.3,17.6,17.9,18.1,18.3,18.5,18.7,18.9];
+    const allActualProj = actual.concat(projected);
+    const n = 12, w = 780, h = 200, pad = 6, maxV = 20;
+    const x = i => (i / (n - 1)) * w;
+    const y = v => h - pad - (v / maxV) * (h - pad * 2);
+    const linePts = arr => arr.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' L');
+    const actualPath = 'M' + linePts(actual);
+    const lastActualIdx = actual.length - 1;
+    const projSeries = [actual[lastActualIdx], ...projected];
+    const projectedPath = 'M' + projSeries.map((v, i) => `${x(lastActualIdx + i).toFixed(1)},${y(v).toFixed(1)}`).join(' L');
+    const baselinePath = 'M' + linePts(baseline);
+    const upperShade = baseline;
+    const lowerShade = allActualProj;
+    const shadePath = 'M' + linePts(upperShade) + ' L' + lowerShade.slice().reverse().map((v, i) => `${x(n - 1 - i).toFixed(1)},${y(v).toFixed(1)}`).join(' L') + ' Z';
+    const markerIdx = 4;
+    return { actualPath, projectedPath, baselinePath, shadePath, markerX: x(markerIdx).toFixed(1), markerLabelX: (x(markerIdx) - 8).toFixed(0) };
+  }
+
+  buildNetworkChart() {
+    const cameras = [40,58,74,91,108,124,142,158,172,188,200,212];
+    const members = [3204,4600,6100,7500,9000,10600,12100,13600,15000,16400,17500,18417];
+    const n = 12, w = 320, h = 90, pad = 6;
+    const x = i => (i / (n - 1)) * w;
+    const yC = v => h - pad - (v / 220) * (h - pad * 2);
+    const yM = v => h - pad - (v / 19000) * (h - pad * 2);
+    const camerasPath = 'M' + cameras.map((v, i) => `${x(i).toFixed(1)},${yC(v).toFixed(1)}`).join(' L');
+    const membersPath = 'M' + members.map((v, i) => `${x(i).toFixed(1)},${yM(v).toFixed(1)}`).join(' L');
+    return { camerasPath, membersPath };
+  }
+
+  renderVals() {
+    const navNames = ['Overview', 'Live Camera', 'Intelligence', 'Patrol', 'Investigations', 'Claims'];
+    const navItems = navNames.map(name => ({
+      label: name,
+      onClick: () => this.setNav(name),
+      style: {
+        fontSize: '12.5px', fontWeight: 600, padding: '7px 13px', borderRadius: '999px', cursor: 'pointer',
+        whiteSpace: 'nowrap', flexShrink: 0,
+        color: this.state.activeNav === name ? '#0A0F1A' : '#94A3B8',
+        background: this.state.activeNav === name ? 'linear-gradient(135deg,#F5A623 0%, #F27B21 100%)' : 'transparent',
+      },
+    }));
+
+    const heights = [78,52,34,22,15,10,8,7,9,12,16,19,22,26,30,34,38,44,52,62,72,90,84,68];
+    const hourBars = heights.map((hh, i) => ({ id: i, style: { flex: 1, height: hh + '%', background: i === 0 ? '#F5A623' : 'rgba(11,95,165,0.5)', borderRadius: '2px 2px 0 0' } }));
+
+    const suburbsRaw = [
+      { name: 'Alexandra', value: 2140000 },
+      { name: 'Sandton', value: 1870000 },
+      { name: 'Randburg', value: 1620000 },
+      { name: 'Soweto — Rockville', value: 1410000 },
+      { name: 'Midrand', value: 1180000 },
+      { name: 'Roodepoort West', value: 984000 },
+      { name: 'Fourways', value: 861000 },
+      { name: 'Cosmo City', value: 743000 },
+      { name: 'Diepsloot', value: 612000 },
+      { name: 'Bryanston', value: 508000 },
+    ];
+    const maxSuburb = 2140000;
+    const topSuburbs = suburbsRaw.map(s => ({
+      name: s.name, value: 'R' + (s.value / 1e6).toFixed(2) + 'M',
+      barStyle: { height: '100%', width: (s.value / maxSuburb * 100) + '%', background: '#0B5FA5', borderRadius: '999px' },
+    }));
+
+    const loopLabels = ['Member protects', 'Fewer claims', 'Lower premium', 'More members'];
+    const loopNodes = loopLabels.map((label, i) => ({ label, showArrow: i < loopLabels.length - 1 }));
+
+    return {
+      navItems, hourBars, topSuburbs, loopNodes,
+      monthLabels: ['Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul'],
+      ...this.buildMainChart(),
+      ...this.buildNetworkChart(),
+    };
+  }
+}
+
+</script>
+</body>
+</html>

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; background: #E5E7EB; font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    @keyframes livePulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+  </style>
+</helmet>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402,874">
+  <div style="height:100%; overflow-y:auto; background:#F7F9FC;">
+
+    <!-- live feed -->
+    <div style="position:relative; height:236px; background:repeating-linear-gradient(115deg, #101725, #101725 7px, #182130 7px, #182130 14px);">
+      <div style="position:absolute; top:54px; left:0; right:0; bottom:0;"></div>
+      <div style="position:absolute; left:30%; top:34%; width:26%; height:48%; border:2px solid rgba(16,185,129,0.85); border-radius:4px;"></div>
+      <div style="position:absolute; top:58px; left:14px; display:flex; align-items:center; gap:6px; background:rgba(10,15,26,0.6); border-radius:999px; padding:4px 10px;">
+        <span style="width:6px; height:6px; border-radius:999px; background:#22D3EE; display:inline-block; animation:livePulse 1.6s ease-in-out infinite;"></span>
+        <span style="font-size:11px; font-weight:700; color:#F1F5F9;">LIVE</span>
+      </div>
+      <div style="position:absolute; bottom:12px; left:14px; font-size:12px; color:#F1F5F9; background:rgba(10,15,26,0.6); border-radius:6px; padding:3px 8px;">Driveway camera</div>
+    </div>
+
+    <!-- camera selector -->
+    <div style="display:flex; gap:8px; padding:12px 20px; overflow-x:auto;">
+      <sc-for list="{{ cameraChips }}" as="cam" hint-placeholder-count="4">
+        <div onClick="{{ cam.onClick }}" style="{{ cam.style }}">{{ cam.label }}</div>
+      </sc-for>
+    </div>
+
+    <div style="padding:0 20px;">
+      <!-- detection card -->
+      <div style="background:#FFFFFF; border:1px solid rgba(15,23,42,0.07); border-radius:12px; padding:14px;">
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <span style="font-size:14px; font-weight:600; color:#0F172A;">Vehicle detected</span>
+          <span style="font-size:12px; color:#94A3B8;">2 min ago</span>
+        </div>
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-top:10px;">
+          <span style="font-size:12.5px; color:#475569;">Moderate confidence</span>
+          <span style="font-size:14px; font-weight:700; color:#0F172A; font-variant-numeric:tabular-nums;">64%</span>
+        </div>
+        <div style="height:5px; background:rgba(15,23,42,0.07); border-radius:999px; overflow:hidden; margin-top:5px;">
+          <div style="height:100%; width:64%; background:#F59E0B; border-radius:999px;"></div>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:10px;">
+          <span style="font-size:11.5px; color:#475569; background:#F7F9FC; border:1px solid rgba(15,23,42,0.07); border-radius:999px; padding:3px 9px;">First sighting today</span>
+          <span style="font-size:11.5px; color:#475569; background:#F7F9FC; border:1px solid rgba(15,23,42,0.07); border-radius:999px; padding:3px 9px;">Daytime</span>
+          <span style="font-size:11.5px; color:#475569; background:#F7F9FC; border:1px solid rgba(15,23,42,0.07); border-radius:999px; padding:3px 9px;">Parked briefly</span>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:12px;">
+          <button style="flex:1; font-size:12.5px; font-weight:600; color:#475569; background:#F7F9FC; border:1px solid rgba(15,23,42,0.1); border-radius:10px; padding:9px 4px; cursor:pointer;">Save clip</button>
+          <button style="flex:1; font-size:12.5px; font-weight:600; color:#475569; background:#F7F9FC; border:1px solid rgba(15,23,42,0.1); border-radius:10px; padding:9px 4px; cursor:pointer;">Share with guardian</button>
+          <button style="flex:1; font-size:12.5px; font-weight:600; color:#475569; background:#F7F9FC; border:1px solid rgba(15,23,42,0.1); border-radius:10px; padding:9px 4px; cursor:pointer;">Report</button>
+        </div>
+      </div>
+
+      <!-- arm/disarm -->
+      <div onClick="{{ toggleArmed }}" style="display:flex; align-items:center; justify-content:space-between; background:#FFFFFF; border:1px solid rgba(15,23,42,0.07); border-radius:12px; padding:14px; margin-top:12px; cursor:pointer;">
+        <div>
+          <div style="font-size:14px; font-weight:600; color:#0F172A;">Driveway camera</div>
+          <div style="{{ armedLabelStyle }}">{{ armedLabel }}</div>
+        </div>
+        <div style="{{ toggleTrackStyle }}">
+          <div style="{{ toggleThumbStyle }}"></div>
+        </div>
+      </div>
+
+      <div style="font-size:11px; color:#94A3B8; line-height:1.5; margin-top:16px; padding-bottom:24px;">Faces are matched as encrypted signatures, not stored photos.</div>
+    </div>
+  </div>
+</x-import>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+
+class Component extends DCLogic {
+  state = { selectedCam: 0, armed: true };
+  selectCam = (i) => this.setState({ selectedCam: i });
+  toggleArmed = () => this.setState(s => ({ armed: !s.armed }));
+
+  renderVals() {
+    const cams = ['Front gate', 'Driveway', 'Back yard', 'Side gate'];
+    const cameraChips = cams.map((label, i) => ({
+      label,
+      onClick: () => this.selectCam(i),
+      style: {
+        fontSize: '12.5px', fontWeight: 600, padding: '8px 14px', borderRadius: '999px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+        color: this.state.selectedCam === i ? '#FFFFFF' : '#475569',
+        background: this.state.selectedCam === i ? '#0B5FA5' : '#FFFFFF',
+        border: this.state.selectedCam === i ? '1px solid #0B5FA5' : '1px solid rgba(15,23,42,0.1)',
+      },
+    }));
+
+    const armed = this.state.armed;
+    return {
+      cameraChips,
+      toggleArmed: this.toggleArmed,
+      armedLabel: armed ? 'Armed · monitoring active' : 'Disarmed',
+      armedLabelStyle: { fontSize: '12px', fontWeight: 600, color: armed ? '#10B981' : '#94A3B8', marginTop: '2px' },
+      toggleTrackStyle: {
+        width: '46px', height: '26px', borderRadius: '999px', background: armed ? '#10B981' : 'rgba(15,23,42,0.15)',
+        display: 'flex', alignItems: 'center', padding: '3px', flexShrink: 0,
+      },
+      toggleThumbStyle: {
+        width: '20px', height: '20px', borderRadius: '999px', background: '#FFFFFF',
+        transform: armed ? 'translateX(20px)' : 'translateX(0)', transition: 'transform 0.2s ease',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
+      },
+    };
+  }
+}
+
+</script>
+</body>
+</html>

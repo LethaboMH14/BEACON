@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; background: #0A0F1A; font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    * { box-sizing: border-box; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-thumb { background: rgba(15,23,42,0.15); border-radius: 999px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+  </style>
+</helmet>
+<div style="width:100%; min-width:1360px; min-height:100vh; background:#0A0F1A; color:#F1F5F9; display:flex; flex-direction:column; overflow-x:auto;">
+
+  <!-- TOP BAR -->
+  <div style="height:60px; flex-shrink:0; display:flex; align-items:center; justify-content:space-between; padding:0 20px; border-bottom:1px solid rgba(255,255,255,0.08); background:#0A0F1A;">
+    <div style="display:flex; align-items:baseline; gap:8px; flex-shrink:0; white-space:nowrap;">
+      <span style="font-size:16px; font-weight:800; letter-spacing:0.02em; color:#F1F5F9;">BEACON</span>
+      <span style="font-size:11px; color:#64748B; font-weight:500;">by Discovery</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:2px; background:#101725; border:1px solid rgba(255,255,255,0.08); border-radius:999px; padding:4px; flex-shrink:0;">
+      <sc-for list="{{ navItems }}" as="item" hint-placeholder-count="6">
+        <div onClick="{{ item.onClick }}" style="{{ item.style }}">{{ item.label }}</div>
+      </sc-for>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px; flex-shrink:0; white-space:nowrap; justify-content:flex-end;">
+      <span style="font-size:13px; font-variant-numeric:tabular-nums; color:#94A3B8; letter-spacing:0.02em;">00:14</span>
+      <div style="display:flex; align-items:center; gap:8px; padding-left:10px; border-left:1px solid rgba(255,255,255,0.08);">
+        <div style="width:26px; height:26px; border-radius:999px; background:#182130; border:1px solid rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600; color:#94A3B8; flex-shrink:0;">TM</div>
+        <span style="font-size:13px; color:#F1F5F9;">T. Mahlangu</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- BODY -->
+  <div style="flex:1; display:flex; gap:14px; padding:14px; min-height:0;">
+
+    <!-- LEFT: MAP -->
+    <div style="flex:1 1 60%; position:relative; border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,0.08); background:radial-gradient(circle at 30% 20%, #10192a 0%, #0A0F1A 60%);">
+      <div style="position:absolute; inset:0; overflow:hidden;">
+        <sc-for list="{{ hexCells }}" as="hex" hint-placeholder-count="80">
+          <div style="{{ hex.style }}"></div>
+        </sc-for>
+        <svg style="position:absolute; inset:0; width:100%; height:100%;" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <sc-for list="{{ routes }}" as="route" hint-placeholder-count="4">
+            <path d="{{ route.path }}" fill="none" stroke="{{ route.color }}" stroke-width="0.6" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"></path>
+          </sc-for>
+        </svg>
+        <sc-for list="{{ stopMarkers }}" as="m" hint-placeholder-count="20">
+          <div style="{{ m.style }}">{{ m.seq }}</div>
+        </sc-for>
+      </div>
+
+      <div style="position:absolute; top:16px; left:16px; background:rgba(16,23,37,0.92); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:10px 12px; display:flex; flex-direction:column; gap:6px; min-width:140px;">
+        <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#64748B;">Routes</div>
+        <sc-for list="{{ legend }}" as="lg" hint-placeholder-count="4">
+          <div style="display:flex; align-items:center; gap:7px; white-space:nowrap;">
+            <span style="{{ lg.dotStyle }}"></span>
+            <span style="font-size:12.5px; color:#F1F5F9; white-space:nowrap;">{{ lg.label }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <!-- RIGHT -->
+    <div style="flex:1 1 40%; display:flex; flex-direction:column; gap:12px; min-height:0; overflow-y:auto;">
+
+      <!-- tonight's plan -->
+      <div style="background:#F7F9FC; border-radius:12px; border:1px solid rgba(15,23,42,0.08); padding:14px;">
+        <div style="font-size:13px; font-weight:600; color:#0F172A; margin-bottom:10px;">Tonight's plan</div>
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px;">
+          <div>
+            <div style="font-size:22px; font-weight:700; color:#10B981; font-variant-numeric:tabular-nums;">−34%</div>
+            <div style="font-size:11px; color:#0F172A; margin-top:2px;">Fuel</div>
+            <div style="font-size:10px; color:#94A3B8; margin-top:1px;">vs. fixed-route baseline</div>
+          </div>
+          <div>
+            <div style="font-size:22px; font-weight:700; color:#0F172A; font-variant-numeric:tabular-nums;">82%</div>
+            <div style="font-size:11px; color:#0F172A; margin-top:2px;">Coverage</div>
+            <div style="font-size:10px; color:#94A3B8; margin-top:1px;">of top-risk hex-hours</div>
+          </div>
+          <div>
+            <div style="font-size:22px; font-weight:700; color:#0F172A; font-variant-numeric:tabular-nums;">6 · 23</div>
+            <div style="font-size:11px; color:#0F172A; margin-top:2px;">Units · stops</div>
+            <div style="font-size:10px; color:#94A3B8; margin-top:1px;">for the 22:00–06:00 shift</div>
+          </div>
+        </div>
+        <div style="font-size:10.5px; color:#94A3B8; margin-top:10px; padding-top:10px; border-top:1px solid rgba(15,23,42,0.07);">Dose length 11–15 min per Koper's patrol-decay curve.</div>
+      </div>
+
+      <!-- unit roster -->
+      <div style="background:#F7F9FC; border-radius:12px; border:1px solid rgba(15,23,42,0.08); padding:14px;">
+        <div style="font-size:13px; font-weight:600; color:#0F172A; margin-bottom:10px;">Unit roster</div>
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <sc-for list="{{ units }}" as="u" hint-placeholder-count="6">
+            <div onClick="{{ u.onClick }}" style="{{ u.rowStyle }}">
+              <div style="flex:1; min-width:0;">
+                <div style="display:flex; align-items:center; gap:7px;">
+                  <span style="{{ u.dotStyle }}"></span>
+                  <span style="font-size:13px; font-weight:600; color:#0F172A;">{{ u.team }}</span>
+                  <span style="{{ u.statusPillStyle }}">{{ u.statusLabel }}</span>
+                </div>
+                <div style="font-size:11.5px; color:#94A3B8; margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ u.assignment }}</div>
+              </div>
+              <sc-if value="{{ u.showRing }}" hint-placeholder-val="{{ false }}">
+                <div style="position:relative; width:36px; height:36px; flex-shrink:0;">
+                  <svg width="36" height="36" viewBox="0 0 36 36" style="transform:rotate(-90deg);">
+                    <circle cx="18" cy="18" r="15" fill="none" stroke="rgba(15,23,42,0.08)" stroke-width="3"></circle>
+                    <circle cx="18" cy="18" r="15" fill="none" stroke="#0B5FA5" stroke-width="3" stroke-linecap="round" stroke-dasharray="94.2" stroke-dashoffset="{{ u.ringOffset }}"></circle>
+                  </svg>
+                  <span style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:600; color:#475569; font-variant-numeric:tabular-nums;">{{ u.dwellShort }}</span>
+                </div>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <!-- stop list -->
+      <div style="background:#F7F9FC; border-radius:12px; border:1px solid rgba(15,23,42,0.08); padding:14px; flex:1; min-height:0; display:flex; flex-direction:column;">
+        <div style="font-size:13px; font-weight:600; color:#0F172A; margin-bottom:10px;">Stops · {{ selectedUnitName }}</div>
+        <div style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:8px;">
+          <sc-for list="{{ stops }}" as="s" hint-placeholder-count="4">
+            <div style="display:flex; align-items:center; gap:10px; background:#FFFFFF; border:1px solid rgba(15,23,42,0.07); border-radius:8px; padding:8px 10px;">
+              <div style="width:20px; height:20px; border-radius:999px; background:rgba(11,95,165,0.1); color:#0B5FA5; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0;">{{ s.seq }}</div>
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:12.5px; font-weight:500; color:#0F172A; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ s.suburb }}</div>
+                <div style="font-size:11px; color:#94A3B8; margin-top:1px;">{{ s.window }} · {{ s.dwell }} dwell</div>
+              </div>
+              <span style="{{ s.riskStyle }}">{{ s.risk }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:8px; flex-shrink:0;">
+        <button onClick="{{ planRoutes }}" style="flex:1; font-size:14px; font-weight:700; color:#0A0F1A; background:linear-gradient(135deg,#F5A623 0%, #F27B21 100%); border:none; border-radius:10px; padding:12px; cursor:pointer; box-shadow: inset 0 1px 0 rgba(255,255,255,0.35);">Plan routes</button>
+        <sc-if value="{{ !dispatchConfirming }}" hint-placeholder-val="{{ true }}">
+          <button onClick="{{ startDispatchConfirm }}" style="flex:1; font-size:14px; font-weight:600; color:#475569; background:#F7F9FC; border:1px solid rgba(15,23,42,0.14); border-radius:10px; padding:12px; cursor:pointer;">Dispatch all</button>
+        </sc-if>
+        <sc-if value="{{ dispatchConfirming }}" hint-placeholder-val="{{ false }}">
+          <div style="flex:1; display:flex; align-items:center; justify-content:center; gap:8px; background:#F7F9FC; border:1px solid rgba(15,23,42,0.14); border-radius:10px; padding:8px;">
+            <span style="font-size:11.5px; color:#475569;">Dispatch 6 units?</span>
+            <span onClick="{{ confirmDispatch }}" style="font-size:11.5px; font-weight:700; color:#0B5FA5; cursor:pointer;">Confirm</span>
+            <span onClick="{{ cancelDispatchConfirm }}" style="font-size:11.5px; color:#94A3B8; cursor:pointer;">Cancel</span>
+          </div>
+        </sc-if>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+
+class Component extends DCLogic {
+  state = { activeNav: 'Patrol', selectedUnitId: 0, dispatchConfirming: false };
+
+  setNav = (name) => this.setState({ activeNav: name });
+  selectUnit = (id) => this.setState({ selectedUnitId: id });
+  planRoutes = () => {};
+  startDispatchConfirm = () => this.setState({ dispatchConfirming: true });
+  cancelDispatchConfirm = () => this.setState({ dispatchConfirming: false });
+  confirmDispatch = () => this.setState({ dispatchConfirming: false });
+
+  riskColor(level) { return { safe: '#10B981', watch: '#F59E0B', high: '#F0653A', critical: '#E11D48' }[level]; }
+
+  buildHexCells() {
+    const cols = 16, rows = 9, w = 44, h = 38;
+    const hotspots = [{ c: 12, r: 1, level: 'critical' }, { c: 4, r: 6, level: 'high' }, { c: 8, r: 4, level: 'watch' }];
+    const cells = [];
+    for (let c = 0; c < cols; c++) {
+      for (let r = 0; r < rows; r++) {
+        const x = c * (w * 0.76);
+        const y = r * h + (c % 2 === 1 ? h / 2 : 0);
+        let minD = 99;
+        for (const hs of hotspots) { const d = Math.hypot(c - hs.c, r - hs.r); if (d < minD) minD = d; }
+        let level = 'safe', opacity = 0.04;
+        if (minD < 1.2) { level = 'critical'; opacity = 0.5; }
+        else if (minD < 2.2) { level = 'high'; opacity = 0.36; }
+        else if (minD < 3.2) { level = 'watch'; opacity = 0.24; }
+        else if (minD < 4.4) { opacity = 0.12; }
+        cells.push({
+          id: c + '-' + r,
+          style: {
+            position: 'absolute', left: x + 'px', top: y + 'px', width: w + 'px', height: h + 'px',
+            background: this.riskColor(level), opacity,
+            clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)',
+            border: '1px solid rgba(255,255,255,0.03)',
+          },
+        });
+      }
+    }
+    return cells;
+  }
+
+  teams() {
+    return [
+      { id: 0, team: 'Team Alpha', color: '#14B8A6', status: 'enroute', assignment: 'En route to Alexandra — Station St', dwellMs: null,
+        stops: [
+          { seq: 1, suburb: 'Alexandra — Station St', window: '22:14–22:26', dwell: '12 min', risk: 82 },
+          { seq: 2, suburb: 'Alexandra — Roosevelt', window: '22:38–22:50', dwell: '12 min', risk: 76 },
+          { seq: 3, suburb: 'Marlboro border', window: '23:05–23:16', dwell: '11 min', risk: 58 },
+        ],
+        routePts: [[8,14],[16,20],[24,26],[30,18]] },
+      { id: 1, team: 'Team Bravo', color: '#8B5CF6', status: 'atstop', assignment: 'At stop — Roodepoort West Ext 4', dwellMs: 500,
+        stops: [
+          { seq: 1, suburb: 'Roodepoort West Ext 3', window: '22:10–22:21', dwell: '11 min', risk: 61 },
+          { seq: 2, suburb: 'Roodepoort West Ext 4', window: '22:28–22:40', dwell: '12 min', risk: 58 },
+          { seq: 3, suburb: 'Discovery Rd corridor', window: '22:55–23:08', dwell: '13 min', risk: 44 },
+        ],
+        routePts: [[62,60],[54,66],[46,70],[40,64]] },
+      { id: 2, team: 'Team Charlie', color: '#0B5FA5', status: 'enroute', assignment: 'En route to Soweto — Rockville', dwellMs: null,
+        stops: [
+          { seq: 1, suburb: 'Soweto — Rockville', window: '22:20–22:33', dwell: '13 min', risk: 47 },
+          { seq: 2, suburb: 'Soweto — Vilakazi St', window: '22:48–23:00', dwell: '12 min', risk: 39 },
+        ],
+        routePts: [[26,72],[32,78],[38,82],[44,76]] },
+      { id: 3, team: 'Team Delta', color: '#F0653A', status: 'atstop', assignment: 'At stop — Randburg CBD, Bram Fischer', dwellMs: 820,
+        stops: [
+          { seq: 1, suburb: 'Randburg CBD — Bram Fischer', window: '22:05–22:16', dwell: '11 min', risk: 37 },
+          { seq: 2, suburb: 'Randburg — Bordeaux', window: '22:33–22:45', dwell: '12 min', risk: 31 },
+        ],
+        routePts: [[30,22],[36,28],[42,24],[48,30]] },
+      { id: 4, team: 'Team Echo', color: '#64748B', status: 'idle', assignment: 'Idle — staged, Sandton depot', dwellMs: null, stops: [
+          { seq: 1, suburb: 'Sandton depot (staged)', window: '—', dwell: '—', risk: null },
+        ], routePts: null },
+      { id: 5, team: 'Team Foxtrot', color: '#64748B', status: 'idle', assignment: 'Idle — staged, Midrand depot', dwellMs: null, stops: [
+          { seq: 1, suburb: 'Midrand depot (staged)', window: '—', dwell: '—', risk: null },
+        ], routePts: null },
+    ];
+  }
+
+  renderVals() {
+    const navNames = ['Overview', 'Live Camera', 'Intelligence', 'Patrol', 'Investigations', 'Claims'];
+    const navItems = navNames.map(name => ({
+      label: name,
+      onClick: () => this.setNav(name),
+      style: {
+        fontSize: '12.5px', fontWeight: 600, padding: '7px 13px', borderRadius: '999px', cursor: 'pointer',
+        whiteSpace: 'nowrap', flexShrink: 0,
+        color: this.state.activeNav === name ? '#0A0F1A' : '#94A3B8',
+        background: this.state.activeNav === name ? 'linear-gradient(135deg,#F5A623 0%, #F27B21 100%)' : 'transparent',
+      },
+    }));
+
+    const teams = this.teams();
+    const statusMeta = {
+      enroute: { label: 'En route', color: '#0B5FA5', bg: 'rgba(11,95,165,0.1)' },
+      atstop: { label: 'At stop', color: '#F59E0B', bg: 'rgba(245,158,11,0.12)' },
+      idle: { label: 'Idle', color: '#94A3B8', bg: 'rgba(148,163,184,0.12)' },
+    };
+
+    const units = teams.map(t => {
+      const sm = statusMeta[t.status];
+      const circumference = 94.2;
+      const ringOffset = t.dwellMs != null ? circumference * (1 - t.dwellMs / 1000) : circumference;
+      return {
+        id: t.id, team: t.team, assignment: t.assignment,
+        onClick: () => this.selectUnit(t.id),
+        dotStyle: { width: '7px', height: '7px', borderRadius: '999px', background: t.color, flexShrink: 0 },
+        statusLabel: sm.label,
+        statusPillStyle: { fontSize: '10px', fontWeight: 700, color: sm.color, background: sm.bg, borderRadius: '999px', padding: '2px 8px', textTransform: 'uppercase', letterSpacing: '0.04em' },
+        rowStyle: {
+          display: 'flex', alignItems: 'center', gap: '10px', padding: '8px', borderRadius: '8px', cursor: 'pointer',
+          background: this.state.selectedUnitId === t.id ? '#FFFFFF' : 'transparent',
+          border: this.state.selectedUnitId === t.id ? '1px solid rgba(15,23,42,0.08)' : '1px solid transparent',
+        },
+        showRing: t.status === 'atstop',
+        ringOffset,
+        dwellShort: t.dwellMs != null ? Math.round((1000 - t.dwellMs) / 60) + ':' + String(Math.round(((1000 - t.dwellMs) % 60) * 60 / 100)).padStart(2, '0') : '',
+      };
+    });
+
+    const selected = teams.find(t => t.id === this.state.selectedUnitId) || teams[0];
+    const stops = selected.stops.map(s => ({
+      ...s,
+      riskStyle: s.risk == null ? { fontSize: '11px', color: '#94A3B8' } : {
+        fontSize: '12px', fontWeight: 700, color: s.risk > 60 ? '#E11D48' : (s.risk > 40 ? '#F0653A' : '#F59E0B'),
+      },
+      risk: s.risk == null ? '—' : s.risk,
+    }));
+
+    const routedTeams = teams.filter(t => t.routePts);
+    const routes = routedTeams.map(t => {
+      const pts = t.routePts;
+      const path = 'M' + pts.map(p => `${p[0]},${p[1]}`).join(' L');
+      return { id: t.id, path, color: t.color };
+    });
+
+    const stopMarkers = [];
+    routedTeams.forEach(t => {
+      t.routePts.forEach((p, i) => {
+        stopMarkers.push({
+          id: t.id + '-' + i, seq: i + 1,
+          style: {
+            position: 'absolute', left: p[0] + '%', top: p[1] + '%', transform: 'translate(-50%,-50%)',
+            width: '16px', height: '16px', borderRadius: '999px', background: t.color, color: '#0A0F1A',
+            fontSize: '9px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            border: '1.5px solid rgba(10,15,26,0.6)',
+          },
+        });
+      });
+    });
+
+    const legend = routedTeams.map(t => ({
+      label: t.team, dotStyle: { width: '9px', height: '2.5px', background: t.color, display: 'inline-block', borderRadius: '2px' },
+    }));
+
+    return {
+      navItems, hexCells: this.buildHexCells(), routes, stopMarkers, legend,
+      units, selectedUnitName: selected.team, stops,
+      planRoutes: this.planRoutes,
+      dispatchConfirming: this.state.dispatchConfirming,
+      startDispatchConfirm: this.startDispatchConfirm,
+      cancelDispatchConfirm: this.cancelDispatchConfirm,
+      confirmDispatch: this.confirmDispatch,
+    };
+  }
+}
+
+</script>
+</body>
+</html>

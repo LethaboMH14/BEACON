@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; background: #0A0F1A; font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    * { box-sizing: border-box; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-thumb { background: rgba(15,23,42,0.15); border-radius: 999px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    textarea::placeholder { color: #94A3B8; }
+    @keyframes livePulse { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
+  </style>
+</helmet>
+<div style="width:100%; min-width:1360px; min-height:100vh; background:#0A0F1A; color:#F1F5F9; display:flex; flex-direction:column; overflow-x:auto;">
+
+  <!-- TOP BAR -->
+  <div style="height:60px; flex-shrink:0; display:flex; align-items:center; justify-content:space-between; padding:0 20px; border-bottom:1px solid rgba(255,255,255,0.08); background:#0A0F1A;">
+    <div style="display:flex; align-items:baseline; gap:8px; flex-shrink:0; white-space:nowrap;">
+      <span style="font-size:16px; font-weight:800; letter-spacing:0.02em; color:#F1F5F9;">BEACON</span>
+      <span style="font-size:11px; color:#64748B; font-weight:500;">by Discovery</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:2px; background:#101725; border:1px solid rgba(255,255,255,0.08); border-radius:999px; padding:4px; flex-shrink:0;">
+      <sc-for list="{{ navItems }}" as="item" hint-placeholder-count="6">
+        <div onClick="{{ item.onClick }}" style="{{ item.style }}">{{ item.label }}</div>
+      </sc-for>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px; flex-shrink:0; white-space:nowrap; justify-content:flex-end;">
+      <span style="font-size:13px; font-variant-numeric:tabular-nums; color:#94A3B8; letter-spacing:0.02em;">00:14</span>
+      <div style="display:flex; align-items:center; gap:8px; padding-left:10px; border-left:1px solid rgba(255,255,255,0.08);">
+        <div style="width:26px; height:26px; border-radius:999px; background:#182130; border:1px solid rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600; color:#94A3B8; flex-shrink:0;">ND</div>
+        <span style="font-size:13px; color:#F1F5F9;">N. Dlamini</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- BODY -->
+  <div style="flex:1; display:flex; gap:14px; padding:14px; min-height:0; background:#0A0F1A;">
+
+    <!-- LEFT: QUEUE -->
+    <div style="flex:0 0 22%; background:#F7F9FC; border-radius:12px; border:1px solid rgba(15,23,42,0.08); display:flex; flex-direction:column; min-height:0; overflow:hidden;">
+      <div style="padding:14px 14px 10px; border-bottom:1px solid rgba(15,23,42,0.08); flex-shrink:0;">
+        <div style="font-size:15px; font-weight:600; color:#0F172A;">Verify queue</div>
+        <div style="font-size:11px; color:#94A3B8; margin-top:2px;">7 awaiting verification</div>
+      </div>
+      <div style="flex:1; overflow-y:auto; padding:8px;">
+        <sc-for list="{{ queueItems }}" as="q" hint-placeholder-count="6">
+          <div onClick="{{ q.onClick }}" style="{{ q.rowStyle }}">
+            <div style="width:40px; height:40px; border-radius:8px; flex-shrink:0; background:repeating-linear-gradient(135deg, #182130, #182130 4px, #101725 4px, #101725 8px);"></div>
+            <div style="flex:1; min-width:0;">
+              <div style="font-size:13px; font-weight:600; color:#0F172A; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ q.entity }}</div>
+              <div style="display:flex; align-items:center; gap:6px; margin-top:3px;">
+                <span style="font-size:12px; font-weight:700; color:#0F172A; font-variant-numeric:tabular-nums;">{{ q.confidence }}%</span>
+                <span style="font-size:11px; color:#94A3B8;">·</span>
+                <span style="font-size:11px; color:#94A3B8;">{{ q.waiting }}</span>
+              </div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <!-- CENTRE: EVIDENCE -->
+    <div style="flex:1 1 50%; background:#F7F9FC; border-radius:12px; border:1px solid rgba(15,23,42,0.08); display:flex; flex-direction:column; min-height:0; overflow:hidden;">
+      <div style="flex:1; overflow-y:auto; padding:20px;">
+
+        <!-- header -->
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:18px;">
+          <div>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span style="font-size:20px; font-weight:700; color:#0F172A;">{{ selected.entity }}</span>
+              <span style="font-size:11px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:#F27B21; background:rgba(245,166,35,0.12); border:1px solid rgba(245,166,35,0.3); border-radius:999px; padding:4px 10px;">Watch candidate</span>
+            </div>
+            <div style="font-size:12px; color:#94A3B8; margin-top:4px;">First observed {{ selected.firstSeen }} · {{ selected.waiting }} in queue</div>
+          </div>
+          <div style="text-align:right; min-width:140px;">
+            <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#94A3B8;">Calibrated confidence</div>
+            <div style="font-size:32px; font-weight:700; color:#0F172A; font-variant-numeric:tabular-nums; line-height:1.1;">{{ selected.confidence }}%</div>
+            <div style="height:6px; background:rgba(15,23,42,0.08); border-radius:999px; overflow:hidden; margin-top:4px;">
+              <div style="height:100%; width:{{ selected.confidence }}%; background:linear-gradient(90deg,#F5A623,#F27B21); border-radius:999px;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- timeline -->
+        <div style="background:#FFFFFF; border:1px solid rgba(15,23,42,0.07); border-radius:12px; padding:16px; margin-bottom:16px;">
+          <div style="font-size:13px; font-weight:600; color:#0F172A; margin-bottom:12px;">Sighting timeline</div>
+          <div style="display:flex; gap:16px;">
+            <div style="flex:1; position:relative;">
+              <div style="position:absolute; left:22px; right:22px; top:20px; height:2px; background:rgba(15,23,42,0.1);"></div>
+              <div style="display:flex; justify-content:space-between;">
+                <sc-for list="{{ timelineNodes }}" as="node" hint-placeholder-count="3">
+                  <div style="display:flex; flex-direction:column; align-items:center; gap:8px; flex:1;">
+                    <div style="width:44px; height:36px; border-radius:6px; background:repeating-linear-gradient(135deg, #101725, #101725 4px, #182130 4px, #182130 8px); position:relative; z-index:1; border:2px solid #FFFFFF; box-shadow:0 0 0 1px rgba(15,23,42,0.1);"></div>
+                    <div style="font-size:12px; font-weight:600; color:#0F172A;">{{ node.camera }}</div>
+                    <div style="font-size:11px; color:#94A3B8; font-variant-numeric:tabular-nums;">{{ node.time }}</div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="width:160px; flex-shrink:0;">
+              <div style="font-size:11px; color:#94A3B8; margin-bottom:6px;">Path</div>
+              <svg width="160" height="90" viewBox="0 0 160 90" style="background:#F7F9FC; border-radius:8px; border:1px solid rgba(15,23,42,0.07);">
+                <polyline points="24,66 84,20 132,50" fill="none" stroke="#0B5FA5" stroke-width="2" stroke-dasharray="4 3"></polyline>
+                <circle cx="24" cy="66" r="4" fill="#0B5FA5"></circle>
+                <circle cx="84" cy="20" r="4" fill="#0B5FA5"></circle>
+                <circle cx="132" cy="50" r="5" fill="#F5A623"></circle>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- why raised -->
+        <div style="background:#FFFFFF; border:1px solid rgba(15,23,42,0.07); border-radius:12px; padding:16px; margin-bottom:16px;">
+          <div style="font-size:13px; font-weight:600; color:#0F172A; margin-bottom:12px;">Why this was raised</div>
+          <div style="display:flex; flex-direction:column; gap:12px;">
+            <sc-for list="{{ factors }}" as="f" hint-placeholder-count="4">
+              <div>
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <span style="font-size:13px; font-weight:600; color:#0F172A;">{{ f.name }}</span>
+                  <span style="font-size:12px; color:#94A3B8; font-variant-numeric:tabular-nums;">{{ f.contribution }}% of score</span>
+                </div>
+                <div style="height:5px; background:rgba(15,23,42,0.07); border-radius:999px; overflow:hidden; margin:6px 0;">
+                  <div style="height:100%; width:{{ f.contribution }}%; background:#0B5FA5; border-radius:999px;"></div>
+                </div>
+                <div style="font-size:12px; color:#475569; line-height:1.5;">{{ f.sentence }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <!-- checks -->
+        <div style="background:#FFFFFF; border:1px solid rgba(15,23,42,0.07); border-radius:12px; padding:16px;">
+          <div style="font-size:13px; font-weight:600; color:#0F172A; margin-bottom:12px;">Checks run</div>
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <sc-for list="{{ checks }}" as="c" hint-placeholder-count="3">
+              <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:#F7F9FC; border-radius:8px;">
+                <div>
+                  <div style="font-size:13px; font-weight:500; color:#0F172A;">{{ c.name }}</div>
+                  <div style="font-size:11px; color:#94A3B8; margin-top:2px;">{{ c.detail }}</div>
+                </div>
+                <span style="{{ c.badgeStyle }}">{{ c.resultLabel }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- RIGHT: DECISION -->
+    <div style="flex:0 0 28%; background:#F7F9FC; border-radius:12px; border:1px solid rgba(15,23,42,0.08); display:flex; flex-direction:column; min-height:0; overflow:hidden;">
+      <div style="flex:1; overflow-y:auto; padding:18px; display:flex; flex-direction:column; gap:12px;">
+        <div style="font-size:13px; font-weight:600; color:#0F172A; margin-bottom:2px;">Decision</div>
+
+        <button onClick="{{ setFlag }}" style="width:100%; font-size:15px; font-weight:700; color:#0A0F1A; background:linear-gradient(135deg,#F5A623 0%, #F27B21 100%); border:none; border-radius:10px; padding:14px; cursor:pointer; box-shadow: inset 0 1px 0 rgba(255,255,255,0.35);">Flag for response</button>
+
+        <div style="display:flex; gap:8px;">
+          <button onClick="{{ setDismiss }}" style="flex:1; font-size:13px; font-weight:600; color:#475569; background:#FFFFFF; border:1px solid rgba(15,23,42,0.14); border-radius:10px; padding:11px; cursor:pointer;">Dismiss — no action</button>
+          <button onClick="{{ setWhitelist }}" style="flex:1; font-size:13px; font-weight:600; color:#475569; background:#FFFFFF; border:1px solid rgba(15,23,42,0.14); border-radius:10px; padding:11px; cursor:pointer;">Add to whitelist</button>
+        </div>
+
+        <div style="margin-top:8px;">
+          <label style="font-size:12px; font-weight:600; color:#475569; display:block; margin-bottom:6px;">Reason for decision (recorded to the evidence chain)</label>
+          <textarea value="{{ note }}" onChange="{{ onNoteChange }}" placeholder="e.g. Vehicle matches near-repeat pattern; recommend patrol pass, not dispatch." style="width:100%; min-height:88px; font-family:inherit; font-size:13px; color:#0F172A; background:#FFFFFF; border:1px solid rgba(15,23,42,0.14); border-radius:10px; padding:10px 12px; resize:vertical;"></textarea>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:8px; margin-top:6px; padding:10px 12px; background:rgba(15,23,42,0.03); border-radius:8px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+          <span style="font-size:11px; color:#94A3B8; line-height:1.5;">Signed as: Op. N. Dlamini · 00:14:22 · this decision is permanently recorded</span>
+        </div>
+
+        <div style="flex:1;"></div>
+
+        <sc-if value="{{ dispatchConfirming }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 12px; background:rgba(225,29,72,0.05); border:1px solid rgba(225,29,72,0.15); border-radius:8px;">
+            <span style="font-size:11.5px; color:#475569;">Confirm dispatch armed response?</span>
+            <div style="display:flex; gap:6px; flex-shrink:0;">
+              <span onClick="{{ confirmDispatch }}" style="font-size:11.5px; font-weight:600; color:#E11D48; cursor:pointer;">Confirm</span>
+              <span onClick="{{ cancelDispatchConfirm }}" style="font-size:11.5px; color:#94A3B8; cursor:pointer;">Cancel</span>
+            </div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ showDispatchLink }}" hint-placeholder-val="{{ true }}">
+          <div style="text-align:center;">
+            <span onClick="{{ startDispatchConfirm }}" style="font-size:11.5px; color:#94A3B8; text-decoration:underline; cursor:pointer;">Dispatch armed response</span>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+
+class Component extends DCLogic {
+  state = { activeNav: 'Investigations', selectedId: 0, note: '', dispatchConfirming: false, dispatched: false };
+
+  setNav = (name) => this.setState({ activeNav: name });
+  selectQueue = (id) => this.setState({ selectedId: id });
+  onNoteChange = (e) => this.setState({ note: e.target.value });
+  setFlag = () => {};
+  setDismiss = () => {};
+  setWhitelist = () => {};
+  startDispatchConfirm = () => this.setState({ dispatchConfirming: true });
+  cancelDispatchConfirm = () => this.setState({ dispatchConfirming: false });
+  confirmDispatch = () => this.setState({ dispatchConfirming: false, dispatched: true });
+
+  candidates() {
+    return [
+      { id: 0, entity: 'Vehicle · JZ 84 KL GP', confidence: 74, waiting: '6 min', firstSeen: '23:41' },
+      { id: 1, entity: 'Person · unusual activity', confidence: 61, waiting: '11 min', firstSeen: '00:03' },
+      { id: 2, entity: 'Vehicle · HD 12 XZ GP', confidence: 48, waiting: '14 min', firstSeen: '23:58' },
+      { id: 3, entity: 'Person · unusual activity', confidence: 44, waiting: '18 min', firstSeen: '23:52' },
+      { id: 4, entity: 'Vehicle · KT 55 PW GP', confidence: 39, waiting: '22 min', firstSeen: '23:47' },
+      { id: 5, entity: 'Person · unusual activity', confidence: 33, waiting: '29 min', firstSeen: '23:41' },
+      { id: 6, entity: 'Vehicle · JZ 84 KL GP', confidence: 30, waiting: '35 min', firstSeen: '23:36' },
+    ];
+  }
+
+  renderVals() {
+    const navNames = ['Overview', 'Live Camera', 'Intelligence', 'Patrol', 'Investigations', 'Claims'];
+    const navItems = navNames.map(name => ({
+      label: name,
+      onClick: () => this.setNav(name),
+      style: {
+        fontSize: '12.5px', fontWeight: 600, padding: '7px 13px', borderRadius: '999px', cursor: 'pointer',
+        whiteSpace: 'nowrap', flexShrink: 0,
+        color: this.state.activeNav === name ? '#0A0F1A' : '#94A3B8',
+        background: this.state.activeNav === name ? 'linear-gradient(135deg,#F5A623 0%, #F27B21 100%)' : 'transparent',
+      },
+    }));
+
+    const candidates = this.candidates();
+    const queueItems = candidates.map(q => ({
+      ...q,
+      onClick: () => this.selectQueue(q.id),
+      rowStyle: {
+        display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 8px', borderRadius: '8px', cursor: 'pointer',
+        marginBottom: '2px',
+        background: this.state.selectedId === q.id ? '#FFFFFF' : 'transparent',
+        borderLeft: this.state.selectedId === q.id ? '3px solid #F5A623' : '3px solid transparent',
+        boxShadow: this.state.selectedId === q.id ? '0 1px 3px rgba(15,23,42,0.08)' : 'none',
+      },
+    }));
+
+    const selected = candidates.find(c => c.id === this.state.selectedId) || candidates[0];
+
+    const timelineNodes = [
+      { camera: 'Camera 04', time: '23:41' },
+      { camera: 'Camera 07', time: '00:02' },
+      { camera: 'Camera 04', time: '00:14' },
+    ];
+
+    const factors = [
+      { name: 'F1 · Recurrence', contribution: 32, sentence: 'This vehicle has been sighted 3 times in the same zone within the last 40 minutes.' },
+      { name: 'F2 · Timing', contribution: 24, sentence: 'The sighting pattern falls within the 00:00–02:00 window that historically correlates with claims in this suburb.' },
+      { name: 'F3 · Near-repeat zone', contribution: 28, sentence: 'Location sits inside a near-repeat zone flagged after a claim filed in the last 14 days.' },
+      { name: 'F6 · Audio corroboration', contribution: 16, sentence: 'An on-site audio sensor logged a corresponding vehicle-idle signature at 00:13.' },
+    ];
+
+    const badge = (label, tone) => {
+      const tones = {
+        pass: { color: '#10B981', bg: 'rgba(16,185,129,0.1)', border: 'rgba(16,185,129,0.25)' },
+        fail: { color: '#E11D48', bg: 'rgba(225,29,72,0.08)', border: 'rgba(225,29,72,0.2)' },
+        inconclusive: { color: '#F59E0B', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.25)' },
+      };
+      const t = tones[tone];
+      return {
+        label,
+        badgeStyle: {
+          fontSize: '11px', fontWeight: 700, letterSpacing: '0.03em', textTransform: 'uppercase',
+          color: t.color, background: t.bg, border: `1px solid ${t.border}`, borderRadius: '999px', padding: '4px 10px', flexShrink: 0,
+        },
+      };
+    };
+
+    const checks = [
+      { name: 'Whitelist check', detail: 'Plate not matched against 214 registered residents', ...badge('No match', 'pass') },
+      { name: 'Embedding match strength', detail: '0.81 similarity · threshold 0.75', ...badge('Pass', 'pass') },
+      { name: 'Plate-match confidence', detail: 'Partial occlusion on rear plate character 3', ...badge('Inconclusive', 'inconclusive') },
+    ].map(c => ({ ...c, resultLabel: c.label }));
+
+    return {
+      navItems, queueItems, selected, timelineNodes, factors, checks,
+      note: this.state.note,
+      onNoteChange: this.onNoteChange,
+      setFlag: this.setFlag, setDismiss: this.setDismiss, setWhitelist: this.setWhitelist,
+      dispatchConfirming: this.state.dispatchConfirming,
+      showDispatchLink: !this.state.dispatchConfirming && !this.state.dispatched,
+      startDispatchConfirm: this.startDispatchConfirm,
+      cancelDispatchConfirm: this.cancelDispatchConfirm,
+      confirmDispatch: this.confirmDispatch,
+    };
+  }
+}
+
+</script>
+</body>
+</html>

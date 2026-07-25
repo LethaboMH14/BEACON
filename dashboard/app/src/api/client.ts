@@ -26,6 +26,29 @@ export interface HotspotsResponse {
   hotspots: HotspotEntry[];
 }
 
+export interface CameraStatusEntry {
+  id: string;
+  name: string;
+  hex_id: string | null;
+  last_seen_at: string | null;
+  online: boolean;
+}
+
+export interface CamerasResponse {
+  cameras: CameraStatusEntry[];
+}
+
+export interface EventEntry {
+  event: string;
+  ts: string;
+  data: Record<string, unknown>;
+}
+
+export interface EventsSinceResponse {
+  since: string;
+  events: EventEntry[];
+}
+
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(path);
   if (!res.ok) {
@@ -48,4 +71,19 @@ export async function getHotspots(window?: number, limit = 20): Promise<Hotspots
   const params = new URLSearchParams({ limit: String(limit) });
   if (window !== undefined) params.set('window', String(window));
   return get(`/v1/hotspots?${params.toString()}`);
+}
+
+export async function getCameras(): Promise<CamerasResponse> {
+  return get('/v1/cameras');
+}
+
+export async function getEventsSince(ts: string, limit = 200): Promise<EventsSinceResponse> {
+  const params = new URLSearchParams({ ts, limit: String(limit) });
+  return get(`/v1/events/since?${params.toString()}`);
+}
+
+export async function verifyEntity(entityId: string): Promise<unknown> {
+  const res = await fetch(`/v1/entities/${encodeURIComponent(entityId)}/verify`, { method: 'POST' });
+  if (!res.ok) throw new Error(`verify ${entityId} -> ${res.status} ${res.statusText}`);
+  return res.json();
 }

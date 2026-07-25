@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; background: #E5E7EB; font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    @keyframes livePulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+  </style>
+</helmet>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402,874" dark="{{ true }}">
+  <div style="height:100%; overflow-y:auto; background:#0A0F1A; color:#F1F5F9;">
+    <div style="padding:58px 18px 24px;">
+
+      <!-- shift status -->
+      <div style="display:flex; align-items:center; justify-content:space-between;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="width:8px; height:8px; border-radius:999px; background:#10B981; display:inline-block; animation:livePulse 1.8s ease-in-out infinite;"></span>
+          <span style="font-size:15px; font-weight:700; color:#F1F5F9;">On shift · Team Bravo</span>
+        </div>
+        <span style="font-size:13px; color:#94A3B8; font-variant-numeric:tabular-nums;">2h 14m</span>
+      </div>
+
+      <!-- next stop hero -->
+      <div style="background:#101725; border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:16px; margin-top:16px;">
+        <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#64748B; margin-bottom:8px;">Next stop</div>
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:14px;">
+          <div style="flex:1; min-width:0;">
+            <div style="font-size:20px; font-weight:700; color:#F1F5F9;">Roodepoort West Ext 4</div>
+            <div style="display:flex; align-items:center; gap:10px; margin-top:6px;">
+              <span style="font-size:13px; color:#94A3B8; font-variant-numeric:tabular-nums;">ETA 6 min</span>
+              <span style="font-size:13px; color:#94A3B8; font-variant-numeric:tabular-nums;">3.2 km</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px; margin-top:10px;">
+              <span style="font-size:12px; color:#94A3B8;">Risk score</span>
+              <span style="font-size:15px; font-weight:700; color:#F59E0B; font-variant-numeric:tabular-nums;">58</span>
+            </div>
+          </div>
+          <div style="position:relative; width:88px; height:88px; flex-shrink:0;">
+            <svg width="88" height="88" viewBox="0 0 88 88" style="transform:rotate(-90deg);">
+              <circle cx="44" cy="44" r="38" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="6"></circle>
+              <circle cx="44" cy="44" r="38" fill="none" stroke="#0B5FA5" stroke-width="6" stroke-linecap="round" stroke-dasharray="238.8" stroke-dashoffset="0"></circle>
+            </svg>
+            <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+              <span style="font-size:15px; font-weight:700; color:#F1F5F9; font-variant-numeric:tabular-nums;">12:00</span>
+              <span style="font-size:9px; color:#64748B; text-transform:uppercase; letter-spacing:0.04em;">dwell</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- active incident -->
+      <div style="background:rgba(240,101,58,0.1); border:1px solid rgba(240,101,58,0.35); border-radius:14px; padding:16px; margin-top:14px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+          <span style="font-size:11px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:#F0653A;">Active incident</span>
+          <span style="font-size:14px; font-weight:700; color:#F1F5F9; font-variant-numeric:tabular-nums;">58%</span>
+        </div>
+        <div style="font-size:14.5px; color:#F1F5F9; line-height:1.4;">Possible repeat sighting — vehicle near Randburg CBD</div>
+        <div style="display:flex; gap:10px; margin-top:14px;">
+          <button style="flex:1; font-size:15px; font-weight:700; color:#FFFFFF; background:#0B5FA5; border:none; border-radius:10px; padding:14px; cursor:pointer;">Navigate</button>
+          <button style="flex:1; font-size:15px; font-weight:700; color:#F1F5F9; background:transparent; border:1.5px solid rgba(255,255,255,0.25); border-radius:10px; padding:14px; cursor:pointer;">Arrived at scene</button>
+        </div>
+      </div>
+
+      <!-- route progress -->
+      <div style="margin-top:18px;">
+        <div style="font-size:13px; font-weight:600; color:#F1F5F9; margin-bottom:10px;">Route progress</div>
+        <div style="position:relative; padding-left:24px;">
+          <div style="position:absolute; left:8px; top:6px; bottom:6px; width:2px; background:rgba(255,255,255,0.1);"></div>
+          <sc-for list="{{ stops }}" as="s" hint-placeholder-count="5">
+            <div style="position:relative; padding-bottom:16px;">
+              <div style="{{ s.dotStyle }}">{{ s.dotContent }}</div>
+              <div style="{{ s.textStyle }}">{{ s.suburb }}</div>
+              <div style="{{ s.subStyle }}">{{ s.meta }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <!-- bottom actions -->
+      <div style="margin-top:8px; display:flex; flex-direction:column; gap:10px;">
+        <button style="width:100%; font-size:15px; font-weight:700; color:#0A0F1A; background:linear-gradient(135deg,#F5A623 0%, #F27B21 100%); border:none; border-radius:10px; padding:15px; cursor:pointer; box-shadow: inset 0 1px 0 rgba(255,255,255,0.35);">Report from scene</button>
+        <button style="width:100%; font-size:14px; font-weight:600; color:#E11D48; background:transparent; border:1.5px solid rgba(225,29,72,0.35); border-radius:10px; padding:13px; cursor:pointer;">Request emergency backup</button>
+      </div>
+    </div>
+  </div>
+</x-import>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+
+class Component extends DCLogic {
+  renderVals() {
+    const raw = [
+      { suburb: 'Randburg CBD — Bram Fischer', meta: 'Completed · 22:16', state: 'done' },
+      { suburb: 'Randburg — Bordeaux', meta: 'Completed · 22:45', state: 'done' },
+      { suburb: 'Roodepoort West Ext 4', meta: 'Arriving in 6 min', state: 'current' },
+      { suburb: 'Discovery Rd corridor', meta: 'Upcoming', state: 'upcoming' },
+      { suburb: 'Roodepoort West Ext 3', meta: 'Upcoming', state: 'upcoming' },
+    ];
+    const stops = raw.map(s => {
+      const isDone = s.state === 'done', isCurrent = s.state === 'current';
+      return {
+        suburb: s.suburb, meta: s.meta,
+        dotContent: isDone ? '✓' : '',
+        dotStyle: {
+          position: 'absolute', left: '-24px', top: '2px', width: '18px', height: '18px', borderRadius: '999px',
+          background: isDone ? '#10B981' : (isCurrent ? '#F5A623' : 'rgba(255,255,255,0.08)'),
+          border: isCurrent ? '2px solid #F5A623' : 'none',
+          color: '#0A0F1A', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1,
+        },
+        textStyle: { fontSize: '13.5px', fontWeight: isCurrent ? 700 : 500, color: isCurrent ? '#F1F5F9' : (isDone ? '#94A3B8' : '#64748B') },
+        subStyle: { fontSize: '11.5px', color: isCurrent ? '#F5A623' : '#64748B', marginTop: '1px' },
+      };
+    });
+    return { stops };
+  }
+}
+
+</script>
+</body>
+</html>

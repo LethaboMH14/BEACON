@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; background: #0A0F1A; font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    * { box-sizing: border-box; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-thumb { background: rgba(15,23,42,0.15); border-radius: 999px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+  </style>
+</helmet>
+<div style="width:100%; min-width:1360px; min-height:100vh; background:#0A0F1A; color:#F1F5F9; display:flex; flex-direction:column; overflow-x:auto;">
+
+  <!-- TOP BAR -->
+  <div style="height:60px; flex-shrink:0; display:flex; align-items:center; justify-content:space-between; padding:0 20px; border-bottom:1px solid rgba(255,255,255,0.08); background:#0A0F1A;">
+    <div style="display:flex; align-items:baseline; gap:8px; flex-shrink:0; white-space:nowrap;">
+      <span style="font-size:16px; font-weight:800; letter-spacing:0.02em; color:#F1F5F9;">BEACON</span>
+      <span style="font-size:11px; color:#64748B; font-weight:500;">by Discovery</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:2px; background:#101725; border:1px solid rgba(255,255,255,0.08); border-radius:999px; padding:4px; flex-shrink:0;">
+      <sc-for list="{{ navItems }}" as="item" hint-placeholder-count="6">
+        <div onClick="{{ item.onClick }}" style="{{ item.style }}">{{ item.label }}</div>
+      </sc-for>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px; flex-shrink:0; white-space:nowrap; justify-content:flex-end;">
+      <span style="font-size:13px; font-variant-numeric:tabular-nums; color:#94A3B8; letter-spacing:0.02em;">00:14</span>
+      <div style="display:flex; align-items:center; gap:8px; padding-left:10px; border-left:1px solid rgba(255,255,255,0.08);">
+        <div style="width:26px; height:26px; border-radius:999px; background:#182130; border:1px solid rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600; color:#94A3B8; flex-shrink:0;">TM</div>
+        <span style="font-size:13px; color:#F1F5F9;">T. Mahlangu</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- BODY -->
+  <div style="flex:1; display:flex; gap:14px; padding:14px; min-height:0;">
+
+    <!-- MAIN -->
+    <div style="flex:1 1 75%; display:flex; flex-direction:column; gap:14px; min-height:0; overflow-y:auto;">
+
+      <!-- hero tiles -->
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px;">
+        <div style="background:#F7F9FC; border-radius:12px; border:1px solid rgba(15,23,42,0.08); padding:14px;">
+          <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#94A3B8;">Forecast risk, next 24h</div>
+          <div style="font-size:32px; font-weight:700; color:#0F172A; font-variant-numeric:tabular-nums; margin-top:4px;">34.2%</div>
+          <div style="font-size:11px; color:#94A3B8; margin-top:2px;">±4.1pts, 90% interval</div>
+        </div>
+        <div style="background:#F7F9FC; border-radius:12px; border:1px solid rgba(15,23,42,0.08); padding:14px;">
+          <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#94A3B8;">Top peril</div>
+          <div style="font-size:20px; font-weight:700; color:#0F172A; margin-top:8px;">Vehicle theft</div>
+          <div style="font-size:13px; color:#0B5FA5; font-weight:600; margin-top:2px; font-variant-numeric:tabular-nums;">61.4% of forecast risk</div>
+        </div>
+        <div style="background:#F7F9FC; border-radius:12px; border:1px solid rgba(15,23,42,0.08); padding:14px;">
+          <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#94A3B8;">Hexes above threshold</div>
+          <div style="font-size:32px; font-weight:700; color:#0F172A; font-variant-numeric:tabular-nums; margin-top:4px;">14</div>
+          <div style="font-size:11px; color:#94A3B8; margin-top:2px;">of 212 tracked, Johannesburg metro</div>
+        </div>
+        <div style="background:#F7F9FC; border-radius:12px; border:1px solid rgba(15,23,42,0.08); padding:14px;">
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#94A3B8;">Model</div>
+            <span title="Ensemble of near-repeat, temporal and environmental signals, calibrated weekly against verified outcomes." style="width:15px; height:15px; border-radius:999px; border:1px solid rgba(15,23,42,0.2); color:#94A3B8; font-size:10px; display:flex; align-items:center; justify-content:center; cursor:help;">i</span>
+          </div>
+          <div style="font-size:20px; font-weight:700; color:#0F172A; margin-top:8px;">v0.4</div>
+          <div style="font-size:12px; color:#10B981; font-weight:600; margin-top:2px;">Calibrated · last check 6h ago</div>
+        </div>
+      </div>
+
+      <!-- chart row: top risk areas + main chart -->
+      <div style="display:flex; gap:14px; flex-shrink:0;">
+        <div style="flex:0 0 26%; background:#F7F9FC; border-radius:12px; border:1px solid rgba(15,23,42,0.08); padding:14px;">
+          <div style="font-size:13px; font-weight:600; color:#0F172A; margin-bottom:10px;">Top risk areas</div>
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <sc-for list="{{ topAreas }}" as="a" hint-placeholder-count="5">
+              <div>
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:6px;">
+                  <span style="font-size:12.5px; font-weight:500; color:#0F172A; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ a.suburb }}</span>
+                  <div style="display:flex; align-items:center; gap:5px; flex-shrink:0;">
+                    <span style="font-size:12.5px; font-weight:700; color:#0F172A; font-variant-numeric:tabular-nums;">{{ a.score }}</span>
+                    <span style="{{ a.trendStyle }}">{{ a.trendArrow }}</span>
+                  </div>
+                </div>
+                <div style="height:4px; background:rgba(15,23,42,0.07); border-radius:999px; overflow:hidden; margin-top:5px;">
+                  <div style="{{ a.barStyle }}"></div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="flex:1; background:#F7F9FC; border-radius:12px; border:1px solid rgba(15,23,42,0.08); padding:14px; min-width:0;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+            <div style="font-size:13px; font-weight:600; color:#0F172A;">Predicted risk, next 24h</div>
+            <div style="display:flex; align-items:center; gap:14px;">
+              <span style="display:flex; align-items:center; gap:5px; font-size:11px; color:#94A3B8;"><span style="width:10px; height:2px; background:#0B5FA5; display:inline-block;"></span>Forecast</span>
+              <span style="display:flex; align-items:center; gap:5px; font-size:11px; color:#94A3B8;"><span style="width:10px; height:0; border-top:2px dotted #94A3B8; display:inline-block;"></span>Historical baseline</span>
+            </div>
+          </div>
+          <svg width="100%" height="200" viewBox="0 0 620 200" preserveAspectRatio="none">
+            <path d="{{ bandPath }}" fill="rgba(11,95,165,0.12)" stroke="none"></path>
+            <path d="{{ baselinePath }}" fill="none" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="3 3"></path>
+            <path d="{{ areaFillPath }}" fill="rgba(11,95,165,0.08)" stroke="none"></path>
+            <path d="{{ forecastPath }}" fill="none" stroke="#0B5FA5" stroke-width="2.5"></path>
+            <circle cx="{{ peakX }}" cy="{{ peakY }}" r="3.5" fill="#0B5FA5"></circle>
+          </svg>
+          <div style="display:flex; justify-content:space-between; margin-top:2px;">
+            <span style="font-size:10px; color:#64748B;">now</span>
+            <span style="font-size:10px; color:#64748B;">+6h</span>
+            <span style="font-size:10px; color:#64748B;">+12h</span>
+            <span style="font-size:10px; color:#64748B;">+18h</span>
+            <span style="font-size:10px; color:#64748B;">+24h</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- two charts -->
+      <div style="display:flex; gap:14px; flex-shrink:0;">
+        <div style="flex:1; background:#F7F9FC; border-radius:12px; border:1px solid rgba(15,23,42,0.08); padding:14px;">
+          <div style="font-size:13px; font-weight:600; color:#0F172A; margin-bottom:12px;">Incidents by peril, trailing 30 days</div>
+          <div style="display:flex; flex-direction:column; gap:9px;">
+            <sc-for list="{{ perilBars }}" as="p" hint-placeholder-count="5">
+              <div>
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:3px;">
+                  <span style="font-size:12px; color:#0F172A;">{{ p.label }}</span>
+                  <span style="font-size:12px; color:#94A3B8; font-variant-numeric:tabular-nums;">{{ p.count }}</span>
+                </div>
+                <div style="height:8px; background:rgba(15,23,42,0.07); border-radius:4px; overflow:hidden;">
+                  <div style="{{ p.barStyle }}"></div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="flex:1; background:#F7F9FC; border-radius:12px; border:1px solid rgba(15,23,42,0.08); padding:14px;">
+          <div style="font-size:13px; font-weight:600; color:#0F172A; margin-bottom:8px;">Claims over time, 12 months</div>
+          <svg width="100%" height="150" viewBox="0 0 560 150" preserveAspectRatio="none">
+            <rect x="{{ seasonalX }}" y="0" width="{{ seasonalW }}" height="150" fill="rgba(11,95,165,0.06)"></rect>
+            <path d="{{ claimsPath }}" fill="none" stroke="#0B5FA5" stroke-width="2.5"></path>
+          </svg>
+          <div style="display:flex; justify-content:space-between; margin-top:2px;">
+            <sc-for list="{{ monthLabels }}" as="m" hint-placeholder-count="12">
+              <span style="font-size:9.5px; color:#64748B;">{{ m }}</span>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT RAIL -->
+    <div style="flex:0 0 25%; background:#F7F9FC; border-radius:12px; border:1px solid rgba(15,23,42,0.08); padding:16px; display:flex; flex-direction:column; min-height:0; overflow-y:auto;">
+      <div style="font-size:13px; font-weight:600; color:#0F172A; margin-bottom:12px;">Contributing factors</div>
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <sc-for list="{{ factors }}" as="f" hint-placeholder-count="6">
+          <div>
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+              <span style="font-size:12.5px; color:#0F172A;">{{ f.name }}</span>
+              <span style="font-size:12px; color:#94A3B8; font-variant-numeric:tabular-nums;">{{ f.weight }}</span>
+            </div>
+            <div style="height:5px; background:rgba(15,23,42,0.07); border-radius:999px; overflow:hidden; margin-top:5px;">
+              <div style="{{ f.barStyle }}"></div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="flex:1;"></div>
+      <div style="font-size:11px; color:#94A3B8; line-height:1.5; padding-top:12px; border-top:1px solid rgba(15,23,42,0.07);">Contributions are model attributions, not causes.</div>
+    </div>
+
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+
+class Component extends DCLogic {
+  state = { activeNav: 'Intelligence' };
+  setNav = (name) => this.setState({ activeNav: name });
+
+  buildChart() {
+    const forecast = [38.4,32.1,26.7,21.3,17.8,15.2,13.9,14.6,16.8,19.4,21.9,23.5,24.8,26.2,27.9,29.3,31.1,33.6,36.2,38.9,41.4,43.7,44.9,41.2];
+    const baseline = [23.1,20.8,18.2,15.6,13.9,12.7,12.1,12.9,13.8,14.6,15.3,15.9,16.4,17.1,17.8,18.5,19.2,20.1,21.3,22.6,23.9,25.1,25.8,24.4];
+    const n = forecast.length;
+    const w = 620, h = 200, pad = 6;
+    const maxV = 50;
+    const x = i => (i / (n - 1)) * w;
+    const y = v => h - pad - (v / maxV) * (h - pad * 2);
+    const band = 4.5;
+    const linePts = arr => arr.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' L');
+    const forecastPath = 'M' + linePts(forecast);
+    const baselinePath = 'M' + linePts(baseline);
+    const upper = forecast.map(v => v + band);
+    const lower = forecast.map(v => v - band);
+    const bandPath = 'M' + linePts(upper) + ' L' + lower.slice().reverse().map((v, i) => `${x(n - 1 - i).toFixed(1)},${y(v).toFixed(1)}`).join(' L') + ' Z';
+    const areaFillPath = forecastPath + ` L${x(n - 1).toFixed(1)},${h} L${x(0).toFixed(1)},${h} Z`;
+    let peakIdx = 0;
+    forecast.forEach((v, i) => { if (v > forecast[peakIdx]) peakIdx = i; });
+    return {
+      forecastPath, baselinePath, bandPath, areaFillPath,
+      peakX: x(peakIdx).toFixed(1), peakY: y(forecast[peakIdx]).toFixed(1),
+    };
+  }
+
+  buildClaimsChart() {
+    const vals = [412,398,375,360,341,352,378,401,433,468,502,447];
+    const n = vals.length, w = 560, h = 150, pad = 8;
+    const maxV = 520, minV = 300;
+    const x = i => (i / (n - 1)) * w;
+    const y = v => h - pad - ((v - minV) / (maxV - minV)) * (h - pad * 2);
+    const claimsPath = 'M' + vals.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' L');
+    return { claimsPath, seasonalX: x(5).toFixed(1), seasonalW: (x(8) - x(5)).toFixed(1) };
+  }
+
+  renderVals() {
+    const navNames = ['Overview', 'Live Camera', 'Intelligence', 'Patrol', 'Investigations', 'Claims'];
+    const navItems = navNames.map(name => ({
+      label: name,
+      onClick: () => this.setNav(name),
+      style: {
+        fontSize: '12.5px', fontWeight: 600, padding: '7px 13px', borderRadius: '999px', cursor: 'pointer',
+        whiteSpace: 'nowrap', flexShrink: 0,
+        color: this.state.activeNav === name ? '#0A0F1A' : '#94A3B8',
+        background: this.state.activeNav === name ? 'linear-gradient(135deg,#F5A623 0%, #F27B21 100%)' : 'transparent',
+      },
+    }));
+
+    const areasRaw = [
+      { suburb: 'Alexandra', score: 82.3, trend: 'up' },
+      { suburb: 'Roodepoort West', score: 58.7, trend: 'up' },
+      { suburb: 'Soweto — Rockville', score: 47.1, trend: 'down' },
+      { suburb: 'Midrand N1 corridor', score: 41.6, trend: 'up' },
+      { suburb: 'Randburg CBD', score: 36.9, trend: 'down' },
+    ];
+    const maxScore = 82.3;
+    const topAreas = areasRaw.map(a => ({
+      ...a,
+      trendArrow: a.trend === 'up' ? '▲' : '▼',
+      trendStyle: { fontSize: '10px', color: a.trend === 'up' ? '#E11D48' : '#10B981' },
+      barStyle: { height: '100%', width: (a.score / maxScore * 100) + '%', background: a.score > 60 ? '#E11D48' : (a.score > 40 ? '#F0653A' : '#F59E0B'), borderRadius: '999px' },
+    }));
+
+    const perilRaw = [
+      { label: 'Vehicle theft', count: 187 },
+      { label: 'Burglary', count: 142 },
+      { label: 'Armed robbery', count: 61 },
+      { label: 'Common assault', count: 48 },
+      { label: 'Trespass', count: 33 },
+    ];
+    const maxPeril = 187;
+    const perilBars = perilRaw.map(p => ({ ...p, barStyle: { height: '100%', width: (p.count / maxPeril * 100) + '%', background: '#0B5FA5', borderRadius: '4px' } }));
+
+    const factorsRaw = [
+      { name: 'Near-repeat contagion', weight: 0.31 },
+      { name: 'Hour of day', weight: 0.24 },
+      { name: 'Payday proximity', weight: 0.18 },
+      { name: 'Load-reduction stage', weight: 0.14 },
+      { name: 'Weather', weight: 0.08 },
+      { name: 'Historical density', weight: 0.05 },
+    ];
+    const factors = factorsRaw.map(f => ({ name: f.name, weight: f.weight.toFixed(2), barStyle: { height: '100%', width: (f.weight / 0.31 * 100) + '%', background: '#0B5FA5', borderRadius: '999px' } }));
+
+    const monthLabels = ['Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul'];
+
+    return {
+      navItems, topAreas, perilBars, factors, monthLabels,
+      ...this.buildChart(),
+      ...this.buildClaimsChart(),
+    };
+  }
+}
+
+</script>
+</body>
+</html>
