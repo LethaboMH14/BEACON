@@ -30,6 +30,7 @@ jobs:
       # unimportable without it — the wheel on its own is not enough.
       - run: sudo apt-get update && sudo apt-get install -y libportaudio2
       - run: pip install -r vision/requirements-test.txt
-      # Run from the repo root: the tests import `vision.*` and the server contract,
-      # so cd-ing into vision/ breaks them.
-      - run: pytest -q vision/tests
+      # `python -m pytest`, not bare `pytest`: the tests import `vision.*` and the
+      # server contract, and only the module form puts the repo root on sys.path.
+      # Bare pytest fails collection with ModuleNotFoundError: No module named 'vision'.
+      - run: python -m pytest -q vision/tests
