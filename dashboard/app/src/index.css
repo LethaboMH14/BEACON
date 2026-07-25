@@ -6,11 +6,57 @@
  * screen's hardcoded hex values get replaced with references to these,
  * that's what stops screens drifting apart from each other.
  *
- * Tokens are available as:
- * 1. CSS custom properties (--bg-900, etc.) for use in React inline styles
- * 2. Tailwind theme extensions (see tailwind.config.ts) for use in class names
- * 3. @apply directives where both are needed together
+ * Tailwind v4 is CSS-first: a tailwind.config.ts is IGNORED unless explicitly
+ * pulled in with @config. We had one; it generated exactly zero utilities
+ * (verified — `bg-risk-critical` produced no CSS). So the tokens live here in
+ * @theme instead, which is the v4 way, and it gives us both halves at once:
+ *   1. Tailwind utilities — bg-bg-900, text-risk-critical, shadow-card-dark
+ *   2. Plain CSS custom properties — @theme emits --color-bg-900 etc. into
+ *      :root automatically, usable from React inline styles
+ * The short aliases in :root below are kept because every existing screen and
+ * theme/tokens.ts already references them; they're aliases now, not duplicates.
  */
+@theme {
+  /* dark chrome (headers, nav, ops shell) */
+  --color-bg-900: #0A0F1A;
+  --color-bg-800: #101725;
+  --color-bg-700: #182130;
+  --color-text-hi: #F1F5F9;
+  --color-text-mid: #94A3B8;
+  --color-text-lo: #64748B;
+  --color-line-dark: rgba(255, 255, 255, 0.08);
+
+  /* light content (data panels, member view, exec view) */
+  --color-bg-50: #F7F9FC;
+  --color-bg-0: #FFFFFF;
+  --color-ink-hi: #0F172A;
+  --color-ink-mid: #475569;
+  --color-ink-lo: #94A3B8;
+  --color-line-light: rgba(15, 23, 42, 0.08);
+
+  /* brand */
+  --color-beacon: #F5A623;
+  --color-beacon-deep: #F27B21;
+  --color-discovery: #0B5FA5;
+  --color-discovery-soft: #E8F1F9;
+
+  /* risk ramp — ONLY for risk/severity, never decoration */
+  --color-risk-safe: #10B981;
+  --color-risk-watch: #F59E0B;
+  --color-risk-high: #F0653A;
+  --color-risk-critical: #E11D48;
+
+  /* semantic */
+  --color-live: #22D3EE;
+  --color-stale: #6B7280;
+
+  /* soft elevation — used instead of flat borders alone on cards/buttons */
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.06), 0 6px 20px rgba(15, 23, 42, 0.06);
+  --shadow-card-dark: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 28px rgba(0, 0, 0, 0.35);
+
+  --font-sans: 'Inter Variable', 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+}
+
 @layer base {
   :root {
     /* dark chrome (headers, nav, ops shell) */

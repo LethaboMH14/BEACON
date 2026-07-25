@@ -3,6 +3,28 @@
 Every behaviour change gets an entry in the same commit. Plain-language section mandatory — anyone on the team must be able to read it.
 
 ---
+## 2026-07-25 — Tailwind v4 tokens actually work now (previous config was dead) + BEACON v2 master brief
+
+**What:**
+- **Deleted `dashboard/app/tailwind.config.ts` and moved the design tokens into `@theme` in `src/index.css`.** Tailwind v4 is CSS-first: a `tailwind.config.ts` is silently ignored unless explicitly pulled in with `@config`. Ours wasn't. Every token in it generated *nothing*.
+- **Added `design/BEACON-V2-MASTER-BRIEF.md`** — routing split (member app `/` vs ops console `/ops`), the safest-route method, Azure cloud architecture, notification triggers, LLM orchestration + where a real agent belongs, the news/weather scraper, the copy-paste UI design prompt for Claude Design, the 5-minute demo run-of-show, and the "how did you do that" answers.
+
+**Why the Tailwind thing matters:** the point of the previous commit (`713a324`) was "so when I get a design from Claude Code it renders and integrates properly." It would not have. Because every existing screen is inline-styled, a completely non-functioning Tailwind config produces no error, no warning, and a green build — it fails silently, and you'd only find out when a handed-off design rendered unstyled.
+
+**Correcting a claim I made:** after that commit I told the user designs could use classes like `bg-beacon-bg-900` and `shadow-beacon-card-dark`. That was wrong — I'd only verified `npm run build` succeeded, not that the utilities generated. They did not.
+
+**Verified, properly this time:** added a throwaway `TWProbe.tsx` using `bg-bg-900 text-risk-critical shadow-card-dark font-sans`, built, and grepped the emitted CSS.
+- Before (with `tailwind.config.ts`): `grep -c "risk-critical\|E11D48" dist/assets/*.css` → **0**.
+- After (with `@theme`): `.bg-bg-900{background-color:var(--color-bg-900)}`, `.text-risk-critical{color:var(--color-risk-critical)}` and `.shadow-card-dark{…}` all present.
+Probe removed. `npx tsc --noEmit` clean, `vite build` clean, app re-verified live at `http://localhost:5173` — all six nav buttons render, zero console errors. The short `:root` aliases (`--bg-900` etc.) are kept because every existing screen and `theme/tokens.ts` reference them; they're aliases of the `@theme` values now, not a second copy.
+
+**Plain language:** our design tokens (colours, shadows, fonts) were written into a config file that this version of Tailwind doesn't read. Nothing broke visibly, because the app styles everything by hand — but any new design handed over would have come out unstyled. Moved them to where Tailwind actually looks, and proved it by checking the generated CSS rather than trusting a passing build. Also wrote the master plan for the next version of the product.
+
+**Flagged, not actioned:** `hotspot_pipeline/Gradhack_Insure_Data.xlsx` (1.1 MB of raw Discovery claims data) is tracked in this **public** repo — `.gitignore` only covers `data/raw/*.xlsx`, which doesn't match that path. Confirmed with `git ls-files`. Left untouched pending a decision from Lethabo (brief §0).
+
+**Not done:** none of the brief is built — it's a plan. Scenes 2–5 remain unbuilt.
+
+---
 ## 2026-07-25 — Ring Cam: second demo clip (real weapon detections) + phone-alert companion view
 
 **What:** Two additions to `RingCam.tsx`'s recorded-demo mode, both aimed at the 5-scene pitch narrative supplied for the demo:
