@@ -19,10 +19,21 @@ uvicorn app:app --reload --port 8001   # weapen_backend: use a different port, e
 `ROBOFLOW_API_KEY` — get one at https://app.roboflow.com/settings/api. Not entered here or by any
 automated tooling; add it to your own local `.env`, which is gitignored.
 
-## Not yet done
+## How they get into the pipeline
 
-- No integration with `dashboard/app/`'s Live AI Camera screen — that screen currently shows an
-  honest "no backing endpoint" message for plate/weapon detection (`docs/BUILD-LOG.md`, 2026-07-25).
-- No integration with `server/src/api/sightings.py` — a real wiring path would have these services
-  (or a caller of them) POST results to `/v1/sightings` so detections flow through the same
-  entity-scoring/evidence pipeline as everything else, instead of living in a separate silo.
+`scripts/vision_lens_demo.py` is the caller: it samples frames from a video, fans each frame out to
+both services, runs InsightFace `buffalo_l` **in-process** for faces (no third service — a demo that
+needs four servers up has four ways to fail on stage), and POSTs every detection to
+`/v1/sightings`. From there detections flow through the same entity-resolution, scoring and evidence
+path as everything else, and `dashboard/app/`'s Live AI Camera screen draws them from
+`GET /v1/sightings` (ADR-0006).
+
+## Known limits (measured, not assumed)
+
+- **Plate OCR is unreliable.** Over a 1080p SA hijacking clip it returned markdown fencing, digit
+  runs, and words read off a news chyron. `server/src/suspicion/plate_text.py` rejects what it can
+  syntactically, but a plate-shaped piece of background text still gets through — a read is a lead,
+  never an identification.
+- **Face matching is uncalibrated.** The 0.40 cosine threshold is a starting point, not a tuned one.
+  There is no face quality gate, so a 16×22 px face is accepted on the same terms as a good one.
+- **No POPIA retention/deletion path for stored embeddings yet** (`docs/adr.md`, ADR-0006).

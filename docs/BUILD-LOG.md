@@ -4,6 +4,29 @@ Every behaviour change gets an entry in the same commit. Plain-language section 
 
 ---
 
+## 2026-07-25 — Live AI Camera draws real detections: bbox overlay, frame grouping, plate reads
+
+**What:** Rewired `dashboard/app/src/screens/LiveAICamera.tsx` off `GET /v1/events/since` and onto the new `GET /v1/sightings`, and deleted the three "no backing endpoint yet" placeholders it had been carrying for bounding boxes, plate/OCR reads and modality. All three now render real rows. Added `getSightings()` + `SightingDetail`/`DetectionBox` to `dashboard/app/src/api/client.ts`.
+
+Four behaviour changes on the screen:
+1. **Detection-box overlay.** Real `bbox` from the API, colour-coded per modality (weapon/face/plate/audio), each labelled with its detection and confidence. Clicking a box selects that detection's entity.
+2. **Frame grouping.** The three detectors run over the same sampled frames but each box arrives as its own sighting row. Rows within 2.5 s of each other are grouped into one "frame", so the overlay shows a moment rather than a single box. The filmstrip is now one cell per frame — each a thumbnail of where the boxes actually fell — and clicking a cell pins that frame.
+3. **Plate panel.** Real `plate_text` + `plate_quality`. Readable reads sort first, but detections whose OCR failed the plausibility filter stay in the list as "plate detected · unreadable" rather than being hidden — filtering them out would overstate how often OCR works.
+4. **Audio panel.** Renders audio-modality sightings if any exist; otherwise says plainly that nothing in the pipeline posts audio yet, instead of drawing a decorative waveform.
+
+**Why:** The backend work in the entry below made bbox/plate/modality readable for the first time, which immediately made this screen's placeholder copy false. Stale honesty copy is worse than no copy — it claims a limitation that no longer exists and hides a capability that does.
+
+**Not done / honesty boundary:**
+- **There is no stored video frame.** Boxes are drawn over the striped placeholder, not over footage. The screen says so on the overlay.
+- The API returns bbox in source-frame pixels **without recording the frame dimensions they were measured against**, so the overlay assumes 1920×1080 (`SOURCE_FRAME`). A camera at another resolution will render boxes offset. The honest fix is storing frame width/height per sighting, not guessing better here — it's noted in the file header, not papered over.
+- Everything in the entry below still stands: the face threshold is uncalibrated, and a plate read is a lead, not an identification.
+
+**Verified:** `npx tsc --noEmit` clean. Live in the browser against the real `beacon.db`, on `cam_hijack_demo` (the 1080p hijacking clip): filmstrip renders 6 grouped frames; pinning the frame at t=16s shows **2 boxes — PLATE (unreadable) 45% and WEAPON 63%** — overlaid together; face frames show `FACE (matched) 76%` with the entity id; the plate panel shows `CASE2000` first followed by three unreadable detections; clicking the `CASE2000` row loads its real entity and renders all six F1–F6 factors (all 0% — correct, it has one sighting). Zero console errors.
+
+**Plain language:** The Live AI Camera screen used to be mostly honest apology — three panels that said "we store this but can't show it yet". The backend change fixed the "can't show it" part, so the screen now draws the actual detection boxes, the actual plate readings, and what kind of detection each one was. Click any moment in the filmstrip and you see what the system saw at that instant. One thing we're explicit about on screen: we don't keep the video, so the boxes float over a blank panel rather than over the footage — you can see *where* it detected something and *what*, but not the picture itself.
+
+---
+
 ## 2026-07-25 — Faces become identities: face-embedding entity resolution, plate-OCR sanitising, and GET /v1/sightings
 
 **What:** Closed the gap that made "repeat offender" a plate-only feature. `Entity.embedding_ref` and `Sighting.embedding_ref` had existed since migration 001 as designed indirection to "embedding storage", but no such storage was ever built — and `POST /v1/sightings` only ran entity resolution `if sighting_data.plate_text`. A face sighting therefore stored `entity_id=NULL`: detected, then forgotten. Vehicles were tracked; people weren't.
