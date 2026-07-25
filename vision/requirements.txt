@@ -1,13 +1,6 @@
-ultralytics>=8.2
-opencv-python>=4.9
-requests>=2.31
-
-# audio_agent.py — YAMNet Tier 2 audio classification (docs/01 §4 F6)
-ai-edge-litert>=2.1
-sounddevice>=0.4
-numpy>=1.23
-
-# Land at G2 (docs/03): weapon fine-tune, faces, plates
-# insightface
-# easyocr
-# onnxruntime
+fastapi
+uvicorn
+python-dotenv
+inference-sdk
+opencv-python
+python-multipart
