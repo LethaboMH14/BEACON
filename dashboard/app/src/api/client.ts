@@ -38,6 +38,41 @@ export interface CamerasResponse {
   cameras: CameraStatusEntry[];
 }
 
+export interface SightingBrief {
+  id: number;
+  camera_id: string;
+  ts: string;
+  hex_id: string | null;
+  kind: string;
+  confidence: number;
+}
+
+export interface EntityFactors {
+  recurrence: number | null;
+  time_anomaly: number | null;
+  crime_correlation: number | null;
+  casing_behaviour: number | null;
+  territory_roaming: number | null;
+  modal_corroboration: number | null;
+}
+
+export interface EntityDetail {
+  id: string;
+  kind: string;
+  plate_text: string | null;
+  state: string;
+  base_score: number;
+  current_score: number;
+  last_updated: string;
+  first_seen: string;
+  last_seen: string;
+  sighting_count: number;
+  factors: EntityFactors;
+  recent_sightings: SightingBrief[];
+}
+
+export type VerifyActionKind = 'flag' | 'dismiss' | 'whitelist';
+
 export interface EventEntry {
   event: string;
   ts: string;
@@ -85,5 +120,26 @@ export async function getEventsSince(ts: string, limit = 200): Promise<EventsSin
 export async function verifyEntity(entityId: string): Promise<unknown> {
   const res = await fetch(`/v1/entities/${encodeURIComponent(entityId)}/verify`, { method: 'POST' });
   if (!res.ok) throw new Error(`verify ${entityId} -> ${res.status} ${res.statusText}`);
+  return res.json();
+}
+
+export async function getEntity(entityId: string): Promise<EntityDetail> {
+  return get(`/v1/entities/${encodeURIComponent(entityId)}`);
+}
+
+export async function verifyEntityAction(
+  entityId: string,
+  action: VerifyActionKind,
+  operatorId: string,
+  operatorToken: string,
+  note?: string,
+  hexId?: string,
+): Promise<{ status: string; entity_id: string; incident_id?: string; alert_id?: string; hex_id?: string }> {
+  const res = await fetch(`/v1/entities/${encodeURIComponent(entityId)}/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Operator-Token': operatorToken },
+    body: JSON.stringify({ action, operator_id: operatorId, note: note || null, hex_id: hexId || null }),
+  });
+  if (!res.ok) throw new Error(`verify ${entityId} (${action}) -> ${res.status} ${res.statusText}`);
   return res.json();
 }
