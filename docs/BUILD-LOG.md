@@ -4,6 +4,18 @@ Every behaviour change gets an entry in the same commit. Plain-language section 
 
 ---
 
+## 2026-07-25 — Wired Ndu's real hotspot_pipeline into RiskCell + Claim (closes the geocoding gap)
+
+**What:** New `server/scripts/load_hotspots.py`, reading Ndu's real `hotspot_pipeline/hotspots_geocoded.csv` (709 suburbs geocoded via Nominatim, composite frequency+cost `severity_score`, real `peak_hour`/`peak_month` per suburb). For each suburb it (1) backfills `hex_id`/`lat`/`lng` onto existing `Claim` rows that still had `hex_id=None` (only ones without a hex already, never overwritten), deriving a short deterministic `hex_id` from an md5 hash of the suburb name (not real H3 — already dropped from this repo, docs/07-TECH-STACK.md), and (2) writes one real `RiskCell` row per suburb at that suburb's own actual peak_hour, `risk_score=severity_score`, `model_version="ndu-hotspot-v1"` — deliberately only at the one hour Ndu's data actually supports, not invented for all 24.
+
+**Why:** `load_claims.py` (2026-07-25, earlier) loaded 15,712 real claims but explicitly left `hex_id=None` pending geocoding, which meant `/v1/risk`'s claims-fallback, F3 near-repeat correlation, and the route planner's hex-centroid lookup had nothing real to key off of. Ndu independently built and uploaded the exact geocoding pipeline needed (`hotspot_pipeline/`) — this connects it to the existing `POST /v1/risk-cells` write path (built for precisely this, PR #15) instead of leaving two disconnected real data sources sitting side by side.
+
+**Plain language:** Ndu built a script that figures out real map coordinates and a real risk score for the areas with the most claims. That data was sitting in spreadsheet files, disconnected from the actual running server. This wires it in: claims now have real locations for ~69% of them (the suburbs Ndu's pipeline covers), and the risk/hotspot endpoints now return genuinely computed scores for those areas instead of only the honest-but-weak fallback. Verified live: `GET /v1/hotspots` now returns Bryanston (severity 0.85) and Johannesburg (0.77) ranked at the top with `"source": "model"`, not the fallback.
+
+**Verified:** 92/92 server tests pass (3 new: hex_id derivation is short/deterministic, load backfills matching claims + writes a correct RiskCell row, load never overwrites a claim that already has a hex_id). Ran end-to-end against the real files: `load_claims.py` (15,712 loaded) → `load_hotspots.py` (10,780 of those claims backfilled with real hex_id/lat/lng across 709 suburbs, 709 RiskCell rows written) → live server: `GET /v1/hotspots?window=12` returns real model-tier suburbs ranked above the claims-fallback.
+
+---
+
 ## 2026-07-25 — dashboard/app: Live AI Camera screen ported, honest about a real API gap
 
 **What:** Third of the 12 Claude Design screens, `dashboard/app/src/screens/LiveAICamera.tsx`, rebuilt from `design/exports/design_handoff_beacon/README.md` §3 (same rebuild-from-spec approach as the previous two screens). Real data wired: camera selector + LIVE/OFFLINE status from `GET /v1/cameras`, a per-camera detection filmstrip and "Detections this frame" list assembled by filtering `GET /v1/events/since` to `sighting.new` events for the selected `camera_id`, and a full "Fused assessment" panel (calibrated current_score, state, all six real named F1–F6 suspicion factors) via `GET /v1/entities/{id}` when a detection with an entity is clicked — with an "Open verify queue" button that hands the entity id off to the Verify Queue screen (`VerifyQueue.tsx` gained an optional `initialEntityId` prop for this).
