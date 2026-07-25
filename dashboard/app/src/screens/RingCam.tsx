@@ -8,28 +8,36 @@
  * SOURCE_FRAME caveat (bbox pixels with no recorded frame size — see that file's
  * header), same refusal to draw a plate string that OCR didn't accept.
  *
- * RECORDED DEMO MODE: alongside the live-camera picker, one extra entry plays a
- * locally-stored source clip (never committed — see dashboard/app/public/demo-clips,
- * covered by repo-wide *.mp4 in .gitignore; it's copyrighted broadcast footage) with
- * its bounding boxes drawn in sync from a real offline run of
- * scripts/vision_lens_demo.py --dry-run (plate/weapon/face detectors, real inference,
- * just not a live camera feed — labelled RECORDED, not LIVE, and never SIMULATED,
- * because nothing about the detections themselves is fake). The detection track
- * (scripts/detections_ringcam.json, mirrored into public/demo-clips for the dev
- * server) has no images in it, just bbox/label/confidence JSON, so it's safe to
- * commit — same pattern as scripts/detections_hijack.json.
+ * RECORDED DEMO MODE: alongside the live-camera picker, a set of extra entries
+ * (DEMO_CLIPS below) each play a locally-stored source clip (never committed —
+ * see dashboard/app/public/demo-clips, covered by repo-wide *.mp4 in
+ * .gitignore; it's copyrighted broadcast footage) with its bounding boxes
+ * drawn in sync from a real offline run of scripts/vision_lens_demo.py
+ * --dry-run (plate/weapon/face detectors, real inference, just not a live
+ * camera feed — labelled RECORDED, not LIVE, and never SIMULATED, because
+ * nothing about the detections themselves is fake). Each detection track
+ * (scripts/detections_ringcam*.json, mirrored into public/demo-clips for the
+ * dev server) has no images in it, just bbox/label/confidence JSON, so it's
+ * safe to commit — same pattern as scripts/detections_hijack.json.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { colors } from '../theme/tokens';
 import { getCameras, getSightings, type CameraStatusEntry, type SightingDetail } from '../api/client';
+import PhoneAlert from '../components/PhoneAlert';
 
 const SOURCE_FRAME = { w: 1920, h: 1080 };
 const STRIPE = 'repeating-linear-gradient(45deg, #182130, #182130 8px, #101725 8px, #101725 16px)';
 
-const DEMO_VIDEO_SRC = '/demo-clips/ring-demo.mp4';
-const DEMO_TRACK_SRC = '/demo-clips/ring-demo-detections.json';
+// Two scenario slots for the 5-minute demo: "lens" answers the plate-OCR
+// question, "hijack" is the weapon-in-frame moment. A third clip ("cam lens
+// demo", per the user) is expected to land in this list later.
+const DEMO_CLIPS = [
+  { id: 'lens', label: '▶ Demo: plate lens', video: '/demo-clips/ring-demo.mp4', track: '/demo-clips/ring-demo-detections.json' },
+  { id: 'hijack', label: '▶ Demo: cam hijack', video: '/demo-clips/ring-demo-hijack.mp4', track: '/demo-clips/ring-demo-hijack-detections.json' },
+] as const;
+type DemoClipId = typeof DEMO_CLIPS[number]['id'];
 
-type DemoDetection = {
+export type DemoDetection = {
   modality: string;
   kind: string;
   label: string;
@@ -38,8 +46,8 @@ type DemoDetection = {
   ocr_text?: string | null;
   ocr_reason?: string | null;
 };
-type DemoFrame = { t: number; width: number; height: number; detections: DemoDetection[] };
-type DemoTrack = {
+export type DemoFrame = { t: number; width: number; height: number; detections: DemoDetection[] };
+export type DemoTrack = {
   video: string;
   counts: Record<string, number>;
   frames: DemoFrame[];
@@ -70,11 +78,14 @@ export default function RingCam() {
   const [cameras, setCameras] = useState<CameraStatusEntry[]>([]);
   const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null);
   const [feed, setFeed] = useState<SightingDetail[]>([]);
-  const [demoMode, setDemoMode] = useState(false);
-  const [demoTrack, setDemoTrack] = useState<DemoTrack | null>(null);
+  const [demoClipId, setDemoClipId] = useState<DemoClipId | null>(null);
+  const [demoTracks, setDemoTracks] = useState<Partial<Record<DemoClipId, DemoTrack>>>({});
   const [demoTime, setDemoTime] = useState(0);
   const [demoPlaying, setDemoPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const demoMode = demoClipId !== null;
+  const activeClip = DEMO_CLIPS.find((c) => c.id === demoClipId) ?? null;
+  const demoTrack = demoClipId ? demoTracks[demoClipId] ?? null : null;
 
   useEffect(() => {
     let cancelled = false;
@@ -99,9 +110,17 @@ export default function RingCam() {
     return () => { cancelled = true; clearInterval(id); };
   }, [selectedCameraId]);
 
+  // Fetch every clip's track up front (small JSON, no images) so the picker
+  // buttons can enable immediately rather than one at a time as each is clicked.
   useEffect(() => {
     let cancelled = false;
-    fetch(DEMO_TRACK_SRC).then((r) => r.json()).then((t: DemoTrack) => { if (!cancelled) setDemoTrack(t); }).catch(() => {});
+    Promise.all(DEMO_CLIPS.map((c) => fetch(c.track).then((r) => r.json()).then((t: DemoTrack) => [c.id, t] as const).catch(() => null)))
+      .then((results) => {
+        if (cancelled) return;
+        const next: Partial<Record<DemoClipId, DemoTrack>> = {};
+        for (const r of results) if (r) next[r[0]] = r[1];
+        setDemoTracks(next);
+      });
     return () => { cancelled = true; };
   }, []);
 
@@ -150,7 +169,7 @@ export default function RingCam() {
     <div style={{ minWidth: 900, minHeight: '100vh', background: colors.bg900, color: colors.textHi, fontFamily: 'Inter, system-ui, sans-serif', padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18 }}>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
         {cameras.map((c) => (
-          <button key={c.id} onClick={() => { setDemoMode(false); setSelectedCameraId(c.id); }} style={{
+          <button key={c.id} onClick={() => { setDemoClipId(null); setSelectedCameraId(c.id); }} style={{
             background: !demoMode && c.id === selectedCameraId ? colors.beaconGrad : colors.bg800,
             color: !demoMode && c.id === selectedCameraId ? colors.bg900 : colors.textMid,
             border: `1px solid ${colors.lineDark}`, borderRadius: 999, padding: '6px 12px', fontSize: 12, cursor: 'pointer',
@@ -159,16 +178,22 @@ export default function RingCam() {
           </button>
         ))}
         {cameras.length === 0 && <span style={{ fontSize: 12, color: colors.textLo }}>No cameras registered yet.</span>}
-        <button onClick={() => setDemoMode(true)} disabled={!demoTrack} style={{
-          background: demoMode ? colors.beaconGrad : colors.bg800,
-          color: demoMode ? colors.bg900 : colors.textMid,
-          border: `1px solid ${colors.lineDark}`, borderRadius: 999, padding: '6px 12px', fontSize: 12,
-          cursor: demoTrack ? 'pointer' : 'not-allowed', opacity: demoTrack ? 1 : 0.5,
-        }}>
-          ▶ Recorded demo clip
-        </button>
+        {DEMO_CLIPS.map((c) => {
+          const ready = !!demoTracks[c.id];
+          return (
+            <button key={c.id} onClick={() => { setDemoClipId(c.id); setDemoTime(0); }} disabled={!ready} style={{
+              background: demoClipId === c.id ? colors.beaconGrad : colors.bg800,
+              color: demoClipId === c.id ? colors.bg900 : colors.textMid,
+              border: `1px solid ${colors.lineDark}`, borderRadius: 999, padding: '6px 12px', fontSize: 12,
+              cursor: ready ? 'pointer' : 'not-allowed', opacity: ready ? 1 : 0.5,
+            }}>
+              {c.label}
+            </button>
+          );
+        })}
       </div>
 
+      <div style={{ display: 'flex', gap: 28, alignItems: 'flex-start', justifyContent: 'center', flexWrap: 'wrap' }}>
       {/* the round lens */}
       <div style={{
         position: 'relative', width: 340, height: 340, borderRadius: '50%',
@@ -176,10 +201,11 @@ export default function RingCam() {
         border: `6px solid ${colors.bg700}`,
         boxShadow: `0 0 0 2px ${demoMode ? demoStatusColor : status.color}, 0 0 40px ${(demoMode ? demoStatusColor : status.color)}55`,
       }}>
-        {demoMode && (
+        {demoMode && activeClip && (
           <video
+            key={activeClip.id}
             ref={videoRef}
-            src={DEMO_VIDEO_SRC}
+            src={activeClip.video}
             muted
             autoPlay
             loop
@@ -258,6 +284,11 @@ export default function RingCam() {
             ? (demoActiveFrame ? `${demoActiveFrame.detections.length} box${demoActiveFrame.detections.length === 1 ? '' : 'es'} at t=${demoTime.toFixed(1)}s` : `t=${demoTime.toFixed(1)}s — no detection this close`)
             : 'no stored video frame'}
         </div>
+      </div>
+
+      {demoMode && (
+        <PhoneAlert activeFrame={demoActiveFrame} demoTime={demoTime} counts={demoCounts} />
+      )}
       </div>
 
       {/* the one-question readout */}

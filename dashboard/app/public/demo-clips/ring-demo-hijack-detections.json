@@ -1,0 +1,561 @@
+{
+  "video": "ring-demo-hijack.mp4",
+  "camera_id": "cam_hijack_demo",
+  "interval_s": 1.0,
+  "generated_at": "2026-07-25T20:41:35.671452+00:00",
+  "counts": {
+    "plate": 15,
+    "plate_read": 0,
+    "weapon": 9,
+    "face": 2
+  },
+  "frames": [
+    {
+      "t": 2.0,
+      "frame": 50,
+      "width": 1920,
+      "height": 1080,
+      "detections": [
+        {
+          "modality": "plate",
+          "kind": "vehicle",
+          "label": "plate",
+          "confidence": 0.5359334349632263,
+          "bbox": {
+            "x": 410.5,
+            "y": 186.0,
+            "w": 49.0,
+            "h": 22.0
+          },
+          "ocr_text": null,
+          "ocr_reason": "low_char_confidence",
+          "ocr_raw_local": "W444",
+          "ocr_raw_workflow": "```markdown\n\n```",
+          "ocr_min_char_prob": 0.23314480483531952
+        }
+      ]
+    },
+    {
+      "t": 6.0,
+      "frame": 150,
+      "width": 1920,
+      "height": 1080,
+      "detections": [
+        {
+          "modality": "plate",
+          "kind": "vehicle",
+          "label": "plate",
+          "confidence": 0.6316472291946411,
+          "bbox": {
+            "x": 91.0,
+            "y": 428.0,
+            "w": 72.0,
+            "h": 26.0
+          },
+          "ocr_text": null,
+          "ocr_reason": "empty_read",
+          "ocr_raw_local": "",
+          "ocr_raw_workflow": "1234567890",
+          "ocr_min_char_prob": null
+        }
+      ]
+    },
+    {
+      "t": 7.0,
+      "frame": 175,
+      "width": 1920,
+      "height": 1080,
+      "detections": [
+        {
+          "modality": "plate",
+          "kind": "vehicle",
+          "label": "plate",
+          "confidence": 0.7173373103141785,
+          "bbox": {
+            "x": 83.0,
+            "y": 561.5,
+            "w": 92.0,
+            "h": 41.0
+          },
+          "ocr_text": null,
+          "ocr_reason": "low_char_confidence",
+          "ocr_raw_local": "U131LFV",
+          "ocr_raw_workflow": "CAR",
+          "ocr_min_char_prob": 0.30413129925727844
+        }
+      ]
+    },
+    {
+      "t": 8.0,
+      "frame": 200,
+      "width": 1920,
+      "height": 1080,
+      "detections": [
+        {
+          "modality": "yolo",
+          "kind": "weapon",
+          "label": "pistol",
+          "confidence": 0.4921737313270569,
+          "bbox": {
+            "x": 303.5,
+            "y": 131.5,
+            "w": 607.0,
+            "h": 263.0
+          }
+        },
+        {
+          "modality": "plate",
+          "kind": "vehicle",
+          "label": "plate",
+          "confidence": 0.7802954912185669,
+          "bbox": {
+            "x": 285.0,
+            "y": 689.5,
+            "w": 124.0,
+            "h": 67.0
+          },
+          "ocr_text": null,
+          "ocr_reason": "low_char_confidence",
+          "ocr_raw_local": "00314247",
+          "ocr_raw_workflow": "1000000000000",
+          "ocr_min_char_prob": 0.28690674901008606
+        },
+        {
+          "modality": "plate",
+          "kind": "vehicle",
+          "label": "plate",
+          "confidence": 0.4445612132549286,
+          "bbox": {
+            "x": 407.0,
+            "y": 184.5,
+            "w": 56.0,
+            "h": 27.0
+          },
+          "ocr_text": null,
+          "ocr_reason": "low_char_confidence",
+          "ocr_raw_local": "444411",
+          "ocr_raw_workflow": "CASE 2000",
+          "ocr_min_char_prob": 0.15572960674762726
+        },
+        {
+          "modality": "plate",
+          "kind": "vehicle",
+          "label": "plate",
+          "confidence": 0.41757911443710327,
+          "bbox": {
+            "x": 731.0,
+            "y": 131.0,
+            "w": 58.0,
+            "h": 24.0
+          },
+          "ocr_text": null,
+          "ocr_reason": "empty_read",
+          "ocr_raw_local": "",
+          "ocr_raw_workflow": "BUSINESS",
+          "ocr_min_char_prob": null
+        }
+      ]
+    },
+    {
+      "t": 14.0,
+      "frame": 350,
+      "width": 1920,
+      "height": 1080,
+      "detections": [
+        {
+          "modality": "yolo",
+          "kind": "weapon",
+          "label": "pistol",
+          "confidence": 0.5643596053123474,
+          "bbox": {
+            "x": 935.5,
+            "y": 802.5,
+            "w": 1143.0,
+            "h": 553.0
+          }
+        }
+      ]
+    },
+    {
+      "t": 15.0,
+      "frame": 375,
+      "width": 1920,
+      "height": 1080,
+      "detections": [
+        {
+          "modality": "yolo",
+          "kind": "weapon",
+          "label": "pistol",
+          "confidence": 0.5997458100318909,
+          "bbox": {
+            "x": 918.0,
+            "y": 729.5,
+            "w": 1128.0,
+            "h": 701.0
+          }
+        }
+      ]
+    },
+    {
+      "t": 16.0,
+      "frame": 400,
+      "width": 1920,
+      "height": 1080,
+      "detections": [
+        {
+          "modality": "yolo",
+          "kind": "weapon",
+          "label": "pistol",
+          "confidence": 0.4712067246437073,
+          "bbox": {
+            "x": 955.0,
+            "y": 802.5,
+            "w": 1202.0,
+            "h": 553.0
+          }
+        }
+      ]
+    },
+    {
+      "t": 17.0,
+      "frame": 425,
+      "width": 1920,
+      "height": 1080,
+      "detections": [
+        {
+          "modality": "yolo",
+          "kind": "weapon",
+          "label": "pistol",
+          "confidence": 0.46095937490463257,
+          "bbox": {
+            "x": 998.5,
+            "y": 803.0,
+            "w": 1297.0,
+            "h": 554.0
+          }
+        }
+      ]
+    },
+    {
+      "t": 19.0,
+      "frame": 475,
+      "width": 1920,
+      "height": 1080,
+      "detections": [
+        {
+          "modality": "yolo",
+          "kind": "weapon",
+          "label": "sword",
+          "confidence": 0.5280153155326843,
+          "bbox": {
+            "x": 274.0,
+            "y": 575.0,
+            "w": 316.0,
+            "h": 180.0
+          }
+        }
+      ]
+    },
+    {
+      "t": 20.0,
+      "frame": 500,
+      "width": 1920,
+      "height": 1080,
+      "detections": [
+        {
+          "modality": "yolo",
+          "kind": "weapon",
+          "label": "pistol",
+          "confidence": 0.5306107401847839,
+          "bbox": {
+            "x": 499.5,
+            "y": 186.5,
+            "w": 665.0,
+            "h": 361.0
+          }
+        },
+        {
+          "modality": "face",
+          "kind": "person",
+          "label": "face",
+          "confidence": 0.5185424089431763,
+          "bbox": {
+            "x": 363.38829040527344,
+            "y": 167.45225524902344,
+            "w": 15.651641845703125,
+            "h": 22.52880859375
+          }
+        }
+      ]
+    },
+    {
+      "t": 21.0,
+      "frame": 525,
+      "width": 1920,
+      "height": 1080,
+      "detections": [
+        {
+          "modality": "plate",
+          "kind": "vehicle",
+          "label": "plate",
+          "confidence": 0.7808949947357178,
+          "bbox": {
+            "x": 1216.5,
+            "y": 884.5,
+            "w": 111.0,
+            "h": 111.0
+          },
+          "ocr_text": null,
+          "ocr_reason": "low_char_confidence",
+          "ocr_raw_local": "CS31M43",
+          "ocr_raw_workflow": "405 31 41 19",
+          "ocr_min_char_prob": 0.1779056042432785
+        }
+      ]
+    },
+    {
+      "t": 22.0,
+      "frame": 550,
+      "width": 1920,
+      "height": 1080,
+      "detections": [
+        {
+          "modality": "face",
+          "kind": "person",
+          "label": "face",
+          "confidence": 0.7607916593551636,
+          "bbox": {
+            "x": 678.9064025878906,
+            "y": 282.93678283691406,
+            "w": 32.40435791015625,
+            "h": 42.065155029296875
+          }
+        }
+      ]
+    },
+    {
+      "t": 26.0,
+      "frame": 650,
+      "width": 1920,
+      "height": 1080,
+      "detections": [
+        {
+          "modality": "yolo",
+          "kind": "weapon",
+          "label": "pistol",
+          "confidence": 0.6328389644622803,
+          "bbox": {
+            "x": 741.0,
+            "y": 418.0,
+            "w": 230.0,
+            "h": 152.0
+          }
+        },
+        {
+          "modality": "plate",
+          "kind": "vehicle",
+          "label": "plate",
+          "confidence": 0.45369401574134827,
+          "bbox": {
+            "x": 1197.5,
+            "y": 668.5,
+            "w": 93.0,
+            "h": 37.0
+          },
+          "ocr_text": null,
+          "ocr_reason": "empty_read",
+          "ocr_raw_local": "",
+          "ocr_raw_workflow": "1",
+          "ocr_min_char_prob": null
+        }
+      ]
+    },
+    {
+      "t": 28.0,
+      "frame": 700,
+      "width": 1920,
+      "height": 1080,
+      "detections": [
+        {
+          "modality": "plate",
+          "kind": "vehicle",
+          "label": "plate",
+          "confidence": 0.6017381548881531,
+          "bbox": {
+            "x": 229.0,
+            "y": 279.5,
+            "w": 54.0,
+            "h": 31.0
+          },
+          "ocr_text": null,
+          "ocr_reason": "empty_read",
+          "ocr_raw_local": "",
+          "ocr_raw_workflow": "6",
+          "ocr_min_char_prob": null
+        }
+      ]
+    },
+    {
+      "t": 29.0,
+      "frame": 725,
+      "width": 1920,
+      "height": 1080,
+      "detections": [
+        {
+          "modality": "plate",
+          "kind": "vehicle",
+          "label": "plate",
+          "confidence": 0.513493001461029,
+          "bbox": {
+            "x": 406.5,
+            "y": 183.0,
+            "w": 59.0,
+            "h": 28.0
+          },
+          "ocr_text": null,
+          "ocr_reason": "empty_read",
+          "ocr_raw_local": "",
+          "ocr_raw_workflow": "CARBURE",
+          "ocr_min_char_prob": null
+        }
+      ]
+    },
+    {
+      "t": 30.0,
+      "frame": 750,
+      "width": 1920,
+      "height": 1080,
+      "detections": [
+        {
+          "modality": "plate",
+          "kind": "vehicle",
+          "label": "plate",
+          "confidence": 0.5124496817588806,
+          "bbox": {
+            "x": 408.5,
+            "y": 184.5,
+            "w": 53.0,
+            "h": 25.0
+          },
+          "ocr_text": null,
+          "ocr_reason": "low_char_confidence",
+          "ocr_raw_local": "1W4114",
+          "ocr_raw_workflow": "0000",
+          "ocr_min_char_prob": 0.19169306755065918
+        }
+      ]
+    },
+    {
+      "t": 31.0,
+      "frame": 775,
+      "width": 1920,
+      "height": 1080,
+      "detections": [
+        {
+          "modality": "plate",
+          "kind": "vehicle",
+          "label": "plate",
+          "confidence": 0.5013855695724487,
+          "bbox": {
+            "x": 410.0,
+            "y": 185.5,
+            "w": 50.0,
+            "h": 23.0
+          },
+          "ocr_text": null,
+          "ocr_reason": "low_char_confidence",
+          "ocr_raw_local": "4444144",
+          "ocr_raw_workflow": "CLEAR",
+          "ocr_min_char_prob": 0.24637985229492188
+        }
+      ]
+    },
+    {
+      "t": 33.0,
+      "frame": 825,
+      "width": 1920,
+      "height": 1080,
+      "detections": [
+        {
+          "modality": "yolo",
+          "kind": "weapon",
+          "label": "pistol",
+          "confidence": 0.4647625684738159,
+          "bbox": {
+            "x": 260.5,
+            "y": 130.5,
+            "w": 521.0,
+            "h": 261.0
+          }
+        },
+        {
+          "modality": "plate",
+          "kind": "vehicle",
+          "label": "plate",
+          "confidence": 0.45424944162368774,
+          "bbox": {
+            "x": 407.0,
+            "y": 184.0,
+            "w": 58.0,
+            "h": 26.0
+          },
+          "ocr_text": null,
+          "ocr_reason": "low_char_confidence",
+          "ocr_raw_local": "1W4216",
+          "ocr_raw_workflow": "CARRIO",
+          "ocr_min_char_prob": 0.1578170657157898
+        }
+      ]
+    },
+    {
+      "t": 41.0,
+      "frame": 1025,
+      "width": 1920,
+      "height": 1080,
+      "detections": [
+        {
+          "modality": "plate",
+          "kind": "vehicle",
+          "label": "plate",
+          "confidence": 0.40278467535972595,
+          "bbox": {
+            "x": 1880.5,
+            "y": 808.0,
+            "w": 79.0,
+            "h": 104.0
+          },
+          "ocr_text": null,
+          "ocr_reason": "empty_read",
+          "ocr_raw_local": "",
+          "ocr_raw_workflow": "1",
+          "ocr_min_char_prob": null
+        }
+      ]
+    },
+    {
+      "t": 45.0,
+      "frame": 1125,
+      "width": 1920,
+      "height": 1080,
+      "detections": [
+        {
+          "modality": "plate",
+          "kind": "vehicle",
+          "label": "plate",
+          "confidence": 0.48000791668891907,
+          "bbox": {
+            "x": 963.0,
+            "y": 522.0,
+            "w": 1146.0,
+            "h": 130.0
+          },
+          "ocr_text": null,
+          "ocr_reason": "low_char_confidence",
+          "ocr_raw_local": "SHREEHISY6",
+          "ocr_raw_workflow": "SHARE THIS VIDEO",
+          "ocr_min_char_prob": 0.17470748722553253
+        }
+      ]
+    }
+  ]
+}
