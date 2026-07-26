@@ -47,13 +47,18 @@ class ClassifyRequest(BaseModel):
 
 
 class ClassifyResponse(BaseModel):
-    verdict: str
+    verdict: str  # "glass_break" | "gunshot" | "other"
     glass_label: str
     glass_score: float
     competing_label: str
     competing_score: float
     clears_floor: bool
     beats_competing: bool
+    # Gunshot fields present whenever the model is available (always alongside glass).
+    gunshot_label: str = ""
+    gunshot_score: float = 0.0
+    gunshot_clears_floor: bool = False
+    gunshot_beats_competing: bool = False
     top: list[dict]
 
 

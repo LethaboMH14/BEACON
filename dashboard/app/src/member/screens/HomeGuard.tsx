@@ -81,10 +81,9 @@ export default function HomeGuard() {
   }
 
   /**
-   * Stage 2: the gate opened, so ask the classifier what the sound was. Only a
-   * 'glass_break' verdict may raise the alarm — a failed or unavailable
-   * classifier must never be treated as confirmation, because failing open here
-   * is exactly the false-alarm behaviour this replaced.
+   * Stage 2: the gate opened, so ask the classifier what the sound was.
+   * 'glass_break' and 'gunshot' both raise the alarm — a failed or unavailable
+   * classifier must never be treated as confirmation.
    */
   async function onCandidate(samples: Float32Array, sampleRate: number) {
     setGateCount((n) => n + 1);
@@ -93,7 +92,8 @@ export default function HomeGuard() {
     try {
       const result = await classifyWindow(samples, sampleRate);
       setVerdict(result);
-      if (result.verdict === 'glass_break' && armed.current) {
+      const alarmVerdict = result.verdict === 'glass_break' || result.verdict === 'gunshot';
+      if (alarmVerdict && armed.current) {
         armed.current = false;
         trip('mic');
       }
@@ -260,15 +260,25 @@ export default function HomeGuard() {
             {verdict && !checking && !classifyError && (
               <>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                  <Chip tone={verdict.verdict === 'glass_break' ? 'critical' : 'neutral'}>
-                    {verdict.verdict === 'glass_break' ? 'Glass break' : 'Not glass'}
+                  <Chip tone={verdict.verdict === 'glass_break' || verdict.verdict === 'gunshot' ? 'critical' : 'neutral'}>
+                    {verdict.verdict === 'glass_break' ? 'Glass break'
+                      : verdict.verdict === 'gunshot' ? 'Gunshot'
+                      : 'Not an alarm sound'}
                   </Chip>
                   <span className="tabular-nums" style={{ fontSize: 11.5, color: colors.inkMid }}>
                     {verdict.verdict === 'glass_break'
                       ? `${verdict.glass_label} ${(verdict.glass_score * 100).toFixed(0)}%`
+                      : verdict.verdict === 'gunshot'
+                      ? `${verdict.gunshot_label} ${(verdict.gunshot_score * 100).toFixed(0)}%`
                       : `heard ${verdict.competing_label} ${(verdict.competing_score * 100).toFixed(0)}%`}
                   </span>
                 </div>
+                {verdict.gunshot_score > 0 && verdict.verdict !== 'gunshot' && (
+                  <div className="tabular-nums" style={{ fontSize: 11, color: colors.inkLo, marginBottom: 4 }}>
+                    Gunshot: {(verdict.gunshot_score * 100).toFixed(0)}%
+                    {verdict.gunshot_clears_floor && !verdict.gunshot_beats_competing ? ' (below margin)' : ''}
+                  </div>
+                )}
                 {verdict.top.map((t) => (
                   <div
                     key={t.label}

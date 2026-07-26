@@ -60,10 +60,18 @@ INPUT_SAMPLES = 15_600
 #: Sounds that count as breaking glass. Names, not indices — see module docstring.
 GLASS_LABELS = ("Glass", "Shatter", "Smash, crash", "Breaking")
 
+#: Sounds that count as a gunshot or explosion. Covered separately because a
+#: gunshot and a glass break are both impact transients and a single competing
+#: list would let one suppress the other. They run independently and the
+#: loudest positive verdict wins.
+GUNSHOT_LABELS = ("Gunshot, gunfire", "Machine gun", "Artillery fire", "Explosion")
+
 #: The everyday sounds a home mic actually produces, which must be able to
 #: outvote glass. Speech and its relatives lead the list because speech is the
 #: false positive this module was written to kill; the rest are the other things
 #: that trip a transient gate (a slammed door, cutlery, typing, a passing car).
+#: Gunshot is NOT in this list — a simultaneous glass-and-gunshot event should
+#: not be suppressed by its own co-label.
 COMPETING_LABELS = (
     "Speech", "Child speech, kid speaking", "Conversation", "Narration, monologue",
     "Speech synthesizer", "Hubbub, speech noise, speech babble", "Babbling",
@@ -80,9 +88,14 @@ COMPETING_LABELS = (
 #: so no single class scores like a confident single-label classifier would.
 GLASS_FLOOR = 0.08
 
-#: And it must beat the best competing sound by this factor. This is the part
-#: that rejects speech, and the number to move if it is still wrong in the room.
+#: And it must beat the best competing sound by this factor.
 GLASS_MARGIN = 1.5
+
+#: Gunshot floor. Gunshot, gunfire is one of YAMNet's cleaner classes — it
+#: doesn't spread across several labels the way glass does, so the floor can be
+#: lower and the margin tighter without letting false positives through.
+GUNSHOT_FLOOR = 0.10
+GUNSHOT_MARGIN = 1.5
 
 
 class ClassifierUnavailable(RuntimeError):
@@ -118,7 +131,30 @@ class Verdict:
     """Named for readability at the call site; carries no behaviour."""
 
     GLASS = "glass_break"
+    GUNSHOT = "gunshot"
     OTHER = "other"
+
+
+def _score_event(
+    scores: np.ndarray,
+    event_idx: list[int],
+    competing_idx: list[int],
+    floor: float,
+    margin: float,
+) -> tuple[str, float, bool, bool, str, float]:
+    """Score one event type against the competing list. Returns
+    (best_label, best_score, clears_floor, beats_competing, competing_label, competing_score).
+    """
+    event_scores = {_labels()[i]: float(scores[i]) for i in event_idx}
+    best_label, best_score = max(event_scores.items(), key=lambda kv: kv[1])
+
+    competing = {_labels()[i]: float(scores[i]) for i in competing_idx}
+    best_comp_label, best_comp = (
+        max(competing.items(), key=lambda kv: kv[1]) if competing else ("none", 0.0)
+    )
+    return (best_label, best_score,
+            best_score >= floor, best_score > best_comp * margin,
+            best_comp_label, best_comp)
 
 
 def decide(
@@ -127,41 +163,64 @@ def decide(
     competing_idx: list[int],
     floor: float = GLASS_FLOOR,
     margin: float = GLASS_MARGIN,
+    gunshot_idx: Optional[list[int]] = None,
+    gunshot_floor: float = GUNSHOT_FLOOR,
+    gunshot_margin: float = GUNSHOT_MARGIN,
 ) -> dict:
     """Turns a 521-class score vector into a verdict.
 
-    Separated from inference so it can be tested against constructed score
-    vectors — the speech-rejection behaviour is the whole point of this module
-    and must be pinned by tests, not just observed in a room.
+    Checks glass and gunshot independently. Each must clear its own floor and
+    beat the everyday competing list by its own margin. The final verdict is
+    whichever positive event has the higher peak score, so a 0.25 gunshot
+    won't be suppressed by a co-occurring 0.09 glass signal.
     """
-    glass_scores = {_labels()[i]: float(scores[i]) for i in glass_idx}
-    best_glass_label, best_glass = max(glass_scores.items(), key=lambda kv: kv[1])
+    (g_label, g_score, g_floor, g_margin,
+     comp_label, comp_score) = _score_event(scores, glass_idx, competing_idx, floor, margin)
 
-    competing = {_labels()[i]: float(scores[i]) for i in competing_idx}
-    best_competing_label, best_competing = (
-        max(competing.items(), key=lambda kv: kv[1]) if competing else ("none", 0.0)
-    )
+    is_glass = g_floor and g_margin
 
-    clears_floor = best_glass >= floor
-    beats_competing = best_glass > best_competing * margin
-    is_glass = clears_floor and beats_competing
+    gunshot_result: Optional[dict] = None
+    is_gunshot = False
+    if gunshot_idx:
+        (gs_label, gs_score, gs_floor, gs_margin,
+         gs_comp_label, gs_comp_score) = _score_event(
+            scores, gunshot_idx, competing_idx, gunshot_floor, gunshot_margin)
+        is_gunshot = gs_floor and gs_margin
+        gunshot_result = {
+            "gunshot_label": gs_label,
+            "gunshot_score": round(gs_score, 4),
+            "gunshot_clears_floor": gs_floor,
+            "gunshot_beats_competing": gs_margin,
+        }
 
-    # The whole top-5 goes back to the client so a wrong call is diagnosable —
-    # "it heard Speech at 0.91" is actionable; "not glass" is not.
+    # When both fire, the higher-scoring event wins the primary verdict.
+    if is_glass and is_gunshot and gunshot_result:
+        gs_score_val = gunshot_result["gunshot_score"]
+        verdict = Verdict.GUNSHOT if gs_score_val > g_score else Verdict.GLASS
+    elif is_gunshot:
+        verdict = Verdict.GUNSHOT
+    elif is_glass:
+        verdict = Verdict.GLASS
+    else:
+        verdict = Verdict.OTHER
+
     top_idx = np.argsort(scores)[::-1][:5]
-    return {
-        "verdict": Verdict.GLASS if is_glass else Verdict.OTHER,
-        "glass_label": best_glass_label,
-        "glass_score": round(best_glass, 4),
-        "competing_label": best_competing_label,
-        "competing_score": round(best_competing, 4),
-        "clears_floor": clears_floor,
-        "beats_competing": beats_competing,
+    result: dict = {
+        "verdict": verdict,
+        "glass_label": g_label,
+        "glass_score": round(g_score, 4),
+        "competing_label": comp_label,
+        "competing_score": round(comp_score, 4),
+        "clears_floor": g_floor,
+        "beats_competing": g_margin,
         "top": [
             {"label": _labels()[int(i)], "score": round(float(scores[int(i)]), 4)}
             for i in top_idx
         ],
     }
+    if gunshot_result:
+        result.update(gunshot_result)
+    return result
 
 
 @lru_cache(maxsize=1)
@@ -194,4 +253,9 @@ def classify(waveform: np.ndarray) -> dict:
     interp.invoke()
     scores = interp.get_tensor(interp.get_output_details()[0]["index"])[0]
 
-    return decide(scores, resolve_indices(GLASS_LABELS), resolve_indices(COMPETING_LABELS))
+    return decide(
+        scores,
+        glass_idx=resolve_indices(GLASS_LABELS),
+        competing_idx=resolve_indices(COMPETING_LABELS),
+        gunshot_idx=resolve_indices(GUNSHOT_LABELS),
+    )

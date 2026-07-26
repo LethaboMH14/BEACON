@@ -9,7 +9,7 @@ import { apiUrl } from '../../api/base';
 import { fitToWindow, resampleTo16k, TARGET_RATE, toPcm16Base64 } from './resample';
 
 export interface ClassifyResult {
-  /** 'glass_break' or 'other'. */
+  /** 'glass_break' | 'gunshot' | 'other'. */
   verdict: string;
   /** Best-scoring glass-family class and its score. */
   glass_label: string;
@@ -19,6 +19,11 @@ export interface ClassifyResult {
   competing_score: number;
   clears_floor: boolean;
   beats_competing: boolean;
+  /** Gunshot scoring — always present when the model ran. */
+  gunshot_label: string;
+  gunshot_score: number;
+  gunshot_clears_floor: boolean;
+  gunshot_beats_competing: boolean;
   top: { label: string; score: number }[];
 }
 

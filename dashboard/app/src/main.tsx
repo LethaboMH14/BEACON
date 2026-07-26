@@ -20,6 +20,7 @@ import App from './App.tsx'
 import MemberShell from './member/MemberShell.tsx'
 import Home from './member/screens/Home.tsx'
 import LiveDrive from './member/screens/LiveDrive.tsx'
+import VisionLens from './member/screens/VisionLens.tsx'
 import HotspotMap from './member/screens/HotspotMap.tsx'
 import SafestRoute from './member/screens/SafestRoute.tsx'
 import HomeGuard from './member/screens/HomeGuard.tsx'
@@ -34,6 +35,7 @@ const router = createBrowserRouter([
       { index: true, element: <Navigate to="/home" replace /> },
       { path: 'home', element: <Home /> },
       { path: 'drive', element: <LiveDrive /> },
+      { path: 'vision', element: <VisionLens /> },
       { path: 'map', element: <HotspotMap /> },
       { path: 'route', element: <SafestRoute /> },
       { path: 'home-guard', element: <HomeGuard /> },

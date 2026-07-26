@@ -20,7 +20,7 @@ import { colors } from '../theme/tokens';
 
 const TABS = [
   { to: '/home', label: 'Home', icon: 'home' },
-  { to: '/drive', label: 'Cam', icon: 'drive' },
+  { to: '/vision', label: 'Cam', icon: 'drive' },
   { to: '/map', label: 'Map', icon: 'map' },
   { to: '/assistant', label: 'Ask', icon: 'chat' },
   { to: '/rewards', label: 'Points', icon: 'star' },
@@ -71,7 +71,7 @@ function StatusBar() {
  * Live Drive is dark (it's a camera surface, and a light UI around a night-time
  * dashcam frame is unreadable); everything else is the light Discovery theme.
  */
-const DARK_ROUTES = ['/drive'];
+const DARK_ROUTES = ['/drive', '/vision'];
 
 /**
  * index.html carries the neutral product title because one build serves both the
@@ -81,6 +81,7 @@ const DARK_ROUTES = ['/drive'];
 const TITLES: Record<string, string> = {
   '/home': 'BEACON',
   '/drive': 'Cam · BEACON',
+  '/vision': 'Vision lens · BEACON',
   '/map': 'Risk map · BEACON',
   '/route': 'Safest route · BEACON',
   '/home-guard': 'Home guard · BEACON',
