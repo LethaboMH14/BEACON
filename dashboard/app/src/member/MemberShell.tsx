@@ -89,9 +89,34 @@ const TITLES: Record<string, string> = {
   '/rewards': 'Vitality points · BEACON',
 };
 
+// Design size of the phone frame — tall enough that no screen's content ever
+// needs to scroll inside it (see the component-level comment on the scaling
+// wrapper below for why this is scaled rather than shrunk).
+const FRAME_W = 410;
+const FRAME_H = 1230;
+const FRAME_MARGIN = 32; // total breathing room budgeted around the frame
+
 export default function MemberShell() {
   const { pathname } = useLocation();
   const dark = DARK_ROUTES.some((r) => pathname.startsWith(r));
+
+  // Scale the whole frame to fit the actual viewport — critical for split-screen
+  // demoing, where the window is a fraction of a full monitor and a fixed
+  // 1230px-tall frame would run off the bottom with no way to see it all.
+  const [scale, setScale] = useState(1);
+  useEffect(() => {
+    function fit() {
+      const s = Math.min(
+        1,
+        (window.innerWidth - FRAME_MARGIN) / FRAME_W,
+        (window.innerHeight - FRAME_MARGIN) / FRAME_H,
+      );
+      setScale(Math.max(0.3, s));
+    }
+    fit();
+    window.addEventListener('resize', fit);
+    return () => window.removeEventListener('resize', fit);
+  }, []);
 
   useEffect(() => {
     document.title = TITLES[pathname] ?? 'BEACON';
@@ -106,14 +131,28 @@ export default function MemberShell() {
   return (
     <div style={{
       minHeight: '100vh', background: `radial-gradient(1200px 600px at 50% -10%, #E8F1F9 0%, ${colors.bg50} 55%)`,
-      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '28px 16px',
+      display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '16px 12px',
+      overflow: 'hidden',
     }}>
+      {/*
+        The frame is a fixed design size (FRAME_W x FRAME_H) so no screen ever
+        needs to scroll internally, then scaled down to fit whatever viewport
+        it's actually being shown in. Demoing happens in split-screen, where a
+        fixed 1230px-tall frame is taller than the window — scaling means the
+        whole phone is always visible at once instead of the window scrolling.
+        Never scales above 1: on a big monitor it stays at its design size.
+      */}
       <div style={{
-        width: 410, height: 1230, borderRadius: 44, background: frameBg,
+        width: FRAME_W * scale, height: FRAME_H * scale,
+        flexShrink: 0,
+      }}>
+      <div style={{
+        width: FRAME_W, height: FRAME_H, borderRadius: 44, background: frameBg,
         color: dark ? colors.textHi : colors.inkHi,
         boxShadow: '0 0 0 11px #0B1120, 0 0 0 12px rgba(255,255,255,0.09), 0 40px 90px rgba(15,23,42,0.34)',
         position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column',
         transition: 'background 0.25s ease, color 0.25s ease',
+        transform: `scale(${scale})`, transformOrigin: 'top left',
       }}>
         {/* dynamic-island notch */}
         <div style={{
@@ -152,6 +191,7 @@ export default function MemberShell() {
           width: 134, height: 5, borderRadius: 3,
           background: dark ? 'rgba(255,255,255,0.32)' : 'rgba(15,23,42,0.26)', zIndex: 25,
         }} />
+      </div>
       </div>
     </div>
   );
