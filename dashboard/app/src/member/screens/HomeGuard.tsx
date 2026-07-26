@@ -28,8 +28,10 @@ import { useEffect, useRef, useState } from 'react';
 import { colors } from '../../theme/tokens';
 import { Button, Card, Chip, MethodNote, Screen, ScreenHeader, SimulatedTag, radii } from '../ui';
 import { createAlert } from '../../api/member';
+import { apiUrl } from '../../api/base';
 import { startGlassBreakDetector, THRESHOLDS, type AudioFrame, type DetectorHandle, type Sensitivity } from '../audio/glassBreak';
-import { classifyWindow, type ClassifyResult } from '../audio/classify';
+import { classifyWindow, ClassifierOffline, type ClassifyResult } from '../audio/classify';
+import { fitToWindow, TARGET_RATE } from '../audio/resample';
 
 const PROPERTY = { address: '14 Ballyclare Drive', suburb: 'Bryanston' };
 
@@ -68,16 +70,36 @@ export default function HomeGuard() {
   const [verdict, setVerdict] = useState<ClassifyResult | null>(null);
   const [classifyError, setClassifyError] = useState<string | null>(null);
   const [gateCount, setGateCount] = useState(0);
-  const detector = useRef<DetectorHandle | null>(null);
+  const detector    = useRef<DetectorHandle | null>(null);
+  const fileRef     = useRef<HTMLInputElement>(null);
+  const [fileState, setFileState] = useState<'idle' | 'analysing' | 'done'>('idle');
   // The gate can open repeatedly; this stops a second candidate from restarting
   // the ladder while a response is already in progress.
   const armed = useRef(false);
 
-  function trip(source: 'mic' | 'demo') {
+  async function sendAlertEmail(result: ClassifyResult) {
+    try {
+      await fetch(apiUrl('/v1/audio/alert'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          verdict: result.verdict,
+          label: result.verdict === 'gunshot' ? result.gunshot_label : result.glass_label,
+          score: result.verdict === 'gunshot' ? result.gunshot_score : result.glass_score,
+          property_address: `${PROPERTY.address}, ${PROPERTY.suburb}`,
+        }),
+      });
+    } catch {
+      // Email failure must never block the alarm UI.
+    }
+  }
+
+  function trip(source: 'mic' | 'demo', result?: ClassifyResult) {
     setTriggeredBy(source);
     setElapsed(0);
     setResolved(null);
     setMode('active');
+    if (result) sendAlertEmail(result);
   }
 
   /**
@@ -95,12 +117,64 @@ export default function HomeGuard() {
       const alarmVerdict = result.verdict === 'glass_break' || result.verdict === 'gunshot';
       if (alarmVerdict && armed.current) {
         armed.current = false;
-        trip('mic');
+        trip('mic', result);
       }
     } catch (e) {
       setClassifyError(e instanceof Error ? e.message : 'Classifier unreachable');
     } finally {
       setChecking(false);
+    }
+  }
+
+  /**
+   * Test path: decode an audio file directly in the browser and run it through
+   * the same classify pipeline as the mic. No microphone needed — this is the
+   * clean path for screen recordings and virtual demos where speaker→mic
+   * feedback would distort the signal before YAMNet ever sees it.
+   */
+  async function handleAudioFile(file: File) {
+    setFileState('analysing');
+    setClassifyError(null);
+    setVerdict(null);
+    try {
+      const arrayBuf = await file.arrayBuffer();
+      const ctx = new AudioContext({ sampleRate: TARGET_RATE });
+      const decoded = await ctx.decodeAudioData(arrayBuf);
+      await ctx.close();
+
+      // Downmix to mono
+      const mono = decoded.numberOfChannels > 1
+        ? (() => {
+            const out = new Float32Array(decoded.length);
+            for (let ch = 0; ch < decoded.numberOfChannels; ch++) {
+              const ch_data = decoded.getChannelData(ch);
+              for (let i = 0; i < decoded.length; i++) out[i] += ch_data[i];
+            }
+            for (let i = 0; i < out.length; i++) out[i] /= decoded.numberOfChannels;
+            return out;
+          })()
+        : decoded.getChannelData(0);
+
+      // Already at TARGET_RATE from AudioContext; fitToWindow pads/trims to YAMNet length
+      const window = fitToWindow(mono);
+      const result = await classifyWindow(window, TARGET_RATE);
+      setVerdict(result);
+      setGateCount((n) => n + 1);
+
+      const alarmVerdict = result.verdict === 'glass_break' || result.verdict === 'gunshot';
+      if (alarmVerdict) {
+        armed.current = false;
+        trip('mic', result);
+      }
+    } catch (e) {
+      if (e instanceof ClassifierOffline) {
+        setClassifyError('Classifier unreachable — is the server running?');
+      } else {
+        setClassifyError(e instanceof Error ? e.message : 'Could not read audio file');
+      }
+    } finally {
+      setFileState('done');
+      if (fileRef.current) fileRef.current.value = '';
     }
   }
 
@@ -331,6 +405,36 @@ export default function HomeGuard() {
             Microphone unavailable: {micError}. The scripted demo trigger below still works.
           </p>
         )}
+
+        {/* ---- file test path ---- */}
+        <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${colors.lineLight}` }}>
+          <div style={{ fontSize: 10.5, fontWeight: 700, color: colors.inkLo, letterSpacing: 0.4, marginBottom: 8 }}>
+            TEST WITH AN AUDIO FILE — NO MIC NEEDED
+          </div>
+          <div style={{ fontSize: 11.5, color: colors.inkMid, marginBottom: 10, lineHeight: 1.45 }}>
+            Drop a glass-break or gunshot WAV/MP3 here. The file goes through the same
+            YAMNet pipeline as the microphone — this is the clean path for screen recordings.
+          </div>
+          <button
+            onClick={() => fileRef.current?.click()}
+            disabled={fileState === 'analysing'}
+            style={{
+              minHeight: 40, padding: '0 14px', borderRadius: radii.control, cursor: 'pointer',
+              border: `1px dashed ${colors.lineLight}`, background: colors.bg0,
+              fontSize: 12.5, color: colors.inkMid, fontFamily: 'inherit',
+              opacity: fileState === 'analysing' ? 0.5 : 1,
+            }}
+          >
+            {fileState === 'analysing' ? 'Classifying…' : '🎵 Pick audio file'}
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="audio/*"
+            style={{ display: 'none' }}
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleAudioFile(f); }}
+          />
+        </div>
 
         <div style={{ display: 'flex', gap: 6, marginTop: 14, flexWrap: 'wrap' }}>
           <Chip>Glass break</Chip>
