@@ -56,6 +56,9 @@ export default function Home() {
 
   const tone = !mine ? 'safe' : mine.severity_score >= 0.66 ? 'critical' : mine.severity_score >= 0.33 ? 'high' : 'watch';
   const toneColor = { safe: colors.safe, watch: colors.watch, high: colors.high, critical: colors.critical }[tone];
+  // Plain-language label first, the underlying score as a smaller detail — a
+  // member reads "Higher risk area", not a two-decimal number with no context.
+  const toneLabel = { safe: 'Low claims history', watch: 'Some claims history', high: 'Higher claims history', critical: 'High claims history' }[tone];
 
   return (
     <Screen>
@@ -83,7 +86,7 @@ export default function Home() {
               padding: '4px 9px', borderRadius: 999, background: 'rgba(255,255,255,0.16)',
             }}>
               <span style={{ width: 6, height: 6, borderRadius: 3, background: toneColor }} />
-              {mine ? `Severity ${mine.severity_score.toFixed(2)}` : 'No claims on record'}
+              {mine ? `${toneLabel} · ${mine.severity_score.toFixed(2)}` : 'No claims on record'}
             </span>
           </div>
 
@@ -123,7 +126,7 @@ export default function Home() {
       {data && (
         <Card style={{ padding: 14 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
-            <span style={{ fontSize: 14, fontWeight: 700 }}>Highest severity nationally</span>
+            <span style={{ fontSize: 14, fontWeight: 700 }}>Highest-risk areas nationally</span>
             <button onClick={() => nav('/map')} style={{
               background: 'transparent', border: 'none', color: colors.discovery,
               fontSize: 12, fontWeight: 650, cursor: 'pointer', padding: 0,

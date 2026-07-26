@@ -55,7 +55,7 @@ function levelFor(frame: DemoFrame | null): { level: Level; title: string; body:
   if (plate) {
     return plate.ocr_text
       ? { level: 'info', title: `Plate read: ${plate.ocr_text}`, body: 'Recorded to your drive log. Not shared with anyone.' }
-      : { level: 'info', title: 'Plate seen, not readable', body: 'The read failed the confidence gate, so no plate text was accepted.' };
+      : { level: 'info', title: 'Plate seen, not readable', body: "We saw a plate but couldn't read it clearly enough to be sure, so nothing was recorded." };
   }
   return { level: 'clear', title: 'All clear', body: 'Nothing of interest in view.' };
 }

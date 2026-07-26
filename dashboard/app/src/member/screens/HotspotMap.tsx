@@ -106,7 +106,7 @@ export default function HotspotMap() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <label style={{ fontSize: 11, color: colors.inkMid, whiteSpace: 'nowrap' }}>Min severity</label>
+          <label style={{ fontSize: 11, color: colors.inkMid, whiteSpace: 'nowrap' }}>Show from this risk level</label>
           <input
             type="range" min={0} max={0.9} step={0.05} value={minSeverity}
             onChange={(e) => setMinSeverity(Number(e.target.value))}
@@ -213,7 +213,7 @@ function SuburbSheet({ h, onClose }: { h: HotspotGeo; onClose: () => void }) {
             {h.suburb.replace(/\b\w/g, (c) => c.toUpperCase())}
           </h2>
           <div style={{ display: 'flex', gap: 6, marginTop: 7, flexWrap: 'wrap' }}>
-            <Chip tone={tone}>Severity {h.severity_score.toFixed(2)}</Chip>
+            <Chip tone={tone}>{tone === 'critical' ? 'High risk' : tone === 'high' ? 'Higher risk' : 'Some risk'} · {h.severity_score.toFixed(2)}</Chip>
             {h.incident_count != null && <Chip>{h.incident_count} claims</Chip>}
             <Chip tone="brand">Peaks {hourLabel(h.peak_hour)}</Chip>
           </div>
