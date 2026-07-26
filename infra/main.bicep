@@ -48,6 +48,20 @@ param enableNotificationHubs bool = false
 @description('Azure for Students subscriptions cannot provision Static Web Apps — confirmed by testing all five SWA-capable regions (RequestDisallowedByAzure on every one, not a location issue). Off by default; member app + ops console are hosted on GitHub Pages/Vercel/Netlify instead. Flip on only if this subscription is ever upgraded off the student plan.')
 param enableStaticWebApp bool = false
 
+@description('Roboflow key for the hosted vision backend (server/src/vision/detectors.py). Passed in by whoever holds the key — never defaulted, never committed. Empty is valid: the API degrades to a clear startup error on vision endpoints only, everything else still runs.')
+@secure()
+param roboflowApiKey string = ''
+
+@description('SendGrid key for escalation email (server/src/notify/email.py). Same handling as roboflowApiKey — empty just means escalation email is not wired up yet.')
+@secure()
+param sendgridApiKey string = ''
+
+@description('Verified SendGrid sender address for escalation emails. Not secret, but meaningless without sendgridApiKey.')
+param escalationFrom string = ''
+
+@description('Comma-separated recipient address(es) for escalation emails.')
+param escalationTo string = ''
+
 var uniq = uniqueString(resourceGroup().id)
 var tags = {
   project: 'BEACON'
@@ -247,10 +261,18 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
         username: acr.name
         passwordSecretRef: 'acr-password'
       }]
-      secrets: [
-        { name: 'acr-password', value: acr.listCredentials().passwords[0].value }
-        { name: 'database-url', value: 'postgresql://${pgAdminUser}:${pgAdminPassword}@${postgres.properties.fullyQualifiedDomainName}:5432/beacon?sslmode=require' }
-      ]
+      // Container Apps rejects a secret with an empty value outright, so
+      // roboflow/sendgrid are only added — as secrets AND as the env vars
+      // that reference them — when actually supplied. Leaving them blank at
+      // deploy time must mean "not wired up yet", not a deployment failure.
+      secrets: concat(
+        [
+          { name: 'acr-password', value: acr.listCredentials().passwords[0].value }
+          { name: 'database-url', value: 'postgresql://${pgAdminUser}:${pgAdminPassword}@${postgres.properties.fullyQualifiedDomainName}:5432/beacon?sslmode=require' }
+        ],
+        !empty(roboflowApiKey) ? [{ name: 'roboflow-api-key', value: roboflowApiKey }] : [],
+        !empty(sendgridApiKey) ? [{ name: 'sendgrid-api-key', value: sendgridApiKey }] : []
+      )
     }
     template: {
       containers: [{
@@ -258,12 +280,21 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
         // Placeholder until the first `az acr build` — replaced by deploy.ps1.
         image: 'mcr.microsoft.com/k8se/quickstart:latest'
         resources: { cpu: json('0.5'), memory: '1Gi' }
-        env: [
-          { name: 'DATABASE_URL', secretRef: 'database-url' }
-          { name: 'KEY_VAULT_URI', value: keyVault.properties.vaultUri }
-          { name: 'AZURE_STORAGE_ACCOUNT', value: storage.name }
-          { name: 'VISION_BACKEND', value: 'hosted' }
-        ]
+        env: concat(
+          [
+            { name: 'DATABASE_URL', secretRef: 'database-url' }
+            { name: 'KEY_VAULT_URI', value: keyVault.properties.vaultUri }
+            { name: 'AZURE_STORAGE_ACCOUNT', value: storage.name }
+            { name: 'VISION_BACKEND', value: 'hosted' }
+          ],
+          !empty(roboflowApiKey) ? [{ name: 'ROBOFLOW_API_KEY', secretRef: 'roboflow-api-key' }] : [],
+          !empty(sendgridApiKey) ? [
+            { name: 'EMAIL_PROVIDER', value: 'sendgrid' }
+            { name: 'SENDGRID_API_KEY', secretRef: 'sendgrid-api-key' }
+            { name: 'ESCALATION_FROM', value: escalationFrom }
+            { name: 'ESCALATION_TO', value: escalationTo }
+          ] : []
+        )
       }]
       scale: { minReplicas: 1, maxReplicas: 3 }
     }
@@ -271,50 +302,14 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Vision microservices — plate and weapon, separate apps, scale to ZERO.
-//
-// Scale-to-zero is right here and wrong for the API: nobody is holding a
-// connection open to these, they are called per frame, and between demos they
-// should cost nothing. The trade is a cold start on the first frame after idle.
-// The UI must show that as "waking the model", not as detection latency, or the
-// measured per-frame numbers become a lie the first time anyone runs a demo
-// after lunch.
+// NOTE: this used to also deploy two standalone vision Container Apps
+// (plate/weapon, calling Roboflow *workflows*). Removed — server/src/vision/
+// detectors.py replaced them: it calls the underlying Roboflow model directly
+// (detect.roboflow.com) instead of the workflow wrapper, measured 3.5x faster
+// (1.05s vs 3.7-7.0s) because it skips server-side box rendering nobody used.
+// The API app above is the only vision compute now; ROBOFLOW_API_KEY on it is
+// what vision detection actually needs.
 // ─────────────────────────────────────────────────────────────────────────────
-var visionServices = [
-  { name: 'plate', port: 8001 }
-  { name: 'weapon', port: 8002 }
-]
-
-resource visionApps 'Microsoft.App/containerApps@2024-03-01' = [for s in visionServices: {
-  name: '${prefix}-vision-${s.name}'
-  location: location
-  tags: tags
-  identity: { type: 'SystemAssigned' }
-  properties: {
-    managedEnvironmentId: containerEnv.id
-    configuration: {
-      // Internal only. These services have no auth of their own; exposing them
-      // publicly would let anyone spend our Roboflow quota.
-      ingress: { external: false, targetPort: s.port, transport: 'auto' }
-      registries: [{
-        server: acr.properties.loginServer
-        username: acr.name
-        passwordSecretRef: 'acr-password'
-      }]
-      secrets: [{ name: 'acr-password', value: acr.listCredentials().passwords[0].value }]
-    }
-    template: {
-      containers: [{
-        name: s.name
-        image: 'mcr.microsoft.com/k8se/quickstart:latest'
-        // 2 GB: the local inference path loads model weights into memory. At
-        // 1 GB it OOMs on the second model.
-        resources: { cpu: json('1.0'), memory: '2Gi' }
-      }]
-      scale: { minReplicas: 0, maxReplicas: 2 }
-    }
-  }
-}]
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Nightly re-scoring job — same image as the API, on a cron.

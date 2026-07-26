@@ -13,8 +13,10 @@
  * the artifact everyone signed off on.
  */
 
+import { apiUrl } from './base';
+
 async function get<T>(path: string): Promise<T> {
-  const res = await fetch(path);
+  const res = await fetch(apiUrl(path));
   if (!res.ok) throw new Error(`GET ${path} -> ${res.status} ${res.statusText}`);
   return res.json();
 }
@@ -110,7 +112,7 @@ export async function scoreRoutes(
   routes: CandidateRoute[],
   departHour?: number,
 ): Promise<SafestRouteResponse> {
-  const res = await fetch('/v1/routes/safest', {
+  const res = await fetch(apiUrl('/v1/routes/safest'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ routes, depart_hour: departHour ?? null }),

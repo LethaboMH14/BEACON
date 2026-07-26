@@ -1,8 +1,10 @@
 /**
  * REST client for the real BEACON server (server/src/main.py).
- * Dev server proxies /v1 -> http://localhost:8000 (see vite.config.ts).
+ * Dev server proxies /v1 -> http://localhost:8000 (see vite.config.ts); set
+ * VITE_API_BASE to target a deployed API instead (see api/base.ts).
  * Endpoint shapes copied from server/src/api/*.py response models — keep in sync.
  */
+import { apiUrl } from './base';
 
 export interface RiskEstimate {
   hex_id: string;
@@ -85,7 +87,7 @@ export interface EventsSinceResponse {
 }
 
 async function get<T>(path: string): Promise<T> {
-  const res = await fetch(path);
+  const res = await fetch(apiUrl(path));
   if (!res.ok) {
     throw new Error(`${path} -> ${res.status} ${res.statusText}`);
   }
@@ -118,7 +120,7 @@ export async function getEventsSince(ts: string, limit = 200): Promise<EventsSin
 }
 
 export async function verifyEntity(entityId: string): Promise<unknown> {
-  const res = await fetch(`/v1/entities/${encodeURIComponent(entityId)}/verify`, { method: 'POST' });
+  const res = await fetch(apiUrl(`/v1/entities/${encodeURIComponent(entityId)}/verify`), { method: 'POST' });
   if (!res.ok) throw new Error(`verify ${entityId} -> ${res.status} ${res.statusText}`);
   return res.json();
 }

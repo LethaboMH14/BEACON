@@ -10,6 +10,8 @@
  * as coming soon, not live.
  */
 
+import { wsUrl } from './base';
+
 export type OpsEventName =
   | 'connected'
   | 'sighting.new'
@@ -38,8 +40,7 @@ export class OpsSocket {
 
   connect(): void {
     this.closedByUser = false;
-    const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    this.socket = new WebSocket(`${proto}//${window.location.host}/ws/ops`);
+    this.socket = new WebSocket(wsUrl('/ws/ops'));
 
     this.socket.onmessage = (raw) => {
       let parsed: OpsEvent;

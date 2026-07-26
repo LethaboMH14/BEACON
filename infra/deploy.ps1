@@ -4,12 +4,18 @@
 
 .DESCRIPTION
   Creates the resource group, deploys infra/main.bicep, builds and pushes the
-  API and vision images, and prints the values you paste into server/.env.
+  API image, and prints the values you paste into server/.env. Vision
+  detection (server/src/vision/detectors.py) runs inside that same API
+  image, calling Roboflow's hosted endpoint directly — there is no separate
+  vision service to build or deploy.
 
-  The Postgres admin password is prompted for as a SecureString and passed
-  straight to the deployment. It is never written to disk, never echoed, and
-  never placed in a file this repo tracks — which matters, because the repo is
-  public.
+  The Postgres admin password, Roboflow key, and SendGrid key are all
+  prompted for as SecureStrings and passed straight to the deployment. None
+  are written to disk, echoed, or placed in a file this repo tracks — which
+  matters, because the repo is public. Roboflow/SendGrid can be left blank to
+  skip (vision detection / escalation email just won't work yet); re-run this
+  script, or `az containerapp update --secrets/--set-env-vars`, once you have
+  them.
 
 .EXAMPLE
   az login
@@ -75,6 +81,28 @@ $pgPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
     [Runtime.InteropServices.Marshal]::SecureStringToBSTR($pgPassword))
 if ($pgPlain.Length -lt 8) { throw "Password too short." }
 
+# --- vision / email keys ----------------------------------------------------
+# Optional: press Enter to skip and leave these unset (vision detection and
+# escalation email just won't work on the deployed API until you run this
+# script again, or `az containerapp update --set-env-vars/--secrets`, with
+# real values). Same non-echo, non-history handling as the Postgres password.
+Say "Roboflow API key (blank to skip — leaves vision detection unwired)"
+$roboflowSecure = Read-Host -AsSecureString -Prompt "    Roboflow key"
+$roboflowPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
+    [Runtime.InteropServices.Marshal]::SecureStringToBSTR($roboflowSecure))
+
+Say "SendGrid API key (blank to skip — leaves escalation email unwired)"
+$sendgridSecure = Read-Host -AsSecureString -Prompt "    SendGrid key"
+$sendgridPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
+    [Runtime.InteropServices.Marshal]::SecureStringToBSTR($sendgridSecure))
+
+$escalationFrom = ''
+$escalationTo = ''
+if ($sendgridPlain) {
+    $escalationFrom = Read-Host "    Verified SendGrid sender address"
+    $escalationTo = Read-Host "    Escalation recipient address(es), comma-separated"
+}
+
 # --- deploy ----------------------------------------------------------------
 Say "Deploying infra/main.bicep (this takes ~10 minutes, mostly Postgres)"
 $deployName = "beacon-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
@@ -83,6 +111,8 @@ $result = az deployment group create `
     --resource-group $ResourceGroup `
     --template-file infra/main.bicep `
     --parameters prefix=$Prefix location=$Location clientIp=$clientIp pgAdminPassword=$pgPlain `
+                 roboflowApiKey=$roboflowPlain sendgridApiKey=$sendgridPlain `
+                 escalationFrom=$escalationFrom escalationTo=$escalationTo `
     --output json | ConvertFrom-Json
 
 if (-not $result) { throw "Deployment failed. Run 'az deployment group show -g $ResourceGroup -n $deployName' for detail." }
@@ -106,20 +136,7 @@ if (-not $SkipImages) {
     Say "Building API image in ACR (no local Docker needed)"
     az acr build --registry $acrName --image "beacon-api:latest" --file server/Dockerfile server --output none
 
-    foreach ($svc in @(
-        @{ name = 'plate';  path = 'vision/backend' },
-        @{ name = 'weapon'; path = 'vision/weapen_backend' }
-    )) {
-        if (Test-Path "$($svc.path)/Dockerfile") {
-            Say "Building vision-$($svc.name) image"
-            az acr build --registry $acrName --image "beacon-vision-$($svc.name):latest" `
-                --file "$($svc.path)/Dockerfile" $svc.path --output none
-        } else {
-            Warn "No Dockerfile at $($svc.path) — skipping vision-$($svc.name). Build it before the demo."
-        }
-    }
-
-    Say "Pointing container apps at the real images"
+    Say "Pointing container app at the real image"
     az containerapp update --name "$Prefix-api" --resource-group $ResourceGroup `
         --image "$acrServer/beacon-api:latest" --output none
 }
@@ -140,6 +157,8 @@ Write-Host ""
 Write-Host "API:        https://$apiFqdn"
 Write-Host "Member app: https://$memberUrl"
 Write-Host ""
+if (-not $roboflowPlain) { Warn "Roboflow key skipped — vision detection is not wired up on the deployed API." }
+if (-not $sendgridPlain) { Warn "SendGrid key skipped — escalation email is not wired up on the deployed API." }
 Warn "The password is deliberately NOT printed above. Take it from your password manager."
 Warn "Postgres cannot scale to zero. Stop it between sessions or it will drain the credit:"
 Write-Host "    az postgres flexible-server stop -g $ResourceGroup -n $($pgFqdn.Split('.')[0])" -ForegroundColor DarkGray

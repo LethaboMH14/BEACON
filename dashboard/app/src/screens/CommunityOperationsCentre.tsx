@@ -18,6 +18,7 @@ import {
   type CameraStatusEntry, type HotspotEntry, type EventEntry,
 } from '../api/client';
 import { OpsSocket, type OpsEvent } from '../api/ws';
+import { apiUrl } from '../api/base';
 
 const NAV_ITEMS = ['Overview', 'Live Camera', 'Intelligence', 'Patrol', 'Investigations', 'Claims'];
 const GRID_COLS = 16;
@@ -115,7 +116,7 @@ export default function CommunityOperationsCentre() {
     localStorage.setItem('beacon_operator_id', operatorId);
     localStorage.setItem('beacon_operator_token', operatorToken);
     try {
-      await fetch(`/v1/entities/${encodeURIComponent(entityId)}/verify`, {
+      await fetch(apiUrl(`/v1/entities/${encodeURIComponent(entityId)}/verify`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Operator-Token': operatorToken },
         body: JSON.stringify({ operator_id: operatorId, action }),

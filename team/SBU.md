@@ -25,7 +25,7 @@ Everything previously listed here is merged: schema, sightings ingest, entity re
 ## Now — while Azure login/deploy is blocked on Lethabo, real gaps you can close independently
 
 - [ ] **The vision spine has no UI.** Backend is done and tested but nothing in `dashboard/app` renders it — grepped `dashboard/app/src` for `vision.frame`/`vision.decision`/`vision.escalated`, zero matches. These already stream over the existing ops WebSocket (`ws_manager.broadcast_to_ops`), same channel the live feed already listens to — this is a new event-type branch on an existing subscription, not a new integration. Minimum viable: a panel that shows job progress (`vision.frame`), the current decision level + reason (`vision.decision`), and an escalate button that POSTs `/v1/vision/jobs/{id}/escalate` with an `X-Operator-Token`. This is the actual ring-camera demo flow (`docs/DESIGN-BRIEF-demo-concepts.md`) and currently the single biggest gap between "backend works" and "judges can see it work."
-- [ ] **`vision/backend/Dockerfile` and `vision/weapen_backend/Dockerfile` don't exist.** `infra/deploy.ps1` already checks for them and skips with a warning if missing — it won't fail the deploy, but the two vision Container Apps in `infra/main.bicep` will have nothing to run. Both services are already plain FastAPI apps (`vision/backend/app.py`, `vision/weapen_backend/app.py`) — a Dockerfile each (mirror `server/Dockerfile`'s pattern) is what's missing, not new code.
+- [x] ~~`vision/backend/Dockerfile` and `vision/weapen_backend/Dockerfile` don't exist~~ — moot. `server/src/vision/detectors.py`'s own docstring shows it calls Roboflow's hosted model directly (`detect.roboflow.com`), measured at 1.05s vs the standalone services' 3.7-7.0s (they hit Roboflow *workflows* instead, which also render a server-side annotated image nothing downstream uses) — 3.5x slower for no benefit. Removed the two vision Container Apps from `infra/main.bicep` entirely; the API container is the only vision compute now. No Dockerfiles needed.
 - [ ] **Run the vision pipeline end-to-end with real keys, once.** Every test so far is against synthetic detections (`test_vision_decision.py`) or was measured by Lethabo with his own Roboflow key. Get your own free-tier Roboflow key + SendGrid key (see `docs/HANDOVER-SBU.md` §1), point `.env` at them, upload one of the real ring-cam clips via `POST /v1/vision/jobs`, and confirm an escalation actually lands an email in your inbox. This is the one part of the honesty story ("does this actually work") that hasn't been proven outside Lethabo's machine.
 - [ ] **Ndu's SAPS+claims map still isn't merged into the live dashboard**, and the known duplicate Sandton-suburb popup bug is still open (`hotspot_pipeline/combined_hotspot_map.html` on `origin/main`). If you have spare cycles before the UI work above, this is next in line — but the vision UI panel is the higher-value gap for the pitch.
 
@@ -34,6 +34,32 @@ Postgres+pgvector migration stays explicitly deprioritized ("don't gold-plate") 
 ## Flagged for you (2026-07-26) — I patched this, you should know why
 
 - **`server/requirements.txt` was missing `opencv-python-headless` and `numpy`.** Deploying the API container to Azure (`beacon-rg`, francecentral) it crashed on startup: `ModuleNotFoundError: No module named 'cv2'` from `src/vision/jobs.py` → `detectors.py`/`preprocess.py`, which import `cv2`/`numpy` directly. It worked on your machine because one of those was already present from an unrelated install — the declared dependency list itself was incomplete. This was blocking the deploy I was doing, so I added both (headless build, since the container has no GUI libs) and rebuilt — API is now healthy in Azure (`/health` returns 200). Committed in `6963534` alongside the infra region/Static-Web-App changes. Flagging per our usual rule that you own fixes in your areas — nothing else in `vision/` was touched.
+
+## Azure is live — here's what you need for the Vercel deploy (2026-07-26)
+
+`beacon-api` is the only Container App now (the two vision ones are deleted — see above). It's healthy:
+
+```
+curl https://beacon-api.ambitiousflower-ff5d4625.francecentral.azurecontainerapps.io/health
+# {"status":"healthy","database":"connected","websocket":"ready"}
+```
+
+To point your Vercel deploy(s) at it, set this build-time env var on whichever `dashboard/app` (and any other frontend) project you deploy:
+
+```
+VITE_API_BASE=https://beacon-api.ambitiousflower-ff5d4625.francecentral.azurecontainerapps.io
+```
+
+Without it, the frontend falls back to relative paths (`/v1/...`) which only work locally behind vite's dev proxy — they'd 404 against Vercel's own origin. This is wired in `dashboard/app/src/api/base.ts` (new file) + `client.ts`/`member.ts`/`ws.ts`/`CommunityOperationsCentre.tsx` (updated to route every fetch/WS call through it). See `dashboard/app/.env.example`. Flagging this since it touches your area — nothing else in `dashboard/app` logic changed, purely the URL resolution.
+
+Roboflow/SendGrid keys aren't set on the live API yet — vision detection and escalation email are unwired until someone runs, from their own machine, with their own keys:
+
+```powershell
+az login
+./infra/set-vision-secrets.ps1 -ResourceGroup beacon-rg
+```
+
+Blank input for either key just leaves that piece unwired (no error) — same non-echo, non-history handling as the Postgres password already documented in `infra/README.md`.
 
 ## Watch-outs
 - API keys (WeatherAPI, EskomSePush) — you hold them; `.env` only; repo is public.
