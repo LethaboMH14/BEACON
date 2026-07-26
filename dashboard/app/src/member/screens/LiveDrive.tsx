@@ -26,9 +26,9 @@ import type { DemoTrack, DemoFrame, DemoDetection } from '../../screens/RingCam'
 import { reportVisionIncident } from '../../api/member';
 
 const CLIPS = [
-  { id: 'hijack', label: 'Hijack attempt', video: '/demo-clips/ring-demo-hijack.mp4', track: '/demo-clips/ring-demo-hijack-detections.json' },
-  { id: 'lens', label: 'Plate lens', video: '/demo-clips/ring-demo.mp4', track: '/demo-clips/ring-demo-detections.json' },
   { id: 'drivinghome', label: 'Driving home', video: '/demo-clips/ring-demo-drivinghome.mp4', track: '/demo-clips/ring-demo-drivinghome-detections.json' },
+  { id: 'lens', label: 'Plate lens', video: '/demo-clips/ring-demo.mp4', track: '/demo-clips/ring-demo-detections.json' },
+  { id: 'hijack', label: 'Hijack attempt', video: '/demo-clips/ring-demo-hijack.mp4', track: '/demo-clips/ring-demo-hijack-detections.json' },
 ] as const;
 type ClipId = typeof CLIPS[number]['id'];
 
@@ -97,7 +97,7 @@ function boxLabel(d: DemoDetection): string {
 }
 
 export default function LiveDrive() {
-  const [clipId, setClipId] = useState<ClipId>('hijack');
+  const [clipId, setClipId] = useState<ClipId>('drivinghome');
   const [tracks, setTracks] = useState<Partial<Record<ClipId, DemoTrack>>>({});
   const [t, setT] = useState(0);
   const [playing, setPlaying] = useState(false);

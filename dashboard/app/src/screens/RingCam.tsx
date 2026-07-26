@@ -32,9 +32,9 @@ const STRIPE = 'repeating-linear-gradient(45deg, #182130, #182130 8px, #101725 8
 // question, "hijack" is the weapon-in-frame moment. A third clip ("cam lens
 // demo", per the user) is expected to land in this list later.
 const DEMO_CLIPS = [
+  { id: 'drivinghome', label: '▶ Demo: driving home', video: '/demo-clips/ring-demo-drivinghome.mp4', track: '/demo-clips/ring-demo-drivinghome-detections.json' },
   { id: 'lens', label: '▶ Demo: plate lens', video: '/demo-clips/ring-demo.mp4', track: '/demo-clips/ring-demo-detections.json' },
   { id: 'hijack', label: '▶ Demo: cam hijack', video: '/demo-clips/ring-demo-hijack.mp4', track: '/demo-clips/ring-demo-hijack-detections.json' },
-  { id: 'drivinghome', label: '▶ Demo: driving home', video: '/demo-clips/ring-demo-drivinghome.mp4', track: '/demo-clips/ring-demo-drivinghome-detections.json' },
 ] as const;
 type DemoClipId = typeof DEMO_CLIPS[number]['id'];
 

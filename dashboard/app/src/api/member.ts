@@ -179,3 +179,19 @@ export async function reportVisionIncident(payload: MemberReportPayload): Promis
   if (!res.ok) throw new Error(`POST /v1/vision/report -> ${res.status} ${res.statusText}`);
   return res.json();
 }
+
+export interface AssistantRes { answer: string; model: string; grounded: boolean }
+
+/**
+ * LLM generation for the Ask BEACON screen. The API key lives server-side
+ * (Container App secret) — never in this bundle, which is public.
+ */
+export async function askAssistant(question: string, context: string): Promise<AssistantRes> {
+  const res = await fetch(apiUrl('/v1/assistant/ask'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question, context }),
+  });
+  if (!res.ok) throw new Error(`POST /v1/assistant/ask -> ${res.status}`);
+  return res.json();
+}
