@@ -135,16 +135,17 @@ export default function VisionLens() {
   const [estimatedS,  setEstimatedS]  = useState<number | null>(null);
   const [backendNote, setBackendNote] = useState<string>('');
 
-  const fileRef   = useRef<HTMLInputElement>(null);
-  const wsRef     = useRef<WebSocket | null>(null);
+  const fileRef      = useRef<HTMLInputElement>(null);
+  const wsRef        = useRef<WebSocket | null>(null);
+  const jobIdRef     = useRef<string | null>(null);   // for the WS message filter
   const frameListRef = useRef<HTMLDivElement>(null);
 
-  // ── WS listener ──────────────────────────────────────────────────────────
+  // ── WS — connect once on mount, stay alive across jobs ───────────────────
+  // Connecting BEFORE the upload eliminates the race where the server starts
+  // processing and emitting vision.frame events while the WS handshake is
+  // still in flight.
 
-  function connectWs(forJobId: string) {
-    if (wsRef.current) {
-      wsRef.current.close();
-    }
+  useEffect(() => {
     const ws = new WebSocket(wsUrl('/ws/ops'));
     wsRef.current = ws;
 
@@ -153,21 +154,21 @@ export default function VisionLens() {
       try { msg = JSON.parse(e.data); } catch { return; }
 
       const { event, data } = msg as { event: string; data: Record<string, unknown> };
-      if ((data as { job_id?: string }).job_id !== forJobId) return;
+      // Filter to the current job only; ignore unrelated ops events.
+      if ((data as { job_id?: string }).job_id !== jobIdRef.current) return;
 
       if (event === 'vision.frame') {
         const d = data as { frame: FrameRecord; progress: number; situation: Situation };
         setFrames((prev) => [...prev, d.frame]);
         setProgress(d.progress ?? 0);
         setSituation(d.situation);
-        // Auto-scroll frame list
         setTimeout(() => {
           if (frameListRef.current) {
             frameListRef.current.scrollTop = frameListRef.current.scrollHeight;
           }
         }, 0);
       } else if (event === 'vision.decision' || event === 'vision.failed' || event === 'vision.cancelled') {
-        const d = data as { situation?: Situation; status?: string };
+        const d = data as { situation?: Situation };
         if (d.situation) setSituation(d.situation);
         setStatus(
           event === 'vision.decision' ? 'done'
@@ -175,10 +176,16 @@ export default function VisionLens() {
           : 'cancelled'
         );
         setProgress(1);
-        ws.close();
       }
     };
-  }
+
+    ws.onerror = () => {
+      // Non-fatal: the upload will still work; we just won't stream frames.
+      // The server keeps the job record so the result is retrievable via GET.
+    };
+
+    return () => ws.close();
+  }, []);
 
   // ── upload & kick off ────────────────────────────────────────────────────
 
@@ -190,6 +197,7 @@ export default function VisionLens() {
     setFileName(file.name);
     setStatus('uploading');
     setJobId(null);
+    jobIdRef.current = null;
 
     const form = new FormData();
     form.append('file', file);
@@ -204,11 +212,13 @@ export default function VisionLens() {
       const job = (await res.json()) as {
         job_id: string; estimated_seconds: number | null; note: string; backend: string;
       };
+      // Set the ref first so the already-running WS handler starts accepting
+      // events for this job before we update React state.
+      jobIdRef.current = job.job_id;
       setJobId(job.job_id);
       setEstimatedS(job.estimated_seconds);
       setBackendNote(job.backend === 'local' ? 'Local model (no cloud)' : 'Roboflow hosted');
       setStatus('running');
-      connectWs(job.job_id);
     } catch (err) {
       setUploadErr(err instanceof Error ? err.message : 'Upload failed');
       setStatus('failed');
@@ -226,8 +236,6 @@ export default function VisionLens() {
     const file = e.dataTransfer.files?.[0];
     if (file) handleFile(file);
   }
-
-  useEffect(() => () => wsRef.current?.close(), []);
 
   // ── layout ───────────────────────────────────────────────────────────────
 

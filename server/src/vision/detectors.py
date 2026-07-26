@@ -41,6 +41,7 @@ logger = logging.getLogger(__name__)
 # Roboflow API rather than guessed — see docs/BUILD-LOG.md.
 WEAPON_MODEL_ID = "weapons-detection-xvtjj/1"
 PLATE_MODEL_ID = "license-plate-recognition-rxg4e/11"
+FACE_MODEL_ID = "face-detection-mik1i/18"
 
 HOSTED_DETECT_URL = "https://detect.roboflow.com"
 
@@ -232,7 +233,7 @@ async def detect_all(frame_bgr: np.ndarray, backend: Optional[DetectorBackend] =
     backend = backend or make_backend()
     t0 = time.perf_counter()
 
-    jobs = [("weapon", WEAPON_MODEL_ID), ("plate", PLATE_MODEL_ID)]
+    jobs = [("weapon", WEAPON_MODEL_ID), ("plate", PLATE_MODEL_ID), ("face", FACE_MODEL_ID)]
     results = await asyncio.gather(
         *(backend.detect(frame_bgr, mid, kind) for kind, mid in jobs),
         return_exceptions=True,
