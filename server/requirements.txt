@@ -37,5 +37,9 @@ ortools==9.12.4544  # G2 route planner (h3 dropped — existing hex_id fixtures
 pandas==2.2.3
 openpyxl==3.1.5
 
+# Vision pipeline (src/vision/) — headless build: container has no GUI libs
+opencv-python-headless==4.10.0.84
+numpy==1.26.4
+
 # Type checking (development)
 mypy==1.8.0

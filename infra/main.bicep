@@ -45,6 +45,9 @@ param openAiLocation string = 'swedencentral'
 @description('Notification Hubs is off by default — it is only needed once there is a real mobile build to receive pushes.')
 param enableNotificationHubs bool = false
 
+@description('Azure for Students subscriptions cannot provision Static Web Apps — confirmed by testing all five SWA-capable regions (RequestDisallowedByAzure on every one, not a location issue). Off by default; member app + ops console are hosted on GitHub Pages/Vercel/Netlify instead. Flip on only if this subscription is ever upgraded off the student plan.')
+param enableStaticWebApp bool = false
+
 var uniq = uniqueString(resourceGroup().id)
 var tags = {
   project: 'BEACON'
@@ -358,10 +361,13 @@ resource rescoreJob 'Microsoft.App/jobs@2024-03-01' = {
 // ─────────────────────────────────────────────────────────────────────────────
 // Static Web Apps — member app and ops console.
 // Free tier. SWA Free has no SLA and no custom auth, which is fine for both.
-// Note SWA Free is not available in every region; it is deployed to a global
-// footprint from westeurope, which is a CDN edge choice, not data residency.
+// OFF by default: confirmed by direct testing that Azure for Students cannot
+// provision Microsoft.Web/staticSites in any of the five SWA-capable regions
+// (centralus, eastus2, westus2, westeurope, eastasia all returned
+// RequestDisallowedByAzure) — a subscription-tier block, not a region choice.
+// See infra/README.md for the GitHub Pages/Vercel fallback actually in use.
 // ─────────────────────────────────────────────────────────────────────────────
-resource memberApp 'Microsoft.Web/staticSites@2023-12-01' = {
+resource memberApp 'Microsoft.Web/staticSites@2023-12-01' = if (enableStaticWebApp) {
   name: '${prefix}-member'
   location: 'westeurope'
   tags: tags
@@ -403,7 +409,7 @@ resource notificationHub 'Microsoft.NotificationHubs/namespaces/notificationHubs
 // script from the password you typed, and never printed.
 // ─────────────────────────────────────────────────────────────────────────────
 output apiFqdn string = apiApp.properties.configuration.ingress.fqdn
-output memberAppHostname string = memberApp.properties.defaultHostname
+output memberAppHostname string = enableStaticWebApp ? memberApp.properties.defaultHostname : ''
 output postgresFqdn string = postgres.properties.fullyQualifiedDomainName
 output storageAccountName string = storage.name
 output keyVaultUri string = keyVault.properties.vaultUri

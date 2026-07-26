@@ -30,6 +30,25 @@ az postgres flexible-server stop -g beacon-rg -n <server-name>
 Sender Verification** (Settings → Sender Authentication). Do that before the
 demo, not during it.
 
+**4. This Azure for Students subscription cannot deploy in South Africa North,
+and cannot deploy Static Web Apps at all.** Confirmed by direct testing, not
+assumption:
+- `southafricanorth` is blocked by a subscription-level "best available
+  regions" policy for Storage, ACR, Postgres, and Key Vault
+  (`RequestDisallowedByAzure`). The actual deploy used **`francecentral`**
+  instead — still EU data residency, just not in-country. Say this plainly in
+  the pitch: data lives in the EU (France), not South Africa, because of a
+  subscription restriction, not a design choice.
+- `Microsoft.Web/staticSites` (Static Web Apps) is blocked in **every** one of
+  its five supported regions on this subscription (centralus, eastus2,
+  westus2, westeurope, eastasia all returned the identical
+  `RequestDisallowedByAzure`) — a resource-type block, not a location problem.
+  `enableStaticWebApp` defaults to `false` in `main.bicep` because of this.
+  The member app and ops console are hosted on a free non-Azure static host
+  instead (GitHub Pages or Vercel) — pick one when it's time to actually
+  publish them; nothing here depends on which. Flip `enableStaticWebApp=true`
+  only if this subscription is ever upgraded off the student plan.
+
 ---
 
 ## Deploy
@@ -47,10 +66,20 @@ Postgres admin password as a SecureString — it is never written to disk, never
 echoed, and never printed back at the end. Put it in your password manager when
 you type it.
 
-Then enable PostGIS once:
+Then enable PostGIS once. If you have `psql` locally:
 
 ```bash
 psql "host=<pg-fqdn> port=5432 dbname=beacon user=beaconadmin sslmode=require" -c "CREATE EXTENSION IF NOT EXISTS postgis;"
+```
+
+If you don't, the `rdbms-connect` az CLI extension does it without a local
+Postgres client:
+
+```bash
+az extension add --name rdbms-connect --yes
+az postgres flexible-server execute \
+  --name <server-name> --admin-user beaconadmin --admin-password <password> \
+  --database-name beacon --querytext "CREATE EXTENSION IF NOT EXISTS postgis;"
 ```
 
 Finally paste the printed values into `server/.env` (gitignored — keep it that way).
@@ -65,7 +94,7 @@ Finally paste the printed values into `server/.env` (gitignored — keep it that
 | Container App — API/WS | 0.5 vCPU, `minReplicas: 1` | **No, deliberately** | A WebSocket to a scaled-to-zero app is a connection to nothing. The cold start would land exactly on the first alert. |
 | Container Apps — vision ×2 | 1 vCPU / 2 GB, `minReplicas: 0` | Yes | Internal ingress only — public would let anyone spend our Roboflow quota. 2 GB because local weights OOM at 1 GB. |
 | Container Apps Job — rescore | cron `0 2 * * *` | n/a | 02:00 UTC = 04:00 SAST. Same image as the API. |
-| Static Web App | Free | n/a | Member app + ops console. |
+| Static Web App | Free | n/a | **Off by default** (`enableStaticWebApp=false`) — blocked on this subscription in all 5 supported regions, see landmine #4 above. Member app + ops console instead hosted on GitHub Pages/Vercel. |
 | Blob Storage | Standard_LRS | n/a | `clips` and `evidence`, both private. Versioning on. |
 | Key Vault | Standard, RBAC | n/a | Repo is public; nothing lives in it. |
 | ACR | Basic | n/a | `az acr build` builds in Azure — no local Docker needed. |
