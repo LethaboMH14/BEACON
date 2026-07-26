@@ -280,3 +280,97 @@ async def send_escalation(
 
     logger.info("escalation email sent to %s via %s", recipients, provider)
     return EmailResult(ok=True, provider=provider, to=recipients, detail="sent", message_id=msg_id)
+
+
+async def send_audio_alert(
+    verdict: str,
+    *,
+    label: str,
+    score: float,
+    property_address: str = "Unknown property",
+    to: Optional[list[str]] = None,
+) -> EmailResult:
+    """
+    Send a sensor-triggered alert email when the audio classifier confirms
+    glass break or gunshot. This is a machine detection email, not an
+    escalation — it says "BEACON heard something" not "a human reviewed it".
+    The subject and body are clear about that distinction.
+    """
+    import httpx
+    from datetime import datetime, timezone
+
+    provider, key, sender, default_to = _config()
+    recipients = to or default_to
+
+    kind = "glass break" if verdict == "glass_break" else "gunshot"
+    when = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    subject = f"BEACON alert — {kind.title()} detected at {property_address}"
+
+    text = "\n".join([
+        f"BEACON HOME GUARD ALERT — {kind.upper()} DETECTED",
+        "",
+        f"Property:   {property_address}",
+        f"Detected:   {kind.title()} ({label})",
+        f"Confidence: {int(round(score * 100))}%",
+        f"Time:       {when}",
+        "",
+        "BEACON's audio classifier confirmed this sound after a two-stage check: "
+        "a frequency gate in the browser, then YAMNet classification on the server. "
+        "This is a machine detection. Open the Home Guard screen to review and decide "
+        "whether to call for help.",
+        "",
+        "This alert was sent automatically by the BEACON sensor. "
+        "No human has reviewed it yet.",
+    ])
+
+    html = f"""
+<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:600px;margin:0 auto">
+  <div style="background:#111827;padding:18px 22px;border-radius:12px 12px 0 0">
+    <div style="color:#9ca3af;font-size:11px;letter-spacing:.12em;text-transform:uppercase">BEACON · Home Guard</div>
+    <div style="color:#fff;font-size:20px;font-weight:700;margin-top:4px">{escape(kind.title())} detected</div>
+    <div style="color:#9ca3af;font-size:13px;margin-top:2px">{escape(property_address)}</div>
+  </div>
+  <div style="border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;padding:22px">
+    <table style="border-collapse:collapse;width:100%">
+      <tr><td style="padding:6px 14px 6px 0;color:#6b7280;font-size:13px">Detected</td>
+          <td style="padding:6px 0;color:#111827;font-size:14px;font-weight:600">{escape(label)} — {int(round(score * 100))}% confidence</td></tr>
+      <tr><td style="padding:6px 14px 6px 0;color:#6b7280;font-size:13px">Time</td>
+          <td style="padding:6px 0;color:#111827;font-size:14px;font-weight:600">{escape(when)}</td></tr>
+    </table>
+    <div style="margin-top:18px;padding:14px;background:#fef2f2;border-left:3px solid #dc2626;border-radius:4px">
+      <div style="color:#991b1b;font-size:13px;font-weight:600;margin-bottom:4px">Machine detection — not yet reviewed</div>
+      <div style="color:#7f1d1d;font-size:12px;line-height:1.5">
+        This is an automated sensor alert. A two-stage detector (browser gate + YAMNet classifier)
+        confirmed the sound. Open the BEACON app to review and decide whether to escalate.
+      </div>
+    </div>
+    <div style="margin-top:22px;padding-top:16px;border-top:1px solid #e5e7eb;color:#9ca3af;font-size:12px;line-height:1.6">
+      BEACON has no dispatch authority. This email is a notification that the sensor fired,
+      not an instruction to respond. A person must decide the next step.
+    </div>
+  </div>
+</div>""".strip()
+
+    if provider == "resend":
+        url, headers = RESEND_URL, {"Authorization": f"Bearer {key}"}
+        body = {"from": sender, "to": recipients, "subject": subject, "html": html, "text": text}
+    else:
+        url, headers = SENDGRID_URL, {"Authorization": f"Bearer {key}"}
+        addr = sender.split("<")[-1].strip("<> ")
+        body = {
+            "personalizations": [{"to": [{"email": r} for r in recipients]}],
+            "from": {"email": addr, "name": "BEACON"},
+            "subject": subject,
+            "content": [{"type": "text/plain", "value": text}, {"type": "text/html", "value": html}],
+        }
+
+    async with httpx.AsyncClient(timeout=20) as client:
+        r = await client.post(url, headers=headers, json=body)
+
+    if r.status_code >= 300:
+        logger.error("audio alert email failed: %s %s", r.status_code, r.text[:400])
+        return EmailResult(ok=False, provider=provider, to=recipients,
+                           detail=f"HTTP {r.status_code}: {r.text[:200]}")
+
+    logger.info("audio alert email sent to %s via %s", recipients, provider)
+    return EmailResult(ok=True, provider=provider, to=recipients, detail="sent")

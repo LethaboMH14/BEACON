@@ -89,3 +89,39 @@ def classify_audio(req: ClassifyRequest) -> dict:
         # it, and the client's documented fallback is to stay on the gate alone.
         logger.warning("audio classify unavailable: %s", exc)
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc))
+
+
+class AudioAlertRequest(BaseModel):
+    verdict: str          # "glass_break" | "gunshot"
+    label: str            # e.g. "Glass" or "Gunshot, gunfire"
+    score: float
+    property_address: str = "14 Ballyclare Drive, Bryanston"
+
+
+class AudioAlertResponse(BaseModel):
+    ok: bool
+    provider: str
+    to: list[str]
+    detail: str
+
+
+@router.post("/audio/alert", response_model=AudioAlertResponse)
+async def send_audio_alert(req: AudioAlertRequest) -> AudioAlertResponse:
+    """
+    Called by the Home Guard client the moment the classifier confirms an alarm.
+    Sends an immediate notification email — no human review required, because
+    this is a sensor notification, not a dispatch order.
+    """
+    from ..notify.email import NotConfigured, send_audio_alert as _send
+
+    try:
+        res = await _send(
+            verdict=req.verdict,
+            label=req.label,
+            score=req.score,
+            property_address=req.property_address,
+        )
+        return AudioAlertResponse(ok=res.ok, provider=res.provider, to=res.to, detail=res.detail)
+    except NotConfigured as exc:
+        # Email not configured — don't block the alarm, just report it.
+        return AudioAlertResponse(ok=False, provider="unconfigured", to=[], detail=str(exc))
