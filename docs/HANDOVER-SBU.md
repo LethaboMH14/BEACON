@@ -146,27 +146,78 @@ measured, only as a target.
 
 ---
 
-## 4. Once Azure is live
+## 4. Azure is live (2026-07-26) — here's what you actually need
 
-Templates are ready in `infra/` (`main.bicep`, `deploy.ps1`, `README.md`) — read
-`infra/README.md` first, it has three specific landmines called out (Azure OpenAI
-unavailable in South Africa North on a student sub, Postgres can't scale to zero so it
-must be stopped between sessions, SendGrid sender verification). I'm running the deploy
-myself once my Azure login is back (expired token, unrelated to the infra itself).
+**The API is deployed and healthy:**
 
-What changes for you once it's deployed — I'll update this section with real values, but
-the shape is:
-- `DATABASE_URL` in `.env` switches from SQLite to the deployed Postgres+PostGIS
-  connection string (same SQLAlchemy code, no rewrite — that's why Postgres was picked)
-- `AZURE_STORAGE_ACCOUNT` / `KEY_VAULT_URI` get filled in for clip/evidence storage
-- The two vision services *could* move into their own Container Apps (scale-to-zero) at
-  that point, which is when installing `inference` locally becomes safe to try again —
-  it'd be in its own container, not this one
-- Nothing about the API surface in §2 changes — same routes, same contract, just a
-  different `DATABASE_URL`
+```bash
+curl https://beacon-api.ambitiousflower-ff5d4625.francecentral.azurecontainerapps.io/health
+# {"status":"healthy","database":"connected","websocket":"ready"}
+```
 
-I'll ping you the moment the deploy finishes with the real connection strings (never in
-a public channel — I'll hand them to you directly, not commit them).
+`beacon-api` is the only Container App in `beacon-rg` now — the two standalone vision
+services (`vision/backend`, `vision/weapen_backend`) were removed from `infra/main.bicep`
+and deleted from Azure. They're superseded: `server/src/vision/detectors.py` already
+calls Roboflow's hosted model directly from inside the API container, measured 3.5x
+faster than the old workflow-based services (their own docstring has the numbers). No
+separate vision deploy exists to think about.
+
+### Your job: deploy the frontend(s) to Vercel
+
+You deploy `dashboard/app` (and any other frontend, e.g. `app/web`) to Vercel yourself —
+your account, your call on project settings. The only thing that has to be set is a
+build-time env var so the deployed frontend stops assuming it's running behind vite's
+local dev proxy:
+
+```
+VITE_API_BASE=https://beacon-api.ambitiousflower-ff5d4625.francecentral.azurecontainerapps.io
+```
+
+Set that in the Vercel project's Environment Variables before building. Without it,
+every `fetch`/WebSocket call falls back to relative paths that only resolve locally —
+see `dashboard/app/src/api/base.ts` and `dashboard/app/.env.example`. Nothing else in
+the frontend code changes for a Vercel deploy; this is the one knob.
+
+The demo itself runs off your deployed Vercel frontend hitting this live Azure API —
+you don't run a local server, and you don't need a local Postgres.
+
+### Your own Azure access, if you want it
+
+You now have a service principal scoped **only** to `beacon-rg` (can't see or touch
+anything else in the subscription) with Contributor rights. Lethabo will hand you the
+credentials directly (not over a public channel, not committed). Once you have them:
+
+```bash
+az login --service-principal -u <appId> -p <password> --tenant <tenant>
+az account set --subscription 96a8041a-e4db-4054-8dc6-a916b2951923
+```
+
+What that unlocks for you:
+- **Set/rotate the Roboflow + SendGrid keys** on the live API without a full redeploy:
+  ```powershell
+  ./infra/set-vision-secrets.ps1 -ResourceGroup beacon-rg
+  ```
+  Prompts for both as SecureStrings — blank leaves that piece unwired, no error. Vision
+  detection and escalation email aren't wired on the live API yet; this is how you'd do
+  it with your own keys.
+- Redeploy/adjust `infra/main.bicep` yourself if something needs fixing and Lethabo
+  isn't around — full Contributor on `beacon-rg` covers that.
+
+You do **not** need this just to deploy to Vercel — only if you want to touch Azure
+directly (set the vision keys, poke at Postgres/Container Apps, redeploy infra).
+
+### What's in beacon-rg today
+
+| Resource | Purpose |
+|---|---|
+| `beacon-api` (Container App) | FastAPI + WS, the only compute — vision runs inside it |
+| `beacon-pg-*` (Postgres Flexible Server) | Primary DB, `sslmode=require` |
+| Storage account | clip/evidence storage |
+| Key Vault | secret storage referenced by the API |
+| Container Registry | holds the `beacon-api` image |
+
+`DATABASE_URL`, `KEY_VAULT_URI`, `AZURE_STORAGE_ACCOUNT` are already wired into
+`beacon-api`'s env — you don't set these yourself unless you're redeploying infra.
 
 ---
 
