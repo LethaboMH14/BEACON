@@ -19,9 +19,9 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { colors } from '../../theme/tokens';
-import { Button, Card, Chip, MethodNote, Screen, ScreenHeader, SimulatedTag } from '../ui';
+import { Button, Card, Chip, MethodNote, Screen, ScreenHeader, SimulatedTag, radii } from '../ui';
 import { createAlert } from '../../api/member';
-import { startGlassBreakDetector, type AudioFrame, type DetectorHandle } from '../audio/glassBreak';
+import { startGlassBreakDetector, THRESHOLDS, type AudioFrame, type DetectorHandle, type Sensitivity } from '../audio/glassBreak';
 
 const PROPERTY = { address: '14 Ballyclare Drive', suburb: 'Bryanston' };
 
@@ -49,6 +49,10 @@ export default function HomeGuard() {
   const [micError, setMicError] = useState<string | null>(null);
   const [audio, setAudio] = useState<AudioFrame | null>(null);
   const [triggeredBy, setTriggeredBy] = useState<'mic' | 'demo' | null>(null);
+  const [sensitivity, setSensitivity] = useState<Sensitivity>('normal');
+  // Peak-hold. A transient is over in ~30ms; without holding the loudest recent
+  // frame you cannot read off the screen how close a near-miss actually got.
+  const [peak, setPeak] = useState<AudioFrame | null>(null);
   const detector = useRef<DetectorHandle | null>(null);
   // The detector callback fires at frame rate; without this it would re-enter
   // trigger() on every frame for as long as the transient lasts.
@@ -66,13 +70,17 @@ export default function HomeGuard() {
     setMicState('starting');
     try {
       armed.current = true;
+      setPeak(null);
       detector.current = await startGlassBreakDetector((frame) => {
         setAudio(frame);
+        // Rank by onset, since that is what a transient is; a loud steady room
+        // would otherwise permanently own the peak slot and tell you nothing.
+        setPeak((p) => (!p || frame.onsetDb > p.onsetDb ? frame : p));
         if (frame.detected && armed.current) {
           armed.current = false;
           trip('mic');
         }
-      });
+      }, sensitivity);
       setMicState('live');
     } catch (e) {
       setMicState('denied');
@@ -155,20 +163,63 @@ export default function HomeGuard() {
         <Waveform active={mode === 'active' && !resolved} level={audio?.levelDb ?? null} />
 
         {micState === 'live' && audio && (
-          <div className="tabular-nums" style={{ display: 'flex', gap: 14, marginTop: 10, fontSize: 11, color: colors.inkLo }}>
-            <span>level {audio.levelDb.toFixed(0)} dB</span>
-            <span>high-freq {(audio.hfRatio * 100).toFixed(0)}%</span>
-            <span>onset {audio.onsetDb > 0 ? '+' : ''}{audio.onsetDb.toFixed(0)} dB</span>
+          <div style={{ marginTop: 12, padding: 10, borderRadius: radii.chip, background: colors.bg50 }}>
+            <div style={{ fontSize: 10.5, fontWeight: 700, color: colors.inkMid, marginBottom: 7, letterSpacing: 0.3 }}>
+              ALL THREE MUST PASS AT ONCE
+            </div>
+            <Condition
+              label="Loud enough"
+              now={`${audio.levelDb.toFixed(0)} dB`}
+              need={`> ${THRESHOLDS[sensitivity].levelFloorDb} dB`}
+              ok={audio.passed.loud}
+            />
+            <Condition
+              label="High-frequency"
+              now={`${(audio.hfRatio * 100).toFixed(0)}%`}
+              need={`> ${(THRESHOLDS[sensitivity].hfRatioMin * 100).toFixed(0)}%`}
+              ok={audio.passed.highFreq}
+            />
+            <Condition
+              label="Sudden onset"
+              now={`${audio.onsetDb > 0 ? '+' : ''}${audio.onsetDb.toFixed(0)} dB`}
+              need={`> +${THRESHOLDS[sensitivity].onsetDb} dB`}
+              ok={audio.passed.onset}
+            />
+            {peak && (
+              <div className="tabular-nums" style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${colors.lineLight}`, fontSize: 10.5, color: colors.inkLo }}>
+                Loudest so far: {(peak.hfRatio * 100).toFixed(0)}% high-freq, +{peak.onsetDb.toFixed(0)} dB onset
+              </div>
+            )}
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+        <div style={{ display: 'flex', gap: 8, marginTop: 14, alignItems: 'center', flexWrap: 'wrap' }}>
           {micState === 'live'
             ? <Button variant="secondary" onClick={disarmMic}>Stop listening</Button>
             : <Button onClick={armMic} disabled={micState === 'starting'}>
                 {micState === 'starting' ? 'Starting…' : 'Arm microphone'}
               </Button>}
+          {micState !== 'live' && (
+            <button
+              onClick={() => setSensitivity((s) => (s === 'normal' ? 'high' : 'normal'))}
+              style={{
+                minHeight: 44, padding: '0 13px', borderRadius: radii.control, cursor: 'pointer',
+                border: `1px solid ${colors.lineLight}`, background: colors.bg0,
+                fontSize: 12.5, color: colors.inkMid, fontFamily: 'inherit',
+              }}
+            >
+              Sensitivity: {sensitivity === 'high' ? 'high' : 'normal'}
+            </button>
+          )}
         </div>
+
+        {micState !== 'live' && sensitivity === 'high' && (
+          <p style={{ margin: '8px 0 0', fontSize: 11, color: colors.inkLo, lineHeight: 1.45 }}>
+            High sensitivity is for testing with a sound played through speakers — small
+            drivers lose the top octaves and soften the attack, so real thresholds would
+            unfairly reject a genuine recording.
+          </p>
+        )}
 
         {micError && (
           <p style={{ margin: '10px 0 0', fontSize: 11.5, color: colors.critical, lineHeight: 1.45 }}>
@@ -286,6 +337,22 @@ export default function HomeGuard() {
           : 'Arming the microphone runs real signal processing on live audio: it fires on a sharp broadband onset with most of its energy above 3.2 kHz, confirmed across consecutive frames. It is a transient detector, not a trained classifier — it cannot tell breaking glass from another sharp high-frequency sound like a dropped plate. Audio is analysed and discarded; nothing is recorded or uploaded.'}
       </MethodNote>
     </Screen>
+  );
+}
+
+/** One of the three detector conditions, with its live value and its threshold. */
+function Condition({ label, now, need, ok }: { label: string; now: string; need: string; ok: boolean }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '3px 0', fontSize: 11.5 }}>
+      <span style={{
+        width: 14, height: 14, borderRadius: 7, flexShrink: 0, display: 'grid', placeItems: 'center',
+        fontSize: 9, fontWeight: 700, color: '#fff',
+        background: ok ? colors.safe : colors.lineLight,
+      }}>{ok ? '✓' : ''}</span>
+      <span style={{ color: ok ? colors.inkHi : colors.inkMid, fontWeight: ok ? 650 : 400 }}>{label}</span>
+      <span className="tabular-nums" style={{ marginLeft: 'auto', color: colors.inkHi, fontWeight: 650 }}>{now}</span>
+      <span className="tabular-nums" style={{ color: colors.inkLo, minWidth: 62, textAlign: 'right' }}>needs {need}</span>
+    </div>
   );
 }
 

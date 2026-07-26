@@ -30,18 +30,37 @@ describe('spectrumStats', () => {
 
 describe('frameQualifies', () => {
   it('fires on a loud high-frequency onset — the glass-break shape', () => {
-    expect(frameQualifies(-25, 0.7, 20)).toBe(true);
+    expect(frameQualifies(-25, 0.7, 20).ok).toBe(true);
   });
 
   it('rejects a door slam: onset present, but energy is low-frequency', () => {
-    expect(frameQualifies(-25, 0.1, 20)).toBe(false);
+    const { ok, passed } = frameQualifies(-25, 0.1, 20);
+    expect(ok).toBe(false);
+    // The point of `passed` is that the failing condition is identifiable.
+    expect(passed).toEqual({ loud: true, highFreq: false, onset: true });
   });
 
   it('rejects steady speech or music: high-frequency content but no onset', () => {
-    expect(frameQualifies(-25, 0.6, 3)).toBe(false);
+    const { ok, passed } = frameQualifies(-25, 0.6, 3);
+    expect(ok).toBe(false);
+    expect(passed).toEqual({ loud: true, highFreq: true, onset: false });
   });
 
   it('rejects anything below the quiet-room floor even if the shape matches', () => {
-    expect(frameQualifies(-70, 0.7, 20)).toBe(false);
+    const { ok, passed } = frameQualifies(-70, 0.7, 20);
+    expect(ok).toBe(false);
+    expect(passed.loud).toBe(false);
+  });
+
+  it('high sensitivity accepts a speaker-played transient that normal rejects', () => {
+    // Rolled-off top end and a softened attack — what playback through laptop
+    // speakers does to a real recording.
+    const played = [-40, 0.33, 10] as const;
+    expect(frameQualifies(...played, 'normal').ok).toBe(false);
+    expect(frameQualifies(...played, 'high').ok).toBe(true);
+  });
+
+  it('high sensitivity still rejects steady speech — it loosens, it does not disable', () => {
+    expect(frameQualifies(-25, 0.6, 2, 'high').ok).toBe(false);
   });
 });

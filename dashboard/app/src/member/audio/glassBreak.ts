@@ -26,12 +26,21 @@
 
 /** Frequency above which we treat energy as "transient/shatter" rather than voice. */
 const HF_CUTOFF_HZ = 3200;
-/** Fraction of total spectral energy above the cutoff needed to look like glass. */
-const HF_RATIO_MIN = 0.45;
-/** How far level must jump above its own running baseline, in dB, to be an onset. */
-const ONSET_DB = 12;
-/** Absolute floor — below this the room is quiet and nothing is evaluated. */
-const LEVEL_FLOOR_DB = -55;
+
+/**
+ * Sensitivity presets. `normal` is the tuning described above. `high` exists
+ * for a real reason rather than as a slider for its own sake: a glass-break
+ * sound replayed through laptop speakers is not the same signal as real glass.
+ * Small drivers roll off the top octaves and compress the attack, so the same
+ * event arrives with a lower high-frequency share and a softer onset. Testing
+ * with recorded playback needs the looser thresholds to be a fair test.
+ */
+export type Sensitivity = 'normal' | 'high';
+
+export const THRESHOLDS = {
+  normal: { hfRatioMin: 0.45, onsetDb: 12, levelFloorDb: -55 },
+  high: { hfRatioMin: 0.28, onsetDb: 8, levelFloorDb: -62 },
+} as const;
 /** Consecutive qualifying frames required before we call it. */
 const FRAMES_TO_CONFIRM = 2;
 /** Smoothing for the running baseline. Slow enough that the event can't raise it. */
@@ -46,6 +55,8 @@ export interface AudioFrame {
   onsetDb: number;
   /** True on the frame a confirmed transient fires. */
   detected: boolean;
+  /** Which of the three conditions this frame met — so a near-miss is diagnosable. */
+  passed: { loud: boolean; highFreq: boolean; onset: boolean };
 }
 
 export interface DetectorHandle {
@@ -58,8 +69,19 @@ export interface DetectorHandle {
  * be doing. Returns whether this single frame qualifies; confirmation across
  * consecutive frames is the caller's job.
  */
-export function frameQualifies(levelDb: number, hfRatio: number, onsetDb: number): boolean {
-  return levelDb > LEVEL_FLOOR_DB && onsetDb > ONSET_DB && hfRatio > HF_RATIO_MIN;
+export function frameQualifies(
+  levelDb: number,
+  hfRatio: number,
+  onsetDb: number,
+  sensitivity: Sensitivity = 'normal',
+): { ok: boolean; passed: { loud: boolean; highFreq: boolean; onset: boolean } } {
+  const t = THRESHOLDS[sensitivity];
+  const passed = {
+    loud: levelDb > t.levelFloorDb,
+    highFreq: hfRatio > t.hfRatioMin,
+    onset: onsetDb > t.onsetDb,
+  };
+  return { ok: passed.loud && passed.highFreq && passed.onset, passed };
 }
 
 /** Splits an FFT magnitude-dB array into broadband level and high-freq share. */
@@ -84,6 +106,7 @@ export function spectrumStats(bins: Float32Array, cutoffBin: number): { levelDb:
  */
 export async function startGlassBreakDetector(
   onFrame: (frame: AudioFrame) => void,
+  sensitivity: Sensitivity = 'normal',
 ): Promise<DetectorHandle> {
   const stream = await navigator.mediaDevices.getUserMedia({
     audio: {
@@ -118,7 +141,7 @@ export async function startGlassBreakDetector(
 
     const { levelDb, hfRatio } = spectrumStats(bins, cutoffBin);
     const onsetDb = levelDb - baselineDb;
-    const isTransient = frameQualifies(levelDb, hfRatio, onsetDb);
+    const { ok: isTransient, passed } = frameQualifies(levelDb, hfRatio, onsetDb, sensitivity);
 
     qualifying = isTransient ? qualifying + 1 : 0;
     const detected = qualifying === FRAMES_TO_CONFIRM;
@@ -129,7 +152,7 @@ export async function startGlassBreakDetector(
       baselineDb = baselineDb * (1 - BASELINE_ALPHA) + levelDb * BASELINE_ALPHA;
     }
 
-    onFrame({ levelDb, hfRatio, onsetDb, detected });
+    onFrame({ levelDb, hfRatio, onsetDb, detected, passed });
     raf = requestAnimationFrame(tick);
   }
   raf = requestAnimationFrame(tick);
