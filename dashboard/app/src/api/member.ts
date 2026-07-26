@@ -120,3 +120,30 @@ export async function scoreRoutes(
   if (!res.ok) throw new Error(`POST /v1/routes/safest -> ${res.status} ${res.statusText}`);
   return res.json();
 }
+
+export interface CreateAlertPayload {
+  alert_type: string;
+  recipient_id: string;
+  recipient_type: 'ops' | 'member';
+  message: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  camera_id?: string;
+}
+
+export interface CreatedAlert {
+  id: string;
+  status: string;
+  created_at: string;
+  cancel_window_expires: string | null;
+}
+
+/** Real alert creation — POST /v1/alerts (server/src/api/alerts.py). */
+export async function createAlert(payload: CreateAlertPayload): Promise<CreatedAlert> {
+  const res = await fetch('/v1/alerts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`POST /v1/alerts -> ${res.status} ${res.statusText}`);
+  return res.json();
+}

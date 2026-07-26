@@ -37,9 +37,12 @@ ortools==9.12.4544  # G2 route planner (h3 dropped — existing hex_id fixtures
 pandas==2.2.3
 openpyxl==3.1.5
 
-# Vision pipeline (src/vision/) — headless build: container has no GUI libs
+# Computer vision preprocessing (src/vision/preprocess.py — CLAHE for low light,
+# frame sampling ahead of the Roboflow plate/weapon calls). Missing entirely
+# before this: fresh installs of requirements.txt could not import src.vision
+# at all (ModuleNotFoundError: cv2), breaking pytest collection.
 opencv-python-headless==4.10.0.84
-numpy==1.26.4
+numpy==2.2.1
 
 # Type checking (development)
 mypy==1.8.0

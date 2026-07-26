@@ -97,7 +97,7 @@ export default function Home() {
           <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.55, opacity: 0.92 }}>
             {mine ? (
               <>
-                {mine.incident_count} Discovery claims on record here, mostly {(mine.top_claim_type ?? 'theft').toLowerCase()}.
+                {mine.incident_count} local crime reports on record here, mostly {(mine.top_claim_type ?? 'theft').toLowerCase()}.
                 Historically busiest around <strong>{hourLabel(mine.peak_hour)}</strong>
                 {mine.peak_day_of_week ? ` on ${mine.peak_day_of_week}s` : ''}.
               </>
