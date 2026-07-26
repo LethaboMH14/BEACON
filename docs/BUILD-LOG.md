@@ -3,6 +3,18 @@
 Every behaviour change gets an entry in the same commit. Plain-language section mandatory — anyone on the team must be able to read it.
 
 ---
+
+## 2026-07-26 — Vision decision spine (detect → decide → escalate → notify) + Azure infra templates
+
+**What:** Added `server/src/vision/detectors.py` (Roboflow plate + weapon models, hosted and local backends, run concurrently via `asyncio.gather`), `server/src/vision/decision.py` (Quiet/Notice/Candidate/Escalated levels — mirrors `suspicion/scorer.py`'s human-gate rule: the machine can reach Candidate, never Escalated, without a named operator calling `escalate()`), `server/src/vision/jobs.py` (video upload processed as a background job, sampled at 1fps, progress streamed over the existing ops WebSocket instead of blocking the request), `server/src/notify/email.py` (SendGrid/Resend escalation email, refuses to send for anything not human-escalated), and `server/src/api/vision_jobs.py` (upload/poll/escalate endpoints, operator-token gated, wired into `main.py`). Added `server/tests/test_vision_decision.py` (20 tests). Full suite: 166 passed. Also added `infra/main.bicep` + `infra/deploy.ps1` + `infra/README.md` — the Azure resource graph matching the team's architecture table (Postgres Flexible+PostGIS, Static Web Apps, Container Apps for API/WS and for scale-to-zero vision services, Blob Storage, Container Apps Jobs cron, Key Vault). Azure OpenAI and Notification Hubs are provisioned but disabled by default — flagged in the README, not silently dropped.
+
+**Why:** The vision pipeline could detect but had no path from a detection to a human decision to an actual notification — this was the real gap blocking the ring-camera demo flow. Azure setup needed templates ready before deploying against the Azure for Students credit.
+
+**Plain language:** A video can now be uploaded, gets watched frame-by-frame for weapons and plates, and produces a plain-English reason ("weapon seen in 3 of the last 5 frames, 62% confidence") — but it can never send an email or count as "escalated" on its own. Only a named operator clicking escalate does that, and the system remembers who. The Azure deployment scripts are ready to run once login is live; nothing has been provisioned yet.
+
+**Breaks/risks:** Local (on-device) inference could not be installed into the server environment without breaking it (dependency conflict) — deferred to its own container, per the existing architecture. The ~0.1–0.3s local-latency target is unproven; the honest measured number on record is ~1.1s/frame hosted, plate+weapon in parallel.
+
+---
 ## 2026-07-26 — Member app: six delivered designs ported to seven live screens, wired to real endpoints
 
 **What:** BEACON now serves two surfaces from one build, behind a real router (`react-router-dom`, `createBrowserRouter` in `main.tsx`):
