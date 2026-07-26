@@ -77,9 +77,25 @@ export default function HomeGuard() {
   // the ladder while a response is already in progress.
   const armed = useRef(false);
 
+  // Live log panel — mirrors what the server prints to terminal
+  type LogLine = { id: number; text: string; kind: 'info' | 'alarm' | 'ok' | 'dim' };
+  const [logs, setLogs] = useState<LogLine[]>([]);
+  const logId = useRef(0);
+  const logRef = useRef<HTMLDivElement>(null);
+  function pushLog(text: string, kind: LogLine['kind'] = 'info') {
+    const id = ++logId.current;
+    setLogs((prev) => [...prev.slice(-49), { id, text, kind }]);
+  }
+  // Auto-scroll log to bottom whenever new lines arrive
+  useEffect(() => {
+    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
+  }, [logs]);
+
   async function sendAlertEmail(result: ClassifyResult) {
+    const kind = result.verdict === 'gunshot' ? 'GUNSHOT' : 'GLASS BREAK';
+    pushLog(`📧  Sending alert email — ${kind}`, 'info');
     try {
-      await fetch(apiUrl('/v1/audio/alert'), {
+      const res = await fetch(apiUrl('/v1/audio/alert'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -89,8 +105,11 @@ export default function HomeGuard() {
           property_address: `${PROPERTY.address}, ${PROPERTY.suburb}`,
         }),
       });
+      const data = await res.json().catch(() => ({}));
+      if (data.ok) pushLog(`✓  Email sent → ${(data.to as string[]).join(', ')}`, 'ok');
+      else pushLog(`✗  Email: ${data.detail || 'not configured'}`, 'dim');
     } catch {
-      // Email failure must never block the alarm UI.
+      pushLog('✗  Email request failed', 'dim');
     }
   }
 
@@ -111,16 +130,26 @@ export default function HomeGuard() {
     setGateCount((n) => n + 1);
     setChecking(true);
     setClassifyError(null);
+    pushLog(`🎙  Impact gate fired — sending ${samples.length} samples to YAMNet`, 'info');
     try {
       const result = await classifyWindow(samples, sampleRate);
       setVerdict(result);
       const alarmVerdict = result.verdict === 'glass_break' || result.verdict === 'gunshot';
-      if (alarmVerdict && armed.current) {
-        armed.current = false;
-        trip('mic', result);
+      if (alarmVerdict) {
+        const score = result.verdict === 'gunshot' ? result.gunshot_score : result.glass_score;
+        const label = result.verdict === 'gunshot' ? result.gunshot_label : result.glass_label;
+        pushLog(`⚠   VERDICT: ${result.verdict.replace('_', ' ').toUpperCase()}  ${label}  score=${score.toFixed(3)}`, 'alarm');
+        pushLog('    → ALARM TRIGGERED', 'alarm');
+        if (armed.current) { armed.current = false; trip('mic', result); }
+      } else {
+        const top3 = result.top.slice(0, 3).map((t) => `${t.label} ${t.score.toFixed(3)}`).join('  |  ');
+        pushLog(`✓   verdict: other   glass=${result.glass_score.toFixed(3)}  gunshot=${result.gunshot_score?.toFixed(3) ?? '—'}`, 'ok');
+        pushLog(`    top: ${top3}`, 'dim');
       }
     } catch (e) {
-      setClassifyError(e instanceof Error ? e.message : 'Classifier unreachable');
+      const msg = e instanceof Error ? e.message : 'Classifier unreachable';
+      pushLog(`✗   Classifier error: ${msg}`, 'dim');
+      setClassifyError(msg);
     } finally {
       setChecking(false);
     }
@@ -157,14 +186,23 @@ export default function HomeGuard() {
 
       // Already at TARGET_RATE from AudioContext; fitToWindow pads/trims to YAMNet length
       const window = fitToWindow(mono);
+      pushLog(`🎵  File decoded — ${mono.length} samples → sending to YAMNet`, 'info');
       const result = await classifyWindow(window, TARGET_RATE);
       setVerdict(result);
       setGateCount((n) => n + 1);
 
       const alarmVerdict = result.verdict === 'glass_break' || result.verdict === 'gunshot';
       if (alarmVerdict) {
+        const score = result.verdict === 'gunshot' ? result.gunshot_score : result.glass_score;
+        const label = result.verdict === 'gunshot' ? result.gunshot_label : result.glass_label;
+        pushLog(`⚠   VERDICT: ${result.verdict.replace('_', ' ').toUpperCase()}  ${label}  score=${score.toFixed(3)}`, 'alarm');
+        pushLog('    → ALARM TRIGGERED', 'alarm');
         armed.current = false;
         trip('mic', result);
+      } else {
+        const top3 = result.top.slice(0, 3).map((t) => `${t.label} ${t.score.toFixed(3)}`).join('  |  ');
+        pushLog(`✓   verdict: other   glass=${result.glass_score.toFixed(3)}  gunshot=${result.gunshot_score?.toFixed(3) ?? '—'}`, 'ok');
+        pushLog(`    top: ${top3}`, 'dim');
       }
     } catch (e) {
       if (e instanceof ClassifierOffline) {
@@ -546,6 +584,55 @@ export default function HomeGuard() {
           ? 'This run was started by the scripted demo button, not by the microphone.'
           : 'Detection runs in two stages on live microphone audio. First, real signal processing looks for an impact: a sharp broadband onset with most of its energy above 3.2 kHz, held across consecutive frames. That gate is not specific to glass on its own — speech sounds like "sss" pass it too — so it only decides that the moment is worth a closer look. Second, that one second is classified by YAMNet, a 521-class audio model, which must score breaking glass above every everyday sound it knows (speech, music, a slammed door, cutlery, a passing car) by a clear margin before an alert is raised. If the classifier cannot be reached, no alert is raised. Audio is analysed and discarded; nothing is recorded or stored.'}
       </MethodNote>
+
+      {/* ── live backend log panel ── */}
+      <div style={{ marginTop: 16 }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          marginBottom: 6,
+        }}>
+          <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, color: colors.inkLo }}>
+            BACKEND LOG
+          </span>
+          {logs.length > 0 && (
+            <button
+              onClick={() => setLogs([])}
+              style={{ fontSize: 10, color: colors.inkLo, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+            >
+              clear
+            </button>
+          )}
+        </div>
+        <div
+          ref={logRef}
+          style={{
+            background: '#0d1117',
+            borderRadius: 8,
+            padding: '12px 14px',
+            minHeight: 120,
+            maxHeight: 260,
+            overflowY: 'auto',
+            fontFamily: 'ui-monospace, "Cascadia Code", "Fira Mono", monospace',
+            fontSize: 11.5,
+            lineHeight: 1.6,
+          }}
+        >
+          {logs.length === 0
+            ? <span style={{ color: '#484f58' }}>Waiting for audio window…</span>
+            : logs.map((line) => (
+              <div key={line.id} style={{
+                color: line.kind === 'alarm' ? '#f85149'
+                     : line.kind === 'ok'    ? '#3fb950'
+                     : line.kind === 'dim'   ? '#484f58'
+                     : '#e6edf3',
+                whiteSpace: 'pre',
+              }}>
+                {line.text}
+              </div>
+            ))
+          }
+        </div>
+      </div>
     </Screen>
   );
 }
