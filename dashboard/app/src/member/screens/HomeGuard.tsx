@@ -1,12 +1,16 @@
 /**
  * Home Guard — property audio monitoring and the escalation ladder.
  *
- * SIMULATED, AND LABELLED THAT WAY THROUGHOUT
- * There is no acoustic model in this build. The glass-break detection is a
- * scripted demo trigger, not inference, so this screen carries a SIMULATED tag
- * in its header and a plain sentence at the bottom saying so. Everything else
- * about it — the escalation ladder, the two-button response, the cancel window —
- * is the real interaction design, which is what this screen is for.
+ * WHAT IS REAL HERE
+ * Arming the mic runs a real acoustic transient detector on live microphone
+ * audio (member/audio/glassBreak.ts) — real DSP, not a scripted trigger. It is
+ * a detector rather than a trained classifier, so it fires on sharp
+ * high-frequency transients generally; the footnote says exactly that. The
+ * scripted trigger is kept as a fallback button so the ladder can still be
+ * demonstrated in a loud room or with the mic blocked.
+ *
+ * The escalation ladder, the two-button response and the cancel window are the
+ * real interaction design, which is what this screen is for.
  *
  * The design delivered this as three frames (resting / active detection /
  * escalation ladder). They are one screen in three states, and the state
@@ -17,6 +21,7 @@ import { useEffect, useRef, useState } from 'react';
 import { colors } from '../../theme/tokens';
 import { Button, Card, Chip, MethodNote, Screen, ScreenHeader, SimulatedTag } from '../ui';
 import { createAlert } from '../../api/member';
+import { startGlassBreakDetector, type AudioFrame, type DetectorHandle } from '../audio/glassBreak';
 
 const PROPERTY = { address: '14 Ballyclare Drive', suburb: 'Bryanston' };
 
@@ -40,12 +45,55 @@ export default function HomeGuard() {
   const [alertError, setAlertError] = useState<string | null>(null);
   const startedAt = useRef<number>(0);
 
+  const [micState, setMicState] = useState<'off' | 'starting' | 'live' | 'denied'>('off');
+  const [micError, setMicError] = useState<string | null>(null);
+  const [audio, setAudio] = useState<AudioFrame | null>(null);
+  const [triggeredBy, setTriggeredBy] = useState<'mic' | 'demo' | null>(null);
+  const detector = useRef<DetectorHandle | null>(null);
+  // The detector callback fires at frame rate; without this it would re-enter
+  // trigger() on every frame for as long as the transient lasts.
+  const armed = useRef(false);
+
+  function trip(source: 'mic' | 'demo') {
+    setTriggeredBy(source);
+    setElapsed(0);
+    setResolved(null);
+    setMode('active');
+  }
+
+  async function armMic() {
+    setMicError(null);
+    setMicState('starting');
+    try {
+      armed.current = true;
+      detector.current = await startGlassBreakDetector((frame) => {
+        setAudio(frame);
+        if (frame.detected && armed.current) {
+          armed.current = false;
+          trip('mic');
+        }
+      });
+      setMicState('live');
+    } catch (e) {
+      setMicState('denied');
+      setMicError(e instanceof Error ? e.message : 'Microphone unavailable');
+    }
+  }
+
+  function disarmMic() {
+    detector.current?.stop();
+    detector.current = null;
+    armed.current = false;
+    setMicState('off');
+    setAudio(null);
+  }
+
+  useEffect(() => () => detector.current?.stop(), []);
+
   // "I'm not home" is the one branch that should actually reach the ops
   // dashboard — a real Alert (POST /v1/alerts), so it shows up live on the
   // console with a real evidence-chain entry, not just a local UI state
-  // change. This does NOT send an email (server/.env has no SENDGRID_API_KEY
-  // configured) — see HomeGuard.tsx's module header for the rest of what's
-  // still simulated here (the detection itself).
+  // change.
   async function escalate() {
     setResolved('away');
     setAlertError(null);
@@ -79,7 +127,7 @@ export default function HomeGuard() {
       <ScreenHeader
         title="Home guard"
         subtitle={`${PROPERTY.address} · ${PROPERTY.suburb}`}
-        right={<SimulatedTag />}
+        right={micState === 'live' ? <Chip tone="safe">Mic live</Chip> : <SimulatedTag />}
       />
 
       {/* ---- listening surface ---- */}
@@ -92,15 +140,41 @@ export default function HomeGuard() {
               animation: 'beacon-pulse 1.8s ease-in-out infinite',
             }} />
             <span style={{ fontSize: 14, fontWeight: 700 }}>
-              {resolved ? 'Stood down' : mode === 'active' ? 'Sound detected' : 'Listening'}
+              {resolved ? 'Stood down'
+                : mode === 'active' ? 'Sound detected'
+                : micState === 'live' ? 'Listening to your microphone'
+                : micState === 'starting' ? 'Starting microphone…'
+                : 'Not listening'}
             </span>
           </div>
-          <Chip tone={mode === 'active' && !resolved ? 'critical' : 'safe'}>
-            {mode === 'active' && !resolved ? 'Responding' : 'Armed'}
+          <Chip tone={mode === 'active' && !resolved ? 'critical' : micState === 'live' ? 'safe' : 'neutral'}>
+            {mode === 'active' && !resolved ? 'Responding' : micState === 'live' ? 'Armed' : 'Disarmed'}
           </Chip>
         </div>
 
-        <Waveform active={mode === 'active' && !resolved} />
+        <Waveform active={mode === 'active' && !resolved} level={audio?.levelDb ?? null} />
+
+        {micState === 'live' && audio && (
+          <div className="tabular-nums" style={{ display: 'flex', gap: 14, marginTop: 10, fontSize: 11, color: colors.inkLo }}>
+            <span>level {audio.levelDb.toFixed(0)} dB</span>
+            <span>high-freq {(audio.hfRatio * 100).toFixed(0)}%</span>
+            <span>onset {audio.onsetDb > 0 ? '+' : ''}{audio.onsetDb.toFixed(0)} dB</span>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+          {micState === 'live'
+            ? <Button variant="secondary" onClick={disarmMic}>Stop listening</Button>
+            : <Button onClick={armMic} disabled={micState === 'starting'}>
+                {micState === 'starting' ? 'Starting…' : 'Arm microphone'}
+              </Button>}
+        </div>
+
+        {micError && (
+          <p style={{ margin: '10px 0 0', fontSize: 11.5, color: colors.critical, lineHeight: 1.45 }}>
+            Microphone unavailable: {micError}. The scripted demo trigger below still works.
+          </p>
+        )}
 
         <div style={{ display: 'flex', gap: 6, marginTop: 14, flexWrap: 'wrap' }}>
           <Chip>Glass break</Chip>
@@ -200,32 +274,40 @@ export default function HomeGuard() {
 
       {mode === 'resting' && (
         <div style={{ marginTop: 14 }}>
-          <Button variant="secondary" onClick={() => { setElapsed(0); setResolved(null); setMode('active'); }}>
-            Run the detection demo
+          <Button variant="secondary" onClick={() => trip('demo')}>
+            Run the detection demo instead
           </Button>
         </div>
       )}
 
       <MethodNote>
-        Detection here is a scripted demo trigger, not an acoustic model — there is no
-        audio classifier in this build. The response flow and timings are real.
+        {triggeredBy === 'demo'
+          ? 'This run was started by the scripted demo button, not by the microphone.'
+          : 'Arming the microphone runs real signal processing on live audio: it fires on a sharp broadband onset with most of its energy above 3.2 kHz, confirmed across consecutive frames. It is a transient detector, not a trained classifier — it cannot tell breaking glass from another sharp high-frequency sound like a dropped plate. Audio is analysed and discarded; nothing is recorded or uploaded.'}
       </MethodNote>
     </Screen>
   );
 }
 
-function Waveform({ active }: { active: boolean }) {
-  // Deterministic bar heights: a random() waveform reshuffles on every render
-  // and reads as noise rather than a signal.
+function Waveform({ active, level }: { active: boolean; level: number | null }) {
+  // Deterministic bar shape: a random() waveform reshuffles on every render and
+  // reads as noise rather than a signal. When the mic is live the shape is
+  // scaled by the real measured level, so the bars move with the actual room.
   const bars = Array.from({ length: 34 }, (_, i) => 0.25 + Math.abs(Math.sin(i * 0.9)) * 0.75);
+  // -60 dB (near silence) to -10 dB (loud) mapped onto 0..1.
+  const gain = level === null ? null : Math.min(1, Math.max(0.05, (level + 60) / 50));
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 3, height: 46 }}>
       {bars.map((h, i) => (
         <span key={i} style={{
-          flex: 1, height: `${(active ? h : h * 0.4) * 100}%`, borderRadius: 2,
+          flex: 1,
+          height: `${(gain !== null ? h * gain : active ? h : h * 0.4) * 100}%`,
+          borderRadius: 2,
           background: active ? colors.critical : colors.discovery,
-          opacity: active ? 0.85 : 0.35,
-          transition: `height 0.3s ease ${i * 8}ms, opacity 0.3s ease`,
+          opacity: active ? 0.85 : gain !== null ? 0.7 : 0.35,
+          // No transition while live — smoothing would hide the transient the
+          // detector is firing on, and the meter should show what it saw.
+          transition: gain !== null ? 'none' : `height 0.3s ease ${i * 8}ms, opacity 0.3s ease`,
         }} />
       ))}
     </div>
