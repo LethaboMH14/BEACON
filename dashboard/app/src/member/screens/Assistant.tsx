@@ -57,20 +57,17 @@ function findSuburb(q: string, hotspots: HotspotGeo[]): HotspotGeo | null {
  * grounding: the model is told (server-side) to use nothing else, so the answer
  * summarises the same real data the citation chips below it link to.
  */
-function buildContext(q: string, data: HotspotsGeoResponse): string {
-  const suburb = findSuburb(q, data.hotspots);
-  const lines: string[] = [];
+function buildContext(_q: string, data: HotspotsGeoResponse): string {
+  // The whole retrieved dataset, not just one matched suburb — a normal
+  // chatbot should be able to answer any question the data actually covers,
+  // not only the specific suburb/intent a hardcoded matcher happened to catch.
   const fmt = (h: HotspotGeo) =>
-    `${h.suburb}: severity ${h.severity_score.toFixed(2)}, ${h.incident_count ?? 'unknown'} crime reports on record, ` +
-    `most common type ${h.top_claim_type ?? 'unknown'}, busiest hour ${hourLabel(h.peak_hour)}` +
-    `${h.peak_day_of_week ? `, busiest day ${h.peak_day_of_week}` : ''}` +
-    `${h.peak_month ? `, busiest month ${h.peak_month}` : ''}` +
-    `, total claimed ${money(h.total_claim_cost)}, average ${money(h.avg_claim_cost)}`;
+    `${h.suburb} (severity ${h.severity_score.toFixed(2)}, ${h.incident_count ?? 'unknown'} reports, ` +
+    `mostly ${h.top_claim_type ?? 'unknown'}, peak ${hourLabel(h.peak_hour)}` +
+    `${h.peak_day_of_week ? ` ${h.peak_day_of_week}s` : ''})`;
 
-  if (suburb) lines.push(`ASKED-ABOUT SUBURB -> ${fmt(suburb)}`);
-  lines.push(`TOP 5 SUBURBS BY SEVERITY -> ${data.hotspots.slice(0, 5).map(fmt).join(' | ')}`);
-  lines.push(`COVERAGE -> ${data.count} suburbs of suburb-level historical crime-report data. ${data.caveat}`);
-  return lines.join(String.fromCharCode(10));
+  return `${data.count} suburbs of historical crime-report data (${data.caveat}). All suburbs, ranked by severity: `
+    + data.hotspots.map(fmt).join(', ');
 }
 
 function composeAnswer(q: string, data: HotspotsGeoResponse): { text: string; citations: Citation[]; tool: string } {
