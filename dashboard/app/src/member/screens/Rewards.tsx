@@ -47,12 +47,33 @@ function readExposure(): ExposureRecord[] {
   try { return JSON.parse(sessionStorage.getItem(EXPOSURE_KEY) ?? '[]'); } catch { return []; }
 }
 
+/**
+ * Session-scoped bonus awards from screens other than the safest-route flow —
+ * e.g. the risk-map's "take the alternative route" prompt. Same rationale as
+ * ExposureRecord: real enough to show up here immediately, explicitly not a
+ * persisted member ledger (no accounts in this build).
+ */
+export interface BonusRow { label: string; detail: string; points: number }
+const BONUS_KEY = 'beacon.session.bonus';
+
+export function awardPoints(label: string, detail: string, points: number) {
+  try {
+    const prev: BonusRow[] = JSON.parse(sessionStorage.getItem(BONUS_KEY) ?? '[]');
+    sessionStorage.setItem(BONUS_KEY, JSON.stringify([...prev, { label, detail, points }]));
+  } catch { /* storage disabled — points just don't show up this session */ }
+}
+
+function readBonus(): BonusRow[] {
+  try { return JSON.parse(sessionStorage.getItem(BONUS_KEY) ?? '[]'); } catch { return []; }
+}
+
 export default function Rewards() {
   const nav = useNavigate();
   const [records, setRecords] = useState<ExposureRecord[]>([]);
-  useEffect(() => { setRecords(readExposure()); }, []);
+  const [bonus, setBonus] = useState<BonusRow[]>([]);
+  useEffect(() => { setRecords(readExposure()); setBonus(readBonus()); }, []);
 
-  const total = LEDGER.reduce((s, r) => s + r.points, 0) + 2500;
+  const total = LEDGER.reduce((s, r) => s + r.points, 0) + bonus.reduce((s, r) => s + r.points, 0) + 2500;
   const toGold = Math.max(0, GOLD_AT - total);
   const pct = Math.min(100, (total / GOLD_AT) * 100);
 
@@ -112,10 +133,22 @@ export default function Rewards() {
 
       <Card style={{ padding: 0, overflow: 'hidden' }}>
         <div style={{ padding: '14px 16px 10px', fontSize: 14, fontWeight: 700 }}>Recent activity</div>
+        {bonus.map((r, i) => (
+          <div key={`bonus-${i}`} style={{
+            display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',
+            borderTop: i === 0 ? 'none' : `1px solid ${colors.lineLight}`,
+          }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13.5, fontWeight: 650 }}>{r.label}</div>
+              <div style={{ fontSize: 11.5, color: colors.inkLo, marginTop: 2 }}>{r.detail} · Just now</div>
+            </div>
+            <Chip tone="brand">+{r.points}</Chip>
+          </div>
+        ))}
         {LEDGER.map((r, i) => (
           <div key={r.id} style={{
             display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',
-            borderTop: `1px solid ${colors.lineLight}`,
+            borderTop: i === 0 && bonus.length === 0 ? 'none' : `1px solid ${colors.lineLight}`,
           }}>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13.5, fontWeight: 650 }}>{r.label}</div>

@@ -21,7 +21,7 @@ import { Card, Chip, MethodNote, Screen, Skeleton, ErrorState, radii, hourLabel 
  * in this build — when there is, this comes from their policy address. Named
  * explicitly rather than buried so it is obvious what is and isn't personalised.
  */
-const MEMBER = { firstName: 'Thandi', suburb: 'BRYANSTON' };
+const MEMBER = { firstName: 'Jamie', suburb: 'BRYANSTON' };
 
 function greeting(h: number): string {
   if (h < 12) return 'Good morning';
@@ -118,7 +118,7 @@ export default function Home() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
         <ActionTile title="Plan a safer route" body="Compare routes by claims exposure" icon="🧭" onClick={() => nav('/route')} />
         <ActionTile title="Risk map" body={data ? `${data.count} suburbs mapped` : 'Loading…'} icon="🗺️" onClick={() => nav('/map')} />
-        <ActionTile title="Drive" body="Dashcam vision" icon="🚗" onClick={() => nav('/drive')} />
+        <ActionTile title="Cam" body="Dashcam vision" icon="🚗" onClick={() => nav('/drive')} />
         <ActionTile title="Home guard" body="Property monitoring" icon="🏠" onClick={() => nav('/home-guard')} />
       </div>
 

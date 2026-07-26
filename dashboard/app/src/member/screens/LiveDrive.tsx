@@ -23,6 +23,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { colors } from '../../theme/tokens';
 import { Chip, radii } from '../ui';
 import type { DemoTrack, DemoFrame, DemoDetection } from '../../screens/RingCam';
+import { reportVisionIncident } from '../../api/member';
 
 const CLIPS = [
   { id: 'hijack', label: 'Hijack attempt', video: '/demo-clips/ring-demo-hijack.mp4', track: '/demo-clips/ring-demo-hijack-detections.json' },
@@ -34,17 +35,30 @@ type ClipId = typeof CLIPS[number]['id'];
 /** The four alert states the design drew, derived rather than hardcoded. */
 type Level = 'critical' | 'watch' | 'info' | 'clear';
 
-function levelFor(frame: DemoFrame | null): { level: Level; title: string; body: string } {
+function levelFor(frame: DemoFrame | null, corroborated: boolean): { level: Level; title: string; body: string } {
   const dets = frame?.detections ?? [];
   const weapon = dets.find((d) => d.kind === 'weapon');
-  if (weapon) {
+  // A single sampled frame flagging "weapon" is exactly as likely to be one
+  // noisy inference (a road sign, a mirror, a hand) as a real threat — the
+  // hijack clip's genuine weapon shows up on many consecutive sampled frames,
+  // not one. Require at least one neighbouring sampled frame to agree before
+  // this counts as critical; an uncorroborated hit is shown as a low-key
+  // review item instead of a false "weapon in view" alarm.
+  if (weapon && corroborated) {
     return {
       level: 'critical',
       title: 'Possible weapon in view',
       // The model's own sub-type label (pistol/sword/etc.) is unreliable —
       // measured misclassifying real weapons across clips — so only the
       // presence + confidence is shown, not a specific (possibly wrong) type.
-      body: `The camera model flagged a possible weapon at ${Math.round(weapon.confidence * 100)}% confidence. Nothing has been reported yet — you decide.`,
+      body: `The camera model flagged a possible weapon at ${Math.round(weapon.confidence * 100)}% confidence across multiple frames. Nothing has been reported yet — you decide.`,
+    };
+  }
+  if (weapon) {
+    return {
+      level: 'watch',
+      title: 'Possible object flagged, unconfirmed',
+      body: `A single frame briefly flagged a possible weapon at ${Math.round(weapon.confidence * 100)}% confidence, with no agreement from frames around it — most likely a misread, not shown as a weapon alert.`,
     };
   }
   const face = dets.find((d) => d.modality === 'face');
@@ -88,6 +102,8 @@ export default function LiveDrive() {
   const [t, setT] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [dismissed, setDismissed] = useState<string | null>(null);
+  const [reportState, setReportState] = useState<Record<string, 'sending' | 'sent' | 'failed'>>({});
+  const [reportDetail, setReportDetail] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const clip = CLIPS.find((c) => c.id === clipId)!;
@@ -119,10 +135,48 @@ export default function LiveDrive() {
     return bestD <= 1.2 ? best : null;
   }, [track, t]);
 
-  const alert = levelFor(frame);
+  // A weapon reading is corroborated if an adjacent sampled frame (within
+  // ~2 sample intervals either side) also saw one — the same "is this a
+  // persistent signal or one noisy frame" check used across the pipeline.
+  const weaponCorroborated = useMemo(() => {
+    if (!frame || !track?.frames.length) return false;
+    if (!frame.detections.some((d) => d.kind === 'weapon')) return false;
+    const span = ((track as { interval_s?: number }).interval_s ?? 1) * 2.5;
+    return track.frames.some(
+      (f) => f !== frame && Math.abs(f.t - frame.t) <= span && f.detections.some((d) => d.kind === 'weapon'),
+    );
+  }, [frame, track]);
+
+  const alert = levelFor(frame, weaponCorroborated);
   const alertKey = `${clipId}:${alert.level}:${alert.title}`;
   const showAlert = alert.level !== 'clear' && dismissed !== alertKey && playing;
   const accent = LEVEL_COLOR[alert.level];
+
+  // A member reporting a critical detection is the named-human decision this
+  // pipeline requires before anything leaves BEACON — same rule as the ops
+  // console's escalate endpoint (server/src/api/vision_jobs.py), just for a
+  // recorded clip instead of a live jobs.py run. See POST /v1/vision/report.
+  async function report() {
+    if (!frame) return;
+    const weapon = frame.detections.find((d) => d.kind === 'weapon');
+    setReportState((s) => ({ ...s, [alertKey]: 'sending' }));
+    setReportDetail(null);
+    try {
+      const res = await reportVisionIncident({
+        clip_label: clip.label,
+        level: alert.level,
+        title: alert.title,
+        detail: alert.body,
+        confidence: weapon?.confidence,
+        timestamp_s: frame.t,
+      });
+      setReportState((s) => ({ ...s, [alertKey]: res.ok ? 'sent' : 'failed' }));
+      setReportDetail(res.ok ? `Sent to ${res.to.join(', ')} via ${res.provider}.` : res.detail);
+    } catch (e) {
+      setReportState((s) => ({ ...s, [alertKey]: 'failed' }));
+      setReportDetail(e instanceof Error ? e.message : 'Could not reach the server');
+    }
+  }
 
   const counts = track?.counts ?? {};
   const peakWeapon = useMemo(() => {
@@ -134,7 +188,7 @@ export default function LiveDrive() {
     <div style={{ padding: '4px 16px 16px', color: colors.textHi }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, letterSpacing: -0.4 }}>Drive</h1>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, letterSpacing: -0.4 }}>Cam</h1>
           <p style={{ margin: '3px 0 0', fontSize: 12.5, color: colors.textMid }}>Dashcam vision, on this trip</p>
         </div>
         <span style={{
@@ -246,10 +300,28 @@ export default function LiveDrive() {
           <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.55, color: colors.textMid }}>{alert.body}</p>
 
           {alert.level === 'critical' && (
-            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-              <button style={btn(colors.critical, '#fff')}>Call for help</button>
-              <button onClick={() => setDismissed(alertKey)} style={btn(colors.bg700, colors.textHi)}>I'm fine</button>
-            </div>
+            <>
+              <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                <button
+                  onClick={report}
+                  disabled={reportState[alertKey] === 'sending' || reportState[alertKey] === 'sent'}
+                  style={{ ...btn(colors.critical, '#fff'), opacity: reportState[alertKey] === 'sending' ? 0.7 : 1 }}
+                >
+                  {reportState[alertKey] === 'sending' ? 'Reporting…'
+                    : reportState[alertKey] === 'sent' ? 'Reported ✓'
+                    : 'Report to security'}
+                </button>
+                <button onClick={() => setDismissed(alertKey)} style={btn(colors.bg700, colors.textHi)}>I'm fine</button>
+              </div>
+              {reportState[alertKey] && reportDetail && (
+                <p style={{
+                  margin: '9px 0 0', fontSize: 11.5, lineHeight: 1.5,
+                  color: reportState[alertKey] === 'sent' ? colors.safe : colors.critical,
+                }}>
+                  {reportState[alertKey] === 'sent' ? reportDetail : `Not sent: ${reportDetail}`}
+                </p>
+              )}
+            </>
           )}
           {alert.level !== 'critical' && (
             <button onClick={() => setDismissed(alertKey)} style={{ ...btn(colors.bg700, colors.textMid), marginTop: 11, width: '100%' }}>Dismiss</button>

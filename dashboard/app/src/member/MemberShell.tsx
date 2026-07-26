@@ -20,7 +20,7 @@ import { colors } from '../theme/tokens';
 
 const TABS = [
   { to: '/home', label: 'Home', icon: 'home' },
-  { to: '/drive', label: 'Drive', icon: 'drive' },
+  { to: '/drive', label: 'Cam', icon: 'drive' },
   { to: '/map', label: 'Map', icon: 'map' },
   { to: '/assistant', label: 'Ask', icon: 'chat' },
   { to: '/rewards', label: 'Points', icon: 'star' },
@@ -80,7 +80,7 @@ const DARK_ROUTES = ['/drive'];
  */
 const TITLES: Record<string, string> = {
   '/home': 'BEACON',
-  '/drive': 'Drive · BEACON',
+  '/drive': 'Cam · BEACON',
   '/map': 'Risk map · BEACON',
   '/route': 'Safest route · BEACON',
   '/home-guard': 'Home guard · BEACON',

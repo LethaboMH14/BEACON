@@ -176,6 +176,51 @@ def render_escalation(
     return subject, html, text
 
 
+async def send_member_report(
+    *,
+    subject: str,
+    text: str,
+    html: Optional[str] = None,
+) -> EmailResult:
+    """
+    A named member tapping "Report to security" on a recorded clip is the same
+    kind of human decision `send_escalation` requires for a vision job — it's
+    just not tied to a `Situation` from the jobs pipeline (Cam tab clips are
+    pre-recorded detection tracks, not live jobs.py runs). Same provider/config
+    plumbing as send_escalation, same all-or-nothing config check, no Situation
+    object required.
+    """
+    import httpx
+
+    provider, key, sender, default_to = _config()
+    body_html = html or f"<pre style='white-space:pre-wrap;font-family:inherit'>{escape(text)}</pre>"
+
+    if provider == "resend":
+        url, headers = RESEND_URL, {"Authorization": f"Bearer {key}"}
+        body = {"from": sender, "to": default_to, "subject": subject, "html": body_html, "text": text}
+    else:
+        url, headers = SENDGRID_URL, {"Authorization": f"Bearer {key}"}
+        addr = sender.split("<")[-1].strip("<> ")
+        body = {
+            "personalizations": [{"to": [{"email": r} for r in default_to]}],
+            "from": {"email": addr, "name": "BEACON"},
+            "subject": subject,
+            "content": [{"type": "text/plain", "value": text}, {"type": "text/html", "value": body_html}],
+        }
+
+    async with httpx.AsyncClient(timeout=20) as client:
+        r = await client.post(url, headers=headers, json=body)
+
+    if r.status_code >= 300:
+        logger.error("member report email failed: %s %s", r.status_code, r.text[:400])
+        return EmailResult(ok=False, provider=provider, to=default_to,
+                           detail=f"HTTP {r.status_code}: {r.text[:200]}")
+
+    msg_id = r.headers.get("X-Message-Id") if provider == "sendgrid" else None
+    logger.info("member report email sent to %s via %s", default_to, provider)
+    return EmailResult(ok=True, provider=provider, to=default_to, detail="sent", message_id=msg_id)
+
+
 async def send_escalation(
     situation: Situation,
     *,

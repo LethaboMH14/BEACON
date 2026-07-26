@@ -112,6 +112,63 @@ class EscalateResponse(BaseModel):
     email: Optional[dict] = None
 
 
+class MemberReportRequest(BaseModel):
+    """
+    The Cam tab's "Report to security" action. Distinct from EscalateRequest:
+    that endpoint escalates a real jobs.py Situation and requires an operator
+    token (the ops-console gate). This one is the member's own recorded-clip
+    tab — there is no Situation because the clip was never run through
+    jobs.py, only the offline detector script. The member tapping the button
+    IS the named human decision; no operator token applies to their own report.
+    """
+    clip_label: str
+    level: str
+    title: str
+    detail: str
+    confidence: Optional[float] = None
+    timestamp_s: Optional[float] = None
+
+
+class MemberReportResponse(BaseModel):
+    ok: bool
+    provider: str
+    to: list[str]
+    detail: str
+
+
+@router.post("/vision/report", response_model=MemberReportResponse)
+async def report_from_member(body: MemberReportRequest) -> MemberReportResponse:
+    from ..notify.email import NotConfigured, send_member_report
+
+    subject = f"BEACON member report — {body.title} ({body.clip_label})"
+    lines = [
+        f"BEACON MEMBER REPORT — {body.title}",
+        "",
+        f"Clip: {body.clip_label}",
+        f"Level: {body.level}",
+        f"Detail: {body.detail}",
+    ]
+    if body.confidence is not None:
+        lines.append(f"Model confidence: {round(body.confidence * 100)}%")
+    if body.timestamp_s is not None:
+        lines.append(f"Seen at: {body.timestamp_s:.0f}s into the clip")
+    lines += [
+        "",
+        "This is a recorded clip (not a live camera) reviewed and reported by a "
+        "member from the BEACON app. It is a machine detection, not a verified "
+        "identification, and BEACON has no dispatch authority — this is a request "
+        "for a person to look, not an automated alarm.",
+    ]
+    text = "\n".join(lines)
+
+    try:
+        res = await send_member_report(subject=subject, text=text)
+    except NotConfigured as exc:
+        return MemberReportResponse(ok=False, provider="unconfigured", to=[], detail=str(exc))
+
+    return MemberReportResponse(ok=res.ok, provider=res.provider, to=res.to, detail=res.detail)
+
+
 @router.get("/vision/backend")
 def get_backend() -> dict:
     """What engine will run, so a demo can never claim local speed while

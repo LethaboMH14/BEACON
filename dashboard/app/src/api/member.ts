@@ -139,11 +139,43 @@ export interface CreatedAlert {
 
 /** Real alert creation — POST /v1/alerts (server/src/api/alerts.py). */
 export async function createAlert(payload: CreateAlertPayload): Promise<CreatedAlert> {
-  const res = await fetch('/v1/alerts', {
+  const res = await fetch(apiUrl('/v1/alerts'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(`POST /v1/alerts -> ${res.status} ${res.statusText}`);
+  return res.json();
+}
+
+export interface MemberReportPayload {
+  clip_label: string;
+  level: string;
+  title: string;
+  detail: string;
+  confidence?: number;
+  timestamp_s?: number;
+}
+
+export interface MemberReportResult {
+  ok: boolean;
+  provider: string;
+  to: string[];
+  detail: string;
+}
+
+/**
+ * The Cam tab's "Report to security" action — a real email via the server's
+ * SendGrid/Resend config (server/src/api/vision_jobs.py POST /vision/report).
+ * `ok: false` with `provider: "unconfigured"` means no key is set in
+ * server/.env — the UI must say that plainly, not pretend it sent.
+ */
+export async function reportVisionIncident(payload: MemberReportPayload): Promise<MemberReportResult> {
+  const res = await fetch(apiUrl('/v1/vision/report'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`POST /v1/vision/report -> ${res.status} ${res.statusText}`);
   return res.json();
 }
