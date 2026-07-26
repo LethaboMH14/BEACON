@@ -183,7 +183,7 @@ export default function HomeGuard() {
       />
 
       {/* ---- listening surface ---- */}
-      <Card style={{ padding: 18, marginBottom: 14 }} accent={mode === 'active' && !resolved ? `color-mix(in srgb, ${colors.critical} 45%, transparent)` : undefined}>
+      <Card style={{ padding: 13, marginBottom: 10 }} accent={mode === 'active' && !resolved ? `color-mix(in srgb, ${colors.critical} 45%, transparent)` : undefined}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{
@@ -207,7 +207,7 @@ export default function HomeGuard() {
         <Waveform active={mode === 'active' && !resolved} level={audio?.levelDb ?? null} />
 
         {micState === 'live' && audio && (
-          <div style={{ marginTop: 12, padding: 10, borderRadius: radii.chip, background: colors.bg50 }}>
+          <div style={{ marginTop: 8, padding: 8, borderRadius: radii.chip, background: colors.bg50 }}>
             <div style={{ fontSize: 10.5, fontWeight: 700, color: colors.inkMid, marginBottom: 7, letterSpacing: 0.3 }}>
               STEP 1 · IMPACT GATE — ALL THREE AT ONCE
             </div>
@@ -240,7 +240,7 @@ export default function HomeGuard() {
 
         {/* ---- step 2: what the sound actually was ---- */}
         {micState === 'live' && (checking || verdict || classifyError) && (
-          <div style={{ marginTop: 8, padding: 10, borderRadius: radii.chip, background: colors.bg50 }}>
+          <div style={{ marginTop: 6, padding: 8, borderRadius: radii.chip, background: colors.bg50 }}>
             <div style={{ fontSize: 10.5, fontWeight: 700, color: colors.inkMid, marginBottom: 7, letterSpacing: 0.3 }}>
               STEP 2 · WHAT THE SOUND WAS (YAMNET)
             </div>
@@ -298,7 +298,7 @@ export default function HomeGuard() {
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 8, marginTop: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 6, marginTop: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           {micState === 'live'
             ? <Button variant="secondary" onClick={disarmMic}>Stop listening</Button>
             : <Button onClick={armMic} disabled={micState === 'starting'}>
@@ -332,7 +332,7 @@ export default function HomeGuard() {
           </p>
         )}
 
-        <div style={{ display: 'flex', gap: 6, marginTop: 14, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 5, marginTop: 10, flexWrap: 'wrap' }}>
           <Chip>Glass break</Chip>
           <Chip>Forced entry</Chip>
           <Chip>Raised voices</Chip>
@@ -346,7 +346,7 @@ export default function HomeGuard() {
 
       {/* ---- active detection ---- */}
       {mode === 'active' && !resolved && (
-        <Card style={{ marginBottom: 14, padding: 16 }} accent={`color-mix(in srgb, ${colors.critical} 45%, transparent)`}>
+        <Card style={{ marginBottom: 10, padding: 12 }} accent={`color-mix(in srgb, ${colors.critical} 45%, transparent)`}>
           <div style={{ fontSize: 15.5, fontWeight: 700, marginBottom: 6 }}>
             We detected the sound of breaking glass at your property.
           </div>
@@ -358,7 +358,7 @@ export default function HomeGuard() {
           </p>
 
           {countdown > 0 && (
-            <div style={{ height: 4, borderRadius: 2, background: colors.lineLight, marginBottom: 14, overflow: 'hidden' }}>
+            <div style={{ height: 4, borderRadius: 2, background: colors.lineLight, marginBottom: 10, overflow: 'hidden' }}>
               <div style={{
                 height: '100%', width: `${(countdown / CANCEL_WINDOW) * 100}%`,
                 background: colors.critical, transition: 'width 0.25s linear',
@@ -375,7 +375,7 @@ export default function HomeGuard() {
       )}
 
       {resolved && (
-        <Card style={{ marginBottom: 14, padding: 16 }}>
+        <Card style={{ marginBottom: 10, padding: 12 }}>
           <div style={{ fontSize: 14.5, fontWeight: 700, marginBottom: 5 }}>
             {resolved === 'home' && 'Stood down — you confirmed you\'re home'}
             {resolved === 'away' && 'Escalated — armed response notified'}
@@ -393,7 +393,7 @@ export default function HomeGuard() {
       )}
 
       {/* ---- escalation ladder ---- */}
-      <Card style={{ padding: 16 }}>
+      <Card style={{ padding: 12 }}>
         <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>What happens if you don't respond</div>
         <p style={{ margin: '0 0 14px', fontSize: 12, color: colors.inkMid, lineHeight: 1.45 }}>
           Every rung is reversible until the one after it fires.
@@ -430,7 +430,7 @@ export default function HomeGuard() {
       </Card>
 
       {mode === 'resting' && (
-        <div style={{ marginTop: 14 }}>
+        <div style={{ marginTop: 10 }}>
           <Button variant="secondary" onClick={() => trip('demo')}>
             Run the detection demo instead
           </Button>
@@ -470,7 +470,7 @@ function Waveform({ active, level }: { active: boolean; level: number | null }) 
   // -60 dB (near silence) to -10 dB (loud) mapped onto 0..1.
   const gain = level === null ? null : Math.min(1, Math.max(0.05, (level + 60) / 50));
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 3, height: 46 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 3, height: 34 }}>
       {bars.map((h, i) => (
         <span key={i} style={{
           flex: 1,
