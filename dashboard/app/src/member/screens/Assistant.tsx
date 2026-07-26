@@ -19,7 +19,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { colors } from '../../theme/tokens';
-import { getHotspotsGeo, type HotspotGeo, type HotspotsGeoResponse } from '../../api/member';
+import { getHotspotsGeo, askAssistant, type HotspotGeo, type HotspotsGeoResponse } from '../../api/member';
 import { Button, Card, MethodNote, Screen, ScreenHeader, SimulatedTag, radii, money, hourLabel } from '../ui';
 
 interface Citation { label: string; hexId: string }
@@ -52,6 +52,27 @@ function findSuburb(q: string, hotspots: HotspotGeo[]): HotspotGeo | null {
  * what the claims data can answer and says so when it can't, rather than
  * producing a confident sentence about something it never looked up.
  */
+/**
+ * The retrieved rows, as plain text for the model to answer FROM. This is the
+ * grounding: the model is told (server-side) to use nothing else, so the answer
+ * summarises the same real data the citation chips below it link to.
+ */
+function buildContext(q: string, data: HotspotsGeoResponse): string {
+  const suburb = findSuburb(q, data.hotspots);
+  const lines: string[] = [];
+  const fmt = (h: HotspotGeo) =>
+    `${h.suburb}: severity ${h.severity_score.toFixed(2)}, ${h.incident_count ?? 'unknown'} crime reports on record, ` +
+    `most common type ${h.top_claim_type ?? 'unknown'}, busiest hour ${hourLabel(h.peak_hour)}` +
+    `${h.peak_day_of_week ? `, busiest day ${h.peak_day_of_week}` : ''}` +
+    `${h.peak_month ? `, busiest month ${h.peak_month}` : ''}` +
+    `, total claimed ${money(h.total_claim_cost)}, average ${money(h.avg_claim_cost)}`;
+
+  if (suburb) lines.push(`ASKED-ABOUT SUBURB -> ${fmt(suburb)}`);
+  lines.push(`TOP 5 SUBURBS BY SEVERITY -> ${data.hotspots.slice(0, 5).map(fmt).join(' | ')}`);
+  lines.push(`COVERAGE -> ${data.count} suburbs of suburb-level historical crime-report data. ${data.caveat}`);
+  return lines.join(String.fromCharCode(10));
+}
+
 function composeAnswer(q: string, data: HotspotsGeoResponse): { text: string; citations: Citation[]; tool: string } {
   const hotspots = data.hotspots;
   const suburb = findSuburb(q, hotspots);
@@ -106,29 +127,46 @@ export default function Assistant() {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const [thinking, setThinking] = useState<string | null>(null);
+  // Whether the last answer actually came from the model, so the screen can say so.
+  const [modelLive, setModelLive] = useState(false);
   const endRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => { getHotspotsGeo({ minSeverity: 0 }).then(setData).catch(() => {}); }, []);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs, thinking]);
 
-  function ask(q: string) {
+  async function ask(q: string) {
     if (!q.trim() || !data) return;
     setMsgs((m) => [...m, { id: nextId++, role: 'user', text: q }]);
     setInput('');
 
-    const { text, citations, tool } = composeAnswer(q, data);
+    // Retrieval is unchanged and still the source of every fact and citation.
+    // composeAnswer's template is now the FALLBACK: try the real model first
+    // (POST /v1/assistant/ask, key held server-side), fall back to the template
+    // if it's unavailable. Either way the citations are the same real retrieved
+    // rows, so the answer can never cite something we didn't retrieve.
+    const { text: fallbackText, citations, tool } = composeAnswer(q, data);
     // The design's "thinking" frame named the tool being called. Keeping that
     // is the difference between a black box and something a member can audit.
     setThinking(tool);
-    window.setTimeout(() => {
-      setThinking(null);
-      setMsgs((m) => [...m, {
-        id: nextId++, role: 'assistant', text, citations,
-        // Consent card: asked, never assumed, and both buttons carry equal
-        // visual weight so "Yes" is not the default by design pressure.
-        consent: citations.length ? { summary: 'Save this area to your watchlist so we can warn you before you head there?' } : undefined,
-      }]);
-    }, 550);
+
+    let text = fallbackText;
+    let viaModel = false;
+    try {
+      const res = await askAssistant(q, buildContext(q, data));
+      if (res.answer) { text = res.answer; viaModel = true; }
+    } catch {
+      // Stay on the template answer: real data, plainer wording. Never a
+      // fabricated reply when the model didn't actually answer.
+    }
+    setModelLive(viaModel);
+
+    setThinking(null);
+    setMsgs((m) => [...m, {
+      id: nextId++, role: 'assistant', text, citations,
+      // Consent card: asked, never assumed, and both buttons carry equal
+      // visual weight so "Yes" is not the default by design pressure.
+      consent: citations.length ? { summary: 'Save this area to your watchlist so we can warn you before you head there?' } : undefined,
+    }]);
   }
 
   const empty = msgs.length === 0;
@@ -138,7 +176,7 @@ export default function Assistant() {
       <ScreenHeader
         title="Ask BEACON"
         subtitle="Answers from historical crime data"
-        right={<SimulatedTag />}
+        right={modelLive ? undefined : <SimulatedTag />}
       />
 
       {empty && (
@@ -226,8 +264,9 @@ export default function Assistant() {
       </div>
 
       <MethodNote>
-        Retrieval and citations are live against the claims database. The wording of the
-        answers is templated, not model-generated — that half is not wired up yet.
+        {modelLive
+          ? 'Retrieval and citations are live against the crime database, and the wording is written by a language model that is given only those retrieved rows to work from.'
+          : 'Retrieval and citations are live against the crime database. The wording of this answer is templated — the language model was unavailable, so nothing was invented in its place.'}
       </MethodNote>
     </Screen>
   );
