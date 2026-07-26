@@ -32,6 +32,7 @@ import { apiUrl } from '../../api/base';
 import { startGlassBreakDetector, THRESHOLDS, type AudioFrame, type DetectorHandle, type Sensitivity } from '../audio/glassBreak';
 import { classifyWindow, ClassifierOffline, type ClassifyResult } from '../audio/classify';
 import { fitToWindow, TARGET_RATE } from '../audio/resample';
+import { useLog } from '../LogContext';
 
 const PROPERTY = { address: '14 Ballyclare Drive', suburb: 'Bryanston' };
 
@@ -77,9 +78,13 @@ export default function HomeGuard() {
   // the ladder while a response is already in progress.
   const armed = useRef(false);
 
+  const { push: pushLog } = useLog();
+
   async function sendAlertEmail(result: ClassifyResult) {
+    const kind = result.verdict === 'gunshot' ? 'GUNSHOT' : 'GLASS BREAK';
+    pushLog(`📧  Sending alert email — ${kind}`, 'info');
     try {
-      await fetch(apiUrl('/v1/audio/alert'), {
+      const res = await fetch(apiUrl('/v1/audio/alert'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -89,8 +94,11 @@ export default function HomeGuard() {
           property_address: `${PROPERTY.address}, ${PROPERTY.suburb}`,
         }),
       });
+      const data = await res.json().catch(() => ({}));
+      if (data.ok) pushLog(`✓  Email sent → ${(data.to as string[]).join(', ')}`, 'ok');
+      else pushLog(`✗  Email: ${data.detail || 'not configured'}`, 'dim');
     } catch {
-      // Email failure must never block the alarm UI.
+      pushLog('✗  Email request failed', 'dim');
     }
   }
 
@@ -111,16 +119,26 @@ export default function HomeGuard() {
     setGateCount((n) => n + 1);
     setChecking(true);
     setClassifyError(null);
+    pushLog(`🎙  Impact gate fired — sending ${samples.length} samples to YAMNet`, 'info');
     try {
       const result = await classifyWindow(samples, sampleRate);
       setVerdict(result);
       const alarmVerdict = result.verdict === 'glass_break' || result.verdict === 'gunshot';
-      if (alarmVerdict && armed.current) {
-        armed.current = false;
-        trip('mic', result);
+      if (alarmVerdict) {
+        const score = result.verdict === 'gunshot' ? result.gunshot_score : result.glass_score;
+        const label = result.verdict === 'gunshot' ? result.gunshot_label : result.glass_label;
+        pushLog(`⚠   VERDICT: ${result.verdict.replace('_', ' ').toUpperCase()}  ${label}  score=${score.toFixed(3)}`, 'alarm');
+        pushLog('    → ALARM TRIGGERED', 'alarm');
+        if (armed.current) { armed.current = false; trip('mic', result); }
+      } else {
+        const top3 = result.top.slice(0, 3).map((t) => `${t.label} ${t.score.toFixed(3)}`).join('  |  ');
+        pushLog(`✓   verdict: other   glass=${result.glass_score.toFixed(3)}  gunshot=${result.gunshot_score?.toFixed(3) ?? '—'}`, 'ok');
+        pushLog(`    top: ${top3}`, 'dim');
       }
     } catch (e) {
-      setClassifyError(e instanceof Error ? e.message : 'Classifier unreachable');
+      const msg = e instanceof Error ? e.message : 'Classifier unreachable';
+      pushLog(`✗   Classifier error: ${msg}`, 'dim');
+      setClassifyError(msg);
     } finally {
       setChecking(false);
     }
@@ -157,14 +175,23 @@ export default function HomeGuard() {
 
       // Already at TARGET_RATE from AudioContext; fitToWindow pads/trims to YAMNet length
       const window = fitToWindow(mono);
+      pushLog(`🎵  File decoded — ${mono.length} samples → sending to YAMNet`, 'info');
       const result = await classifyWindow(window, TARGET_RATE);
       setVerdict(result);
       setGateCount((n) => n + 1);
 
       const alarmVerdict = result.verdict === 'glass_break' || result.verdict === 'gunshot';
       if (alarmVerdict) {
+        const score = result.verdict === 'gunshot' ? result.gunshot_score : result.glass_score;
+        const label = result.verdict === 'gunshot' ? result.gunshot_label : result.glass_label;
+        pushLog(`⚠   VERDICT: ${result.verdict.replace('_', ' ').toUpperCase()}  ${label}  score=${score.toFixed(3)}`, 'alarm');
+        pushLog('    → ALARM TRIGGERED', 'alarm');
         armed.current = false;
         trip('mic', result);
+      } else {
+        const top3 = result.top.slice(0, 3).map((t) => `${t.label} ${t.score.toFixed(3)}`).join('  |  ');
+        pushLog(`✓   verdict: other   glass=${result.glass_score.toFixed(3)}  gunshot=${result.gunshot_score?.toFixed(3) ?? '—'}`, 'ok');
+        pushLog(`    top: ${top3}`, 'dim');
       }
     } catch (e) {
       if (e instanceof ClassifierOffline) {
@@ -546,6 +573,7 @@ export default function HomeGuard() {
           ? 'This run was started by the scripted demo button, not by the microphone.'
           : 'Detection runs in two stages on live microphone audio. First, real signal processing looks for an impact: a sharp broadband onset with most of its energy above 3.2 kHz, held across consecutive frames. That gate is not specific to glass on its own — speech sounds like "sss" pass it too — so it only decides that the moment is worth a closer look. Second, that one second is classified by YAMNet, a 521-class audio model, which must score breaking glass above every everyday sound it knows (speech, music, a slammed door, cutlery, a passing car) by a clear margin before an alert is raised. If the classifier cannot be reached, no alert is raised. Audio is analysed and discarded; nothing is recorded or stored.'}
       </MethodNote>
+
     </Screen>
   );
 }
