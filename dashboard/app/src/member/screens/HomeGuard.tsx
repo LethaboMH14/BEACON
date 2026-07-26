@@ -2,12 +2,19 @@
  * Home Guard — property audio monitoring and the escalation ladder.
  *
  * WHAT IS REAL HERE
- * Arming the mic runs a real acoustic transient detector on live microphone
- * audio (member/audio/glassBreak.ts) — real DSP, not a scripted trigger. It is
- * a detector rather than a trained classifier, so it fires on sharp
- * high-frequency transients generally; the footnote says exactly that. The
- * scripted trigger is kept as a fallback button so the ladder can still be
- * demonstrated in a loud room or with the mic blocked.
+ * Arming the mic runs a real two-stage detector on live microphone audio, and
+ * both stages are real: a DSP impact gate in the browser
+ * (member/audio/glassBreak.ts) followed by YAMNet classification on the server
+ * (POST /v1/audio/classify). Only the classifier's verdict can raise an alarm.
+ *
+ * The gate alone used to raise it, and the failure that produced was speech —
+ * fricatives are loud, sudden and high-frequency, so they satisfy every
+ * condition a frequency heuristic can test. The classifier is what separates
+ * them. If it cannot be reached, nothing fires: an unavailable classifier is
+ * never confirmation.
+ *
+ * The scripted trigger is kept as a fallback button so the ladder can still be
+ * demonstrated with no server or no mic.
  *
  * The escalation ladder, the two-button response and the cancel window are the
  * real interaction design, which is what this screen is for.
@@ -22,6 +29,7 @@ import { colors } from '../../theme/tokens';
 import { Button, Card, Chip, MethodNote, Screen, ScreenHeader, SimulatedTag, radii } from '../ui';
 import { createAlert } from '../../api/member';
 import { startGlassBreakDetector, THRESHOLDS, type AudioFrame, type DetectorHandle, type Sensitivity } from '../audio/glassBreak';
+import { classifyWindow, type ClassifyResult } from '../audio/classify';
 
 const PROPERTY = { address: '14 Ballyclare Drive', suburb: 'Bryanston' };
 
@@ -53,9 +61,16 @@ export default function HomeGuard() {
   // Peak-hold. A transient is over in ~30ms; without holding the loudest recent
   // frame you cannot read off the screen how close a near-miss actually got.
   const [peak, setPeak] = useState<AudioFrame | null>(null);
+  // Stage 2. `checking` covers the round trip; `verdict` is the last answer the
+  // classifier gave, kept on screen because a rejection is the useful feedback —
+  // "it heard Speech at 0.94" tells you why nothing happened.
+  const [checking, setChecking] = useState(false);
+  const [verdict, setVerdict] = useState<ClassifyResult | null>(null);
+  const [classifyError, setClassifyError] = useState<string | null>(null);
+  const [gateCount, setGateCount] = useState(0);
   const detector = useRef<DetectorHandle | null>(null);
-  // The detector callback fires at frame rate; without this it would re-enter
-  // trigger() on every frame for as long as the transient lasts.
+  // The gate can open repeatedly; this stops a second candidate from restarting
+  // the ladder while a response is already in progress.
   const armed = useRef(false);
 
   function trip(source: 'mic' | 'demo') {
@@ -65,22 +80,50 @@ export default function HomeGuard() {
     setMode('active');
   }
 
+  /**
+   * Stage 2: the gate opened, so ask the classifier what the sound was. Only a
+   * 'glass_break' verdict may raise the alarm — a failed or unavailable
+   * classifier must never be treated as confirmation, because failing open here
+   * is exactly the false-alarm behaviour this replaced.
+   */
+  async function onCandidate(samples: Float32Array, sampleRate: number) {
+    setGateCount((n) => n + 1);
+    setChecking(true);
+    setClassifyError(null);
+    try {
+      const result = await classifyWindow(samples, sampleRate);
+      setVerdict(result);
+      if (result.verdict === 'glass_break' && armed.current) {
+        armed.current = false;
+        trip('mic');
+      }
+    } catch (e) {
+      setClassifyError(e instanceof Error ? e.message : 'Classifier unreachable');
+    } finally {
+      setChecking(false);
+    }
+  }
+
   async function armMic() {
     setMicError(null);
     setMicState('starting');
     try {
       armed.current = true;
       setPeak(null);
-      detector.current = await startGlassBreakDetector((frame) => {
-        setAudio(frame);
-        // Rank by onset, since that is what a transient is; a loud steady room
-        // would otherwise permanently own the peak slot and tell you nothing.
-        setPeak((p) => (!p || frame.onsetDb > p.onsetDb ? frame : p));
-        if (frame.detected && armed.current) {
-          armed.current = false;
-          trip('mic');
-        }
-      }, sensitivity);
+      setVerdict(null);
+      setGateCount(0);
+      detector.current = await startGlassBreakDetector(
+        {
+          onFrame: (frame) => {
+            setAudio(frame);
+            // Rank by onset, since that is what a transient is; a loud steady
+            // room would otherwise permanently own the peak slot.
+            setPeak((p) => (!p || frame.onsetDb > p.onsetDb ? frame : p));
+          },
+          onCandidate,
+        },
+        sensitivity,
+      );
       setMicState('live');
     } catch (e) {
       setMicState('denied');
@@ -94,6 +137,7 @@ export default function HomeGuard() {
     armed.current = false;
     setMicState('off');
     setAudio(null);
+    setChecking(false);
   }
 
   useEffect(() => () => detector.current?.stop(), []);
@@ -165,7 +209,7 @@ export default function HomeGuard() {
         {micState === 'live' && audio && (
           <div style={{ marginTop: 12, padding: 10, borderRadius: radii.chip, background: colors.bg50 }}>
             <div style={{ fontSize: 10.5, fontWeight: 700, color: colors.inkMid, marginBottom: 7, letterSpacing: 0.3 }}>
-              ALL THREE MUST PASS AT ONCE
+              STEP 1 · IMPACT GATE — ALL THREE AT ONCE
             </div>
             <Condition
               label="Loud enough"
@@ -188,7 +232,58 @@ export default function HomeGuard() {
             {peak && (
               <div className="tabular-nums" style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${colors.lineLight}`, fontSize: 10.5, color: colors.inkLo }}>
                 Loudest so far: {(peak.hfRatio * 100).toFixed(0)}% high-freq, +{peak.onsetDb.toFixed(0)} dB onset
+                {gateCount > 0 && ` · gate opened ${gateCount}×`}
               </div>
+            )}
+          </div>
+        )}
+
+        {/* ---- step 2: what the sound actually was ---- */}
+        {micState === 'live' && (checking || verdict || classifyError) && (
+          <div style={{ marginTop: 8, padding: 10, borderRadius: radii.chip, background: colors.bg50 }}>
+            <div style={{ fontSize: 10.5, fontWeight: 700, color: colors.inkMid, marginBottom: 7, letterSpacing: 0.3 }}>
+              STEP 2 · WHAT THE SOUND WAS (YAMNET)
+            </div>
+
+            {checking && (
+              <div style={{ fontSize: 12, color: colors.inkMid }}>Classifying the captured second…</div>
+            )}
+
+            {classifyError && !checking && (
+              <div style={{ fontSize: 11.5, color: colors.critical, lineHeight: 1.45 }}>
+                Could not classify: {classifyError}. No alert was raised — an unavailable
+                classifier is never treated as confirmation. Start the server with{' '}
+                <code>uvicorn src.main:app</code> in <code>server/</code>.
+              </div>
+            )}
+
+            {verdict && !checking && !classifyError && (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <Chip tone={verdict.verdict === 'glass_break' ? 'critical' : 'neutral'}>
+                    {verdict.verdict === 'glass_break' ? 'Glass break' : 'Not glass'}
+                  </Chip>
+                  <span className="tabular-nums" style={{ fontSize: 11.5, color: colors.inkMid }}>
+                    {verdict.verdict === 'glass_break'
+                      ? `${verdict.glass_label} ${(verdict.glass_score * 100).toFixed(0)}%`
+                      : `heard ${verdict.competing_label} ${(verdict.competing_score * 100).toFixed(0)}%`}
+                  </span>
+                </div>
+                {verdict.top.map((t) => (
+                  <div
+                    key={t.label}
+                    className="tabular-nums"
+                    style={{ display: 'flex', gap: 8, fontSize: 11, padding: '1.5px 0', color: colors.inkMid }}
+                  >
+                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {t.label}
+                    </span>
+                    <span style={{ color: colors.inkHi, fontWeight: 650 }}>
+                      {(t.score * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                ))}
+              </>
             )}
           </div>
         )}
@@ -234,7 +329,8 @@ export default function HomeGuard() {
         </div>
 
         <MethodNote>
-          Audio is analysed on the device. Nothing is recorded or stored.
+          Two steps: your device listens for an impact-shaped sound, then that one second
+          is classified by YAMNet to decide what it was. Nothing is recorded or stored.
         </MethodNote>
       </Card>
 
@@ -334,7 +430,7 @@ export default function HomeGuard() {
       <MethodNote>
         {triggeredBy === 'demo'
           ? 'This run was started by the scripted demo button, not by the microphone.'
-          : 'Arming the microphone runs real signal processing on live audio: it fires on a sharp broadband onset with most of its energy above 3.2 kHz, confirmed across consecutive frames. It is a transient detector, not a trained classifier — it cannot tell breaking glass from another sharp high-frequency sound like a dropped plate. Audio is analysed and discarded; nothing is recorded or uploaded.'}
+          : 'Detection runs in two stages on live microphone audio. First, real signal processing looks for an impact: a sharp broadband onset with most of its energy above 3.2 kHz, held across consecutive frames. That gate is not specific to glass on its own — speech sounds like "sss" pass it too — so it only decides that the moment is worth a closer look. Second, that one second is classified by YAMNet, a 521-class audio model, which must score breaking glass above every everyday sound it knows (speech, music, a slammed door, cutlery, a passing car) by a clear margin before an alert is raised. If the classifier cannot be reached, no alert is raised. Audio is analysed and discarded; nothing is recorded or stored.'}
       </MethodNote>
     </Screen>
   );

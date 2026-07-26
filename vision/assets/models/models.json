@@ -4,25 +4,41 @@
     {
       "name": "yamnet_audio_classifier",
       "version": "1",
-      "description": "Google YAMNet — 521-class audio event classifier. Detects gunshot, glass break, scream, raised voices. Input: 1s of 16kHz mono audio. Output: 521-class softmax. Sali sourced/validated this for the personal-safety app's Tier 2 audio path; reused here as-is for BEACON's F6 modal-corroboration factor (docs/01 §4) — same model, new job: corroborating a camera sighting, not standing alone as a phone trigger.",
+      "description": "Google YAMNet \u00e2\u20ac\u201d 521-class audio event classifier. Detects gunshot, glass break, scream, raised voices. Input: 1s of 16kHz mono audio. Output: 521-class softmax. Sali sourced/validated this for the personal-safety app's Tier 2 audio path; reused here as-is for BEACON's F6 modal-corroboration factor (docs/01 \u00c2\u00a74) \u00e2\u20ac\u201d same model, new job: corroborating a camera sighting, not standing alone as a phone trigger.",
       "file": "yamnet.tflite",
       "sha256": "10c95ea3eb9a7bb4cb8bddf6feb023250381008177ac162ce169694d05c317de",
       "size_bytes": 4126810,
       "tier": 2,
       "wake_condition": "audio_amplitude_gate_triggered",
       "max_inference_ms": 30,
-      "input_shape": [15600],
+      "input_shape": [
+        15600
+      ],
       "input_dtype": "float32",
-      "notes": "Runs in Tier 2, woken by a Tier 0 RMS amplitude gate (vision/audio_agent.py) — never continuous. Input shape confirmed by direct interpreter introspection (0.975s @ 16kHz) — VUKA's registry had this as 15360, corrected here. Download source: https://tfhub.dev/google/lite-model/yamnet/classification/tflite/1. Class indices below map to BEACON audio cue labels in audio_agent.py:map_yamnet_class().",
-      "classes_of_interest": {
-        "427": "gunshot",
-        "428": "gunshot",
-        "195": "glass_break",
-        "198": "glass_break",
-        "395": "scream",
-        "396": "scream",
-        "393": "scream",
-        "39": "raised_voices"
+      "notes": "Runs in Tier 2, woken by a Tier 0 RMS amplitude gate (vision/audio_agent.py) and by the browser's DSP impact gate for Home Guard (server/src/audio/yamnet.py) -- never continuous. Input shape confirmed by direct interpreter introspection (0.975s @ 16kHz). Download source: https://tfhub.dev/google/lite-model/yamnet/classification/tflite/1. CLASSES ARE LISTED BY NAME, NOT INDEX, AND RESOLVED AT LOAD TIME against the yamnet_label_list.txt embedded in the .tflite. The previous hand-written index map was wrong -- 195/198 were recorded as glass_break but are in fact 'Bell' and 'Bicycle bell', 393/395/396 as scream but are 'Smoke detector', 'Foghorn' and 'Whistle', and 39 as raised_voices but is 'Gasp'. Resolving by name makes that class of error impossible rather than merely corrected.",
+      "classes_of_interest_by_name": {
+        "gunshot": [
+          "Gunshot, gunfire",
+          "Machine gun",
+          "Artillery fire",
+          "Explosion"
+        ],
+        "glass_break": [
+          "Glass",
+          "Shatter",
+          "Smash, crash",
+          "Breaking"
+        ],
+        "scream": [
+          "Screaming",
+          "Yell",
+          "Shout",
+          "Children shouting"
+        ],
+        "raised_voices": [
+          "Hubbub, speech noise, speech babble",
+          "Conversation"
+        ]
       }
     }
   ]

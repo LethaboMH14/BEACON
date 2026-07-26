@@ -12,7 +12,7 @@ from .db import init_db
 from .api import (
     sightings_router, entities_router, alerts_router, risk_router, routes_router,
     incidents_router, events_router, cameras_router, hotspots_geo_router,
-    safest_route_router, vision_jobs_router, assistant_router,
+    safest_route_router, vision_jobs_router, assistant_router, audio_classify_router,
 )
 from .ws import ws_router
 from .middleware import RateLimitMiddleware
@@ -67,6 +67,7 @@ app.include_router(events_router, prefix="/v1", tags=["events"])
 app.include_router(cameras_router, prefix="/v1", tags=["cameras"])
 app.include_router(vision_jobs_router, prefix="/v1", tags=["vision"])
 app.include_router(assistant_router, prefix="/v1", tags=["assistant"])
+app.include_router(audio_classify_router, prefix="/v1", tags=["audio"])
 app.include_router(ws_router, tags=["websockets"])
 
 

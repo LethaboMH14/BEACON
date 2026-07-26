@@ -25,6 +25,7 @@ from __future__ import annotations
 import argparse
 import json
 import time
+import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -42,10 +43,38 @@ RMS_GATE = 0.01  # Tier 0 threshold — silence/ambient noise never reaches YAMN
 CONFIDENCE_MIN = 0.3  # below this, treat as noise, do not emit a cue
 
 
+def load_labels() -> list[str]:
+    """YAMNet's label list, read from the metadata embedded in the .tflite.
+
+    The model file is a zip containing yamnet_label_list.txt, so the authoritative
+    class order ships with the weights and cannot drift from them.
+    """
+    with zipfile.ZipFile(MODEL_PATH) as z:
+        return z.read("yamnet_label_list.txt").decode().splitlines()
+
+
 def load_classes_of_interest() -> dict[str, str]:
+    """Maps YAMNet class index -> BEACON cue label, resolved BY NAME.
+
+    Indices used to be written by hand in models.json and were wrong: 195 and 198
+    were recorded as glass_break but are 'Bell' and 'Bicycle bell', so this agent
+    would report a bicycle bell as breaking glass. 393/395/396 were recorded as
+    scream but are 'Smoke detector', 'Foghorn' and 'Whistle'; 39 as raised_voices
+    but is 'Gasp'. Resolving names against the model's own label list makes that
+    class of error impossible rather than merely corrected.
+    """
     registry = json.loads(REGISTRY_PATH.read_text())
     model = next(m for m in registry["models"] if m["name"] == "yamnet_audio_classifier")
-    return model["classes_of_interest"]
+    index_of = {label: i for i, label in enumerate(load_labels())}
+
+    resolved: dict[str, str] = {}
+    for cue_label, class_names in model["classes_of_interest_by_name"].items():
+        for name in class_names:
+            if name not in index_of:
+                print(f"[audio_agent] warning: label '{name}' not in this model, skipped")
+                continue
+            resolved[str(index_of[name])] = cue_label
+    return resolved
 
 
 def map_yamnet_class(scores: np.ndarray, classes_of_interest: dict[str, str]) -> tuple[str | None, float]:

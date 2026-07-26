@@ -4,6 +4,36 @@ Every behaviour change gets an entry in the same commit. Plain-language section 
 
 ---
 
+## 2026-07-26 — Home Guard: YAMNet classification becomes stage 2, because a frequency heuristic cannot tell speech from glass
+
+**What:** The detector added earlier today fired on speech. That was not a tuning miss — it was the design's ceiling. Fricatives (s, sh, t, f) are sharp, broadband bursts with most of their energy above 3 kHz, so they satisfy *every* condition a level / high-frequency-share / onset test can check. On those three axes a spoken "sss" and breaking glass genuinely look alike. No threshold separates them.
+
+So the detector became a two-stage cascade, and the browser DSP was **demoted from alarm to gate**:
+
+- **Stage 1 — impact gate** (`dashboard/app/src/member/audio/glassBreak.ts`). Same three conditions, deliberately *loosened* (`normal` 0.35 / +9 dB / −58 dB, `high` 0.22 / +6 dB / −64 dB, down from 0.45 / +12 / −55 and 0.28 / +8 / −62). Looser is correct now: a false gate costs one inference, not a false alarm in someone's home. Its only job is deciding that the moment is worth a closer look.
+- **Stage 2 — YAMNet** (`server/src/audio/yamnet.py`, `POST /v1/audio/classify`). Holds the veto. Server-side because the model is 4 MB plus a WASM runtime the browser would have to fetch and warm, against a server that already has both and is only asked on demand.
+
+**The rule is a margin, not a threshold.** Glass must clear an absolute floor (`GLASS_FLOOR = 0.08`) **and** beat the highest-scoring everyday sound by `GLASS_MARGIN = 1.5×`. A floor alone would still admit the exact case that broke it: talking near the mic can produce Glass = 0.15 while Speech = 0.95, because speech does not push the glass score *down* — it pushes the speech score *up*. Comparing them is what rejects it. The floor is low on purpose: YAMNet spreads probability across Glass / Shatter / Breaking for one event, so no single class scores like a confident single-label classifier would. The competitor list is explicit and includes speech, shouting, screaming, singing, music, TV, slams, knocks, doors, clapping, typing, dishes, cutlery, cars, engines, wind, rain and silence.
+
+**Three supporting pieces that are load-bearing:**
+- **An AudioWorklet tap + ring buffer**, not the analyser, supplies the classified window. Repeated `AnalyserNode` reads return the latest `fftSize` samples each time, so at 60 fps on a 48 kHz context consecutive reads overlap by ~60% — concatenating them yields audio that stutters and repeats. A worklet delivers each block exactly once, in order.
+- **A 320 ms post-roll** before capture. Glass is defined as much by its decay — the scatter of fragments — as by its onset; capturing at the instant of the onset would hand YAMNet a window that is almost entirely pre-event room noise.
+- **Span-averaging resample to 16 kHz** (`audio/resample.ts`), not decimation. Taking every Nth sample folds everything above 8 kHz back into the band as alias, which is the worst possible place to corrupt a signal defined by its high-frequency content. Sent as base64 int16 PCM (~42 KB) rather than JSON float32 (~200 KB), with clamping — an out-of-range sample would wrap polarity and inject a click exactly where the transient is measured.
+
+**Fail closed.** A missing model, a missing runtime or an unreachable server returns 503 and raises **nothing**. An unavailable classifier is never confirmation; failing open would reintroduce precisely the false alarms this replaced. The UI says so.
+
+**A real bug fixed on the way through.** `vision/assets/models/models.json` carried hand-written YAMNet class indices and they were wrong: 195 and 198 were recorded as `glass_break` but are **Bell** and **Bicycle bell** — `vision/audio_agent.py` would have reported a bicycle bell as breaking glass. 393/395/396 were recorded as `scream` but are Smoke detector / Foghorn / Whistle; 39 as `raised_voices` but is Gasp. Fixed structurally rather than by correcting the numbers: the `.tflite` is a zip containing `yamnet_label_list.txt`, so classes are now resolved **by name** against the label list that ships with the weights, in both the agent and the new server module. A regression test pins 195 = Bell and 198 = Bicycle bell so the indices cannot come back.
+
+**Tests:** 26 new server tests (`server/tests/test_audio_yamnet.py`) over constructed 521-class score vectors — glass accepted, speech/shout/scream/singing/music/laughter rejected, slam/knock/clapping/typing/car rejected, and the margin boundary pinned (Glass 0.30 vs Speech 0.25 → not glass; vs Speech 0.15 → glass). Server suite **192 passed** (was 166). Client **23 passed** (was 9), including ring-buffer ordering and wrap, the anti-alias property, and int16 clamping. `tsc -b` clean.
+
+**Why:** "It triggers when I talk" is a correctness failure in the one component the whole screen rests on. Making the gate stricter would only have traded false alarms for missed break-ins; the fix had to be a model that learned what glass sounds like.
+
+**Plain language:** Home Guard used to shout at you for talking near it, because a hissed "s" is loud, sudden and high-pitched — the only three things it could measure. Now that first test is just a doorbell: when something impact-shaped happens, one second of audio goes to a proper sound-recognition model that knows 521 everyday sounds, and it only alerts if breaking glass beats the best alternative — speech, music, a slammed door, cutlery, a passing car — by a clear margin. If that model can't be reached, nothing fires at all; silence is safer than crying wolf. Still nothing recorded: one second is classified and dropped, and only the label survives.
+
+**Breaks/risks:** Stage 2 needs the local API running — start it with `python -m uvicorn src.main:app --port 8000` from `server/`. The **deployed** Vercel site talks to the Azure API, which does not yet carry the model or `ai_edge_litert`, so Home Guard there will fail closed with 503 until it does. The positive case is the honest gap: it is verified by unit tests on constructed score vectors and by a real-model negative (white noise → not glass), but I have no genuine glass recording and mic capture is blocked in the automated browser, so the full mic → gate → capture → POST → alarm path is unverified end to end. Real HTTP round trips did confirm the discrimination that matters: a synthetic broadband decaying burst — which passes the gate — came back `other` (glass 0.148, top "Slap, smack" 0.59).
+
+---
+
 ## 2026-07-26 — Home Guard: real microphone audio detection replaces the scripted trigger
 
 **What:** Added `dashboard/app/src/member/audio/glassBreak.ts` — real acoustic transient detection on live microphone audio via the Web Audio API, and wired it into `member/screens/HomeGuard.tsx`. The screen now has an "Arm microphone" control; once armed, `getUserMedia` + an `AnalyserNode` (fftSize 2048, `smoothingTimeConstant` 0) feed a per-frame decision. A frame qualifies when three conditions hold together: broadband level above a −55 dB quiet-room floor, ≥45% of spectral energy above 3.2 kHz, and a ≥12 dB jump above a slowly-adapting room baseline. Two consecutive qualifying frames trip the existing escalation ladder, tagged as mic-triggered.
