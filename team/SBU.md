@@ -31,6 +31,10 @@ Everything previously listed here is merged: schema, sightings ingest, entity re
 
 Postgres+pgvector migration stays explicitly deprioritized ("don't gold-plate") — SQLite is fine for the pitch.
 
+## Flagged for you (2026-07-26) — I patched this, you should know why
+
+- **`server/requirements.txt` was missing `opencv-python-headless` and `numpy`.** Deploying the API container to Azure (`beacon-rg`, francecentral) it crashed on startup: `ModuleNotFoundError: No module named 'cv2'` from `src/vision/jobs.py` → `detectors.py`/`preprocess.py`, which import `cv2`/`numpy` directly. It worked on your machine because one of those was already present from an unrelated install — the declared dependency list itself was incomplete. This was blocking the deploy I was doing, so I added both (headless build, since the container has no GUI libs) and rebuilt — API is now healthy in Azure (`/health` returns 200). Committed in `6963534` alongside the infra region/Static-Web-App changes. Flagging per our usual rule that you own fixes in your areas — nothing else in `vision/` was touched.
+
 ## Watch-outs
 - API keys (WeatherAPI, EskomSePush) — you hold them; `.env` only; repo is public.
 - Fan-out budget ≤300 ms server-side; contract tests enforce shapes, not just status codes.
