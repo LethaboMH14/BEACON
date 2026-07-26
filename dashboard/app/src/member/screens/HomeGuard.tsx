@@ -16,6 +16,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { colors } from '../../theme/tokens';
 import { Button, Card, Chip, MethodNote, Screen, ScreenHeader, SimulatedTag, radii } from '../ui';
+import { createAlert } from '../../api/member';
 
 const PROPERTY = { address: '14 Ballyclare Drive', suburb: 'Bryanston' };
 
@@ -36,7 +37,30 @@ export default function HomeGuard() {
   const [mode, setMode] = useState<Mode>('resting');
   const [elapsed, setElapsed] = useState(0);
   const [resolved, setResolved] = useState<'home' | 'away' | 'cancelled' | null>(null);
+  const [alertError, setAlertError] = useState<string | null>(null);
   const startedAt = useRef<number>(0);
+
+  // "I'm not home" is the one branch that should actually reach the ops
+  // dashboard — a real Alert (POST /v1/alerts), so it shows up live on the
+  // console with a real evidence-chain entry, not just a local UI state
+  // change. This does NOT send an email (server/.env has no SENDGRID_API_KEY
+  // configured) — see HomeGuard.tsx's module header for the rest of what's
+  // still simulated here (the detection itself).
+  async function escalate() {
+    setResolved('away');
+    setAlertError(null);
+    try {
+      await createAlert({
+        alert_type: 'suspicious_activity',
+        recipient_id: 'private_security_demo',
+        recipient_type: 'ops',
+        severity: 'critical',
+        message: `Home Guard: glass-break detected at ${PROPERTY.address}, ${PROPERTY.suburb} — member confirmed not home.`,
+      });
+    } catch (e) {
+      setAlertError(e instanceof Error ? e.message : 'Could not reach the server');
+    }
+  }
 
   useEffect(() => {
     if (mode !== 'active' || resolved) return;
@@ -113,7 +137,7 @@ export default function HomeGuard() {
 
           <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
             <Button variant="secondary" onClick={() => setResolved('home')}>I'm home</Button>
-            <Button variant="danger" onClick={() => setResolved('away')}>I'm not home</Button>
+            <Button variant="danger" onClick={escalate}>I'm not home</Button>
           </div>
           <Button variant="ghost" onClick={() => setResolved('cancelled')}>Cancel — false alarm</Button>
         </Card>
@@ -128,7 +152,9 @@ export default function HomeGuard() {
           </div>
           <p style={{ margin: '0 0 12px', fontSize: 12.5, color: colors.inkMid, lineHeight: 1.5 }}>
             {resolved === 'away'
-              ? 'Your emergency contact and the response provider have the address and the detection time.'
+              ? (alertError
+                  ? `Could not reach the response provider: ${alertError}`
+                  : 'A real alert was raised on the ops console with the address and detection time.')
               : 'Nothing was sent. The detection stays in your log only.'}
           </p>
           <Button variant="secondary" onClick={reset}>Reset demo</Button>

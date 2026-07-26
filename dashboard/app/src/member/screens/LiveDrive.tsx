@@ -27,6 +27,7 @@ import type { DemoTrack, DemoFrame, DemoDetection } from '../../screens/RingCam'
 const CLIPS = [
   { id: 'hijack', label: 'Hijack attempt', video: '/demo-clips/ring-demo-hijack.mp4', track: '/demo-clips/ring-demo-hijack-detections.json' },
   { id: 'lens', label: 'Plate lens', video: '/demo-clips/ring-demo.mp4', track: '/demo-clips/ring-demo-detections.json' },
+  { id: 'drivinghome', label: 'Driving home', video: '/demo-clips/ring-demo-drivinghome.mp4', track: '/demo-clips/ring-demo-drivinghome-detections.json' },
 ] as const;
 type ClipId = typeof CLIPS[number]['id'];
 
@@ -40,7 +41,10 @@ function levelFor(frame: DemoFrame | null): { level: Level; title: string; body:
     return {
       level: 'critical',
       title: 'Possible weapon in view',
-      body: `The camera model flagged a ${weapon.label || 'weapon'} at ${Math.round(weapon.confidence * 100)}% confidence. Nothing has been reported yet — you decide.`,
+      // The model's own sub-type label (pistol/sword/etc.) is unreliable —
+      // measured misclassifying real weapons across clips — so only the
+      // presence + confidence is shown, not a specific (possibly wrong) type.
+      body: `The camera model flagged a possible weapon at ${Math.round(weapon.confidence * 100)}% confidence. Nothing has been reported yet — you decide.`,
     };
   }
   const face = dets.find((d) => d.modality === 'face');
@@ -74,7 +78,7 @@ function boxColor(d: DemoDetection): string {
 function boxLabel(d: DemoDetection): string {
   if (d.modality === 'plate') return d.ocr_text ? `Plate · ${d.ocr_text}` : 'Plate · not read';
   if (d.modality === 'face') return 'Face · review';
-  if (d.kind === 'weapon') return `Weapon · ${d.label || '?'} · ${Math.round(d.confidence * 100)}%`;
+  if (d.kind === 'weapon') return `Weapon · ${Math.round(d.confidence * 100)}%`;
   return `${d.kind || d.modality} · ${Math.round(d.confidence * 100)}%`;
 }
 

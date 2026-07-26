@@ -77,6 +77,17 @@ export default function CrimeIntelligence() {
         <span style={{ fontWeight: 700, fontSize: 15 }}>BEACON</span>
         <span style={{ fontSize: 11, color: colors.textLo }}>Crime Intelligence</span>
         {loading && <span style={{ fontSize: 11, color: colors.textLo, marginLeft: 8 }}>loading live risk data…</span>}
+        {/* SAPS-enhanced reference map — pre-generated static artifact (green
+            rings = SAPS-verified, blue markers = SAPS-only precincts), see
+            HotspotMap.tsx's header comment for why it's a link, not re-derived. */}
+        <a
+          href="/combined_hotspot_map.html"
+          target="_blank"
+          rel="noreferrer"
+          style={{ fontSize: 11, color: colors.beacon, textDecoration: 'underline', marginLeft: 'auto' }}
+        >
+          View SAPS-enhanced reference map ↗
+        </a>
       </div>
 
       <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>

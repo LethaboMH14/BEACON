@@ -1,0 +1,114 @@
+{
+  "video": "ring-demo-drivinghome.mp4",
+  "camera_id": "cam_driving_home",
+  "interval_s": 2.0,
+  "generated_at": "2026-07-26T04:04:56.992255+00:00",
+  "counts": {
+    "plate": 0,
+    "plate_read": 0,
+    "weapon": 1,
+    "face": 4
+  },
+  "frames": [
+    {
+      "t": 2.0,
+      "frame": 60,
+      "width": 1280,
+      "height": 720,
+      "detections": [
+        {
+          "modality": "face",
+          "kind": "person",
+          "label": "face",
+          "confidence": 0.6486766934394836,
+          "bbox": {
+            "x": 780.5030212402344,
+            "y": 97.16828918457031,
+            "w": 9.86358642578125,
+            "h": 12.290756225585938
+          }
+        }
+      ]
+    },
+    {
+      "t": 4.0,
+      "frame": 120,
+      "width": 1280,
+      "height": 720,
+      "detections": [
+        {
+          "modality": "face",
+          "kind": "person",
+          "label": "face",
+          "confidence": 0.590688169002533,
+          "bbox": {
+            "x": 760.6914672851562,
+            "y": 115.52484512329102,
+            "w": 10.478759765625,
+            "h": 12.578376770019531
+          }
+        }
+      ]
+    },
+    {
+      "t": 6.0,
+      "frame": 180,
+      "width": 1280,
+      "height": 720,
+      "detections": [
+        {
+          "modality": "face",
+          "kind": "person",
+          "label": "face",
+          "confidence": 0.655777096748352,
+          "bbox": {
+            "x": 795.4592895507812,
+            "y": 172.47377014160156,
+            "w": 13.968994140625,
+            "h": 15.444488525390625
+          }
+        }
+      ]
+    },
+    {
+      "t": 8.0,
+      "frame": 240,
+      "width": 1280,
+      "height": 720,
+      "detections": [
+        {
+          "modality": "yolo",
+          "kind": "weapon",
+          "label": "sword",
+          "confidence": 0.6752,
+          "bbox": {
+            "x": 729.3,
+            "y": 264.0,
+            "w": 140.0,
+            "h": 66.7
+          }
+        }
+      ]
+    },
+    {
+      "t": 12.0,
+      "frame": 360,
+      "width": 1280,
+      "height": 720,
+      "detections": [
+        {
+          "modality": "face",
+          "kind": "person",
+          "label": "face",
+          "confidence": 0.6425203084945679,
+          "bbox": {
+            "x": 773.6953125,
+            "y": 241.48763275146484,
+            "w": 17.3895263671875,
+            "h": 20.721847534179688
+          }
+        }
+      ]
+    }
+  ]
+}

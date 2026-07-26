@@ -48,7 +48,7 @@ NDU_MODEL_VERSION = "ndu-hotspot-v1"
 
 METHOD = "suburb_centroid_from_claims_history"
 CAVEAT = (
-    "Suburb-level severity from historical Discovery claims, geocoded to one "
+    "Suburb-level severity from historical crime reports, geocoded to one "
     "point per suburb. Not a street-level crime prediction."
 )
 

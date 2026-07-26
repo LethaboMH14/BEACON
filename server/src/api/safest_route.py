@@ -151,7 +151,7 @@ def _advice_for(worst, is_recommended: bool) -> Optional[str]:
     km = worst.exposed_metres / 1000
     return (
         f"Passes {km:.1f} km through {worst.suburb.title()}, which has "
-        f"{worst.incident_count or 'several'} Discovery claims on record, "
+        f"{worst.incident_count or 'several'} crime reports on record, "
         f"mostly {peril}{when}."
     )
 

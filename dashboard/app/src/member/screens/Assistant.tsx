@@ -65,7 +65,7 @@ function composeAnswer(q: string, data: HotspotsGeoResponse): { text: string; ci
       return {
         tool,
         citations: cite,
-        text: `In ${suburb.suburb.replace(/\b\w/g, (c) => c.toUpperCase())}, claims cluster around ${hourLabel(suburb.peak_hour)}${suburb.peak_day_of_week ? ` on ${suburb.peak_day_of_week}s` : ''}${suburb.peak_month ? `, with ${suburb.peak_month} the busiest month` : ''}. That's from ${suburb.incident_count} Discovery claims on record — a pattern in past claims, not a forecast for tonight.`,
+        text: `In ${suburb.suburb.replace(/\b\w/g, (c) => c.toUpperCase())}, claims cluster around ${hourLabel(suburb.peak_hour)}${suburb.peak_day_of_week ? ` on ${suburb.peak_day_of_week}s` : ''}${suburb.peak_month ? `, with ${suburb.peak_month} the busiest month` : ''}. That's from ${suburb.incident_count} local crime reports on record — a pattern in past claims, not a forecast for tonight.`,
       };
     }
     if (lower.includes('stolen') || lower.includes('what') || lower.includes('type')) {
@@ -78,7 +78,7 @@ function composeAnswer(q: string, data: HotspotsGeoResponse): { text: string; ci
     return {
       tool,
       citations: cite,
-      text: `${suburb.suburb.replace(/\b\w/g, (c) => c.toUpperCase())} scores ${suburb.severity_score.toFixed(2)} on our severity scale, from ${suburb.incident_count} Discovery claims — mostly ${(suburb.top_claim_type ?? 'theft').toLowerCase()}, peaking around ${hourLabel(suburb.peak_hour)}. This is suburb-level history, not street-level prediction.`,
+      text: `${suburb.suburb.replace(/\b\w/g, (c) => c.toUpperCase())} scores ${suburb.severity_score.toFixed(2)} on our severity scale, from ${suburb.incident_count} local crime reports — mostly ${(suburb.top_claim_type ?? 'theft').toLowerCase()}, peaking around ${hourLabel(suburb.peak_hour)}. This is suburb-level history, not street-level prediction.`,
     };
   }
 
@@ -94,7 +94,7 @@ function composeAnswer(q: string, data: HotspotsGeoResponse): { text: string; ci
   return {
     tool: 'Searching claims data…',
     citations: [],
-    text: `I can only answer from Discovery's claims data — ${data.total_claims_analysed.toLocaleString('en-ZA')} claims across ${data.count} suburbs. Try naming a suburb, or ask which areas rank highest.`,
+    text: `I can only answer from historical crime pattern data. Try naming a suburb, or ask which areas rank highest.`,
   };
 }
 
@@ -137,7 +137,7 @@ export default function Assistant() {
     <Screen>
       <ScreenHeader
         title="Ask BEACON"
-        subtitle="Answers from Discovery claims data"
+        subtitle="Answers from historical crime data"
         right={<SimulatedTag />}
       />
 
@@ -145,7 +145,7 @@ export default function Assistant() {
         <Card style={{ padding: 16, marginBottom: 14 }}>
           <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>What would you like to know?</div>
           <p style={{ margin: '0 0 12px', fontSize: 12.5, color: colors.inkMid, lineHeight: 1.5 }}>
-            I answer from {data ? `${data.total_claims_analysed.toLocaleString('en-ZA')} claims across ${data.count} suburbs` : 'Discovery claims data'} — and I show you where each answer came from.
+            I answer using historical crime pattern data — and I show you where each answer came from.
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
             {SUGGESTIONS.map((s) => (

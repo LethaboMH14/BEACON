@@ -93,7 +93,7 @@ export default function SafestRoute() {
 
   return (
     <Screen>
-      <ScreenHeader title="Safer route" subtitle="Ranked by Discovery claims history along the way" />
+      <ScreenHeader title="Safer route" subtitle="Ranked by local crime reports history along the way" />
 
       {/* origin / destination */}
       <Card style={{ padding: 14, marginBottom: 14 }}>
@@ -118,7 +118,7 @@ export default function SafestRoute() {
         <Card style={{ textAlign: 'center', padding: '28px 18px' }}>
           <div style={{ fontSize: 15, fontWeight: 650, marginBottom: 6 }}>Where are you heading?</div>
           <p style={{ margin: 0, fontSize: 13, color: colors.inkMid, lineHeight: 1.5 }}>
-            Pick a destination and we'll compare route options against 15,712 Discovery claims.
+            Pick a destination and we'll compare route options against 15,712 local crime reports.
           </p>
         </Card>
       )}
