@@ -32,6 +32,7 @@ import { apiUrl } from '../../api/base';
 import { startGlassBreakDetector, THRESHOLDS, type AudioFrame, type DetectorHandle, type Sensitivity } from '../audio/glassBreak';
 import { classifyWindow, ClassifierOffline, type ClassifyResult } from '../audio/classify';
 import { fitToWindow, TARGET_RATE } from '../audio/resample';
+import { useLog } from '../LogContext';
 
 const PROPERTY = { address: '14 Ballyclare Drive', suburb: 'Bryanston' };
 
@@ -77,19 +78,7 @@ export default function HomeGuard() {
   // the ladder while a response is already in progress.
   const armed = useRef(false);
 
-  // Live log panel — mirrors what the server prints to terminal
-  type LogLine = { id: number; text: string; kind: 'info' | 'alarm' | 'ok' | 'dim' };
-  const [logs, setLogs] = useState<LogLine[]>([]);
-  const logId = useRef(0);
-  const logRef = useRef<HTMLDivElement>(null);
-  function pushLog(text: string, kind: LogLine['kind'] = 'info') {
-    const id = ++logId.current;
-    setLogs((prev) => [...prev.slice(-49), { id, text, kind }]);
-  }
-  // Auto-scroll log to bottom whenever new lines arrive
-  useEffect(() => {
-    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
-  }, [logs]);
+  const { push: pushLog } = useLog();
 
   async function sendAlertEmail(result: ClassifyResult) {
     const kind = result.verdict === 'gunshot' ? 'GUNSHOT' : 'GLASS BREAK';
@@ -585,54 +574,6 @@ export default function HomeGuard() {
           : 'Detection runs in two stages on live microphone audio. First, real signal processing looks for an impact: a sharp broadband onset with most of its energy above 3.2 kHz, held across consecutive frames. That gate is not specific to glass on its own — speech sounds like "sss" pass it too — so it only decides that the moment is worth a closer look. Second, that one second is classified by YAMNet, a 521-class audio model, which must score breaking glass above every everyday sound it knows (speech, music, a slammed door, cutlery, a passing car) by a clear margin before an alert is raised. If the classifier cannot be reached, no alert is raised. Audio is analysed and discarded; nothing is recorded or stored.'}
       </MethodNote>
 
-      {/* ── live backend log panel ── */}
-      <div style={{ marginTop: 16 }}>
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          marginBottom: 6,
-        }}>
-          <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, color: colors.inkLo }}>
-            BACKEND LOG
-          </span>
-          {logs.length > 0 && (
-            <button
-              onClick={() => setLogs([])}
-              style={{ fontSize: 10, color: colors.inkLo, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-            >
-              clear
-            </button>
-          )}
-        </div>
-        <div
-          ref={logRef}
-          style={{
-            background: '#0d1117',
-            borderRadius: 8,
-            padding: '12px 14px',
-            minHeight: 120,
-            maxHeight: 260,
-            overflowY: 'auto',
-            fontFamily: 'ui-monospace, "Cascadia Code", "Fira Mono", monospace',
-            fontSize: 11.5,
-            lineHeight: 1.6,
-          }}
-        >
-          {logs.length === 0
-            ? <span style={{ color: '#484f58' }}>Waiting for audio window…</span>
-            : logs.map((line) => (
-              <div key={line.id} style={{
-                color: line.kind === 'alarm' ? '#f85149'
-                     : line.kind === 'ok'    ? '#3fb950'
-                     : line.kind === 'dim'   ? '#484f58'
-                     : '#e6edf3',
-                whiteSpace: 'pre',
-              }}>
-                {line.text}
-              </div>
-            ))
-          }
-        </div>
-      </div>
     </Screen>
   );
 }

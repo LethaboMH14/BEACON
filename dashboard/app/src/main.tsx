@@ -24,8 +24,10 @@ import VisionLens from './member/screens/VisionLens.tsx'
 import HotspotMap from './member/screens/HotspotMap.tsx'
 import SafestRoute from './member/screens/SafestRoute.tsx'
 import HomeGuard from './member/screens/HomeGuard.tsx'
+import HomeGuardDemo from './member/screens/HomeGuardDemo.tsx'
 import Assistant from './member/screens/Assistant.tsx'
 import Rewards from './member/screens/Rewards.tsx'
+import { LogProvider } from './member/LogContext.tsx'
 
 const router = createBrowserRouter([
   {
@@ -38,12 +40,13 @@ const router = createBrowserRouter([
       { path: 'vision', element: <VisionLens /> },
       { path: 'map', element: <HotspotMap /> },
       { path: 'route', element: <SafestRoute /> },
-      { path: 'home-guard', element: <HomeGuard /> },
+      { path: 'home-guard', element: <LogProvider><HomeGuard /></LogProvider> },
       { path: 'assistant', element: <Assistant /> },
       { path: 'rewards', element: <Rewards /> },
     ],
   },
   { path: '/ops', element: <App /> },
+  { path: '/demo', element: <HomeGuardDemo /> },
   // Anything unknown lands on the member app rather than a blank screen — a 404
   // in front of a judge is worse than a redirect.
   { path: '*', element: <Navigate to="/home" replace /> },
