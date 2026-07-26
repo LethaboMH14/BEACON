@@ -5,74 +5,154 @@
  * These are the source of truth (PROMPT-PACK.md §3 rule 3): every ported
  * screen's hardcoded hex values get replaced with references to these,
  * that's what stops screens drifting apart from each other.
+ *
+ * Tailwind v4 is CSS-first: a tailwind.config.ts is IGNORED unless explicitly
+ * pulled in with @config. We had one; it generated exactly zero utilities
+ * (verified — `bg-risk-critical` produced no CSS). So the tokens live here in
+ * @theme instead, which is the v4 way, and it gives us both halves at once:
+ *   1. Tailwind utilities — bg-bg-900, text-risk-critical, shadow-card-dark
+ *   2. Plain CSS custom properties — @theme emits --color-bg-900 etc. into
+ *      :root automatically, usable from React inline styles
+ * The short aliases in :root below are kept because every existing screen and
+ * theme/tokens.ts already references them; they're aliases now, not duplicates.
  */
-:root {
+@theme {
   /* dark chrome (headers, nav, ops shell) */
-  --bg-900: #0A0F1A;
-  --bg-800: #101725;
-  --bg-700: #182130;
-  --line-dark: rgba(255, 255, 255, 0.08);
-  --text-hi: #F1F5F9;
-  --text-mid: #94A3B8;
-  --text-lo: #64748B;
+  --color-bg-900: #0A0F1A;
+  --color-bg-800: #101725;
+  --color-bg-700: #182130;
+  --color-text-hi: #F1F5F9;
+  --color-text-mid: #94A3B8;
+  --color-text-lo: #64748B;
+  --color-line-dark: rgba(255, 255, 255, 0.08);
 
   /* light content (data panels, member view, exec view) */
-  --bg-50: #F7F9FC;
-  --bg-0: #FFFFFF;
-  --line-light: rgba(15, 23, 42, 0.08);
-  --ink-hi: #0F172A;
-  --ink-mid: #475569;
-  --ink-lo: #94A3B8;
+  --color-bg-50: #F7F9FC;
+  --color-bg-0: #FFFFFF;
+  --color-ink-hi: #0F172A;
+  --color-ink-mid: #475569;
+  --color-ink-lo: #94A3B8;
+  --color-line-light: rgba(15, 23, 42, 0.08);
 
   /* brand */
-  --beacon: #F5A623;
-  --beacon-grad: linear-gradient(135deg, #F5A623 0%, #F27B21 100%);
-  --discovery: #0B5FA5;
-  --discovery-soft: #E8F1F9;
+  --color-beacon: #F5A623;
+  --color-beacon-deep: #F27B21;
+  --color-discovery: #0B5FA5;
+  --color-discovery-soft: #E8F1F9;
 
   /* risk ramp — ONLY for risk/severity, never decoration */
-  --safe: #10B981;
-  --watch: #F59E0B;
-  --high: #F0653A;
-  --critical: #E11D48;
+  --color-risk-safe: #10B981;
+  --color-risk-watch: #F59E0B;
+  --color-risk-high: #F0653A;
+  --color-risk-critical: #E11D48;
 
   /* semantic */
-  --live: #22D3EE;
-  --stale: #6B7280;
+  --color-live: #22D3EE;
+  --color-stale: #6B7280;
 
   /* soft elevation — used instead of flat borders alone on cards/buttons */
   --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.06), 0 6px 20px rgba(15, 23, 42, 0.06);
   --shadow-card-dark: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 28px rgba(0, 0, 0, 0.35);
 
-  font-family: 'Inter Variable', 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
-  color-scheme: light dark;
+  --font-sans: 'Inter Variable', 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
 }
 
-body {
-  margin: 0;
-  background: var(--bg-50);
-  color: var(--ink-hi);
+@layer base {
+  :root {
+    /* dark chrome (headers, nav, ops shell) */
+    --bg-900: #0A0F1A;
+    --bg-800: #101725;
+    --bg-700: #182130;
+    --line-dark: rgba(255, 255, 255, 0.08);
+    --text-hi: #F1F5F9;
+    --text-mid: #94A3B8;
+    --text-lo: #64748B;
+
+    /* light content (data panels, member view, exec view) */
+    --bg-50: #F7F9FC;
+    --bg-0: #FFFFFF;
+    --line-light: rgba(15, 23, 42, 0.08);
+    --ink-hi: #0F172A;
+    --ink-mid: #475569;
+    --ink-lo: #94A3B8;
+
+    /* brand */
+    --beacon: #F5A623;
+    --beacon-grad: linear-gradient(135deg, #F5A623 0%, #F27B21 100%);
+    --discovery: #0B5FA5;
+    --discovery-soft: #E8F1F9;
+
+    /* risk ramp — ONLY for risk/severity, never decoration */
+    --safe: #10B981;
+    --watch: #F59E0B;
+    --high: #F0653A;
+    --critical: #E11D48;
+
+    /* semantic */
+    --live: #22D3EE;
+    --stale: #6B7280;
+
+    /* soft elevation — used instead of flat borders alone on cards/buttons */
+    --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.06), 0 6px 20px rgba(15, 23, 42, 0.06);
+    --shadow-card-dark: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 28px rgba(0, 0, 0, 0.35);
+
+    font-family: 'Inter Variable', 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+    color-scheme: light dark;
+  }
+
+  body {
+    margin: 0;
+    background: var(--bg-50);
+    color: var(--ink-hi);
+  }
 }
 
-/* tabular figures everywhere so live-updating numbers don't jitter (§1) */
-.tabular-nums {
-  font-variant-numeric: tabular-nums;
+/*
+ * Keyframes live outside @layer on purpose: @keyframes inside a cascade layer
+ * is legal but the animation name resolution is easy to get wrong when layers
+ * are reordered, and this one is referenced from React inline styles which sit
+ * outside the layer system entirely.
+ */
+@keyframes beacon-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
 }
 
-button {
-  font-family: inherit;
+@layer base {
+  /* Leaflet ships its own font-family and colours; scope them back to ours so
+     map popups and attribution don't arrive in a different typeface. */
+  .leaflet-container {
+    font-family: inherit;
+  }
+  .leaflet-control-attribution {
+    font-size: 9px;
+    background: rgba(255, 255, 255, 0.75);
+  }
 }
 
-button:not(:disabled) {
-  transition: transform 0.12s ease, filter 0.12s ease, box-shadow 0.12s ease, background-color 0.12s ease;
-}
+@layer components {
+  /* tabular figures everywhere so live-updating numbers don't jitter */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
 
-button:not(:disabled):hover {
-  filter: brightness(1.08);
-  transform: translateY(-1px);
-}
+  /* consistent button baseline for all buttons */
+  button {
+    font-family: inherit;
+  }
 
-button:not(:disabled):active {
-  transform: translateY(0);
-  filter: brightness(0.95);
+  /* smooth interactions on non-disabled buttons */
+  button:not(:disabled) {
+    transition: transform 0.12s ease, filter 0.12s ease, box-shadow 0.12s ease, background-color 0.12s ease;
+  }
+
+  button:not(:disabled):hover {
+    filter: brightness(1.08);
+    transform: translateY(-1px);
+  }
+
+  button:not(:disabled):active {
+    transform: translateY(0);
+    filter: brightness(0.95);
+  }
 }

@@ -24,6 +24,10 @@ export const colors = {
 
   // brand
   beacon: '#F5A623',
+  // Deep end of the beacon ramp. Already in index.css @theme as
+  // --color-beacon-deep; mirrored here so screens can compose their own
+  // gradients rather than being limited to the one canned beaconGrad below.
+  beaconDeep: '#F27B21',
   beaconGrad: 'linear-gradient(135deg, #F5A623 0%, #F27B21 100%)',
   discovery: '#0B5FA5',
   discoverySoft: '#E8F1F9',

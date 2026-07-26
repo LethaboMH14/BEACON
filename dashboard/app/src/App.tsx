@@ -22,6 +22,9 @@ function App() {
   const [hotspots, setHotspots] = useState<HotspotEntry[]>([]);
   const [events, setEvents] = useState<OpsEvent[]>([]);
 
+  // index.html's title is the neutral product name (one build, two surfaces).
+  useEffect(() => { document.title = 'BEACON — ops console'; }, []);
+
   useEffect(() => {
     getHealth()
       .then(() => setHealth('up'))

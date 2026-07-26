@@ -15,6 +15,7 @@ vision/models/*.onnx
 !vision/models/models.json
 *.mp4
 *.avi
+*.log
 runs/
 .DS_Store
 Thumbs.db

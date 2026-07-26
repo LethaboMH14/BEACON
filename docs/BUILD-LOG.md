@@ -3,6 +3,121 @@
 Every behaviour change gets an entry in the same commit. Plain-language section mandatory — anyone on the team must be able to read it.
 
 ---
+
+## 2026-07-26 — Vision decision spine (detect → decide → escalate → notify) + Azure infra templates
+
+**What:** Added `server/src/vision/detectors.py` (Roboflow plate + weapon models, hosted and local backends, run concurrently via `asyncio.gather`), `server/src/vision/decision.py` (Quiet/Notice/Candidate/Escalated levels — mirrors `suspicion/scorer.py`'s human-gate rule: the machine can reach Candidate, never Escalated, without a named operator calling `escalate()`), `server/src/vision/jobs.py` (video upload processed as a background job, sampled at 1fps, progress streamed over the existing ops WebSocket instead of blocking the request), `server/src/notify/email.py` (SendGrid/Resend escalation email, refuses to send for anything not human-escalated), and `server/src/api/vision_jobs.py` (upload/poll/escalate endpoints, operator-token gated, wired into `main.py`). Added `server/tests/test_vision_decision.py` (20 tests). Full suite: 166 passed. Also added `infra/main.bicep` + `infra/deploy.ps1` + `infra/README.md` — the Azure resource graph matching the team's architecture table (Postgres Flexible+PostGIS, Static Web Apps, Container Apps for API/WS and for scale-to-zero vision services, Blob Storage, Container Apps Jobs cron, Key Vault). Azure OpenAI and Notification Hubs are provisioned but disabled by default — flagged in the README, not silently dropped.
+
+**Why:** The vision pipeline could detect but had no path from a detection to a human decision to an actual notification — this was the real gap blocking the ring-camera demo flow. Azure setup needed templates ready before deploying against the Azure for Students credit.
+
+**Plain language:** A video can now be uploaded, gets watched frame-by-frame for weapons and plates, and produces a plain-English reason ("weapon seen in 3 of the last 5 frames, 62% confidence") — but it can never send an email or count as "escalated" on its own. Only a named operator clicking escalate does that, and the system remembers who. The Azure deployment scripts are ready to run once login is live; nothing has been provisioned yet.
+
+**Breaks/risks:** Local (on-device) inference could not be installed into the server environment without breaking it (dependency conflict) — deferred to its own container, per the existing architecture. The ~0.1–0.3s local-latency target is unproven; the honest measured number on record is ~1.1s/frame hosted, plate+weapon in parallel.
+
+---
+## 2026-07-26 — Member app: six delivered designs ported to seven live screens, wired to real endpoints
+
+**What:** BEACON now serves two surfaces from one build, behind a real router (`react-router-dom`, `createBrowserRouter` in `main.tsx`):
+- `/` — the **member phone app**: `member/MemberShell.tsx` (device frame, live status bar, 5-tab bar) wrapping seven screens in `member/screens/`.
+- `/ops` — the existing five-screen operations console (`App.tsx`, unchanged; it keeps its own tab state).
+
+Two new backend endpoints, because the member screens needed data no existing endpoint returned:
+- **`GET /v1/hotspots/geo`** (`server/src/api/hotspots_geo.py`) — the map-ready view of Ndu's hotspot pipeline. `GET /v1/hotspots` returns `hex_id`/`risk_score` only: no coordinates, no suburb name, so you cannot draw a map with it. This recovers suburb + lat/lng by joining back to `Claim` rows (necessary because `hex_id` is `md5(suburb)[:11]`, not a real H3 index, so it can't be decoded to a position), and returns the marker `color` and `radius` **server-side** using `build_hotspots.py`'s exact rules (≥0.66 → `#c0392b`, ≥0.33 → `#e67e22`, else `#f1c40f`; `radius = 6 + severity × 20`). Filters: `hour`, `day`, `peril`, `min_severity`.
+- **`POST /v1/routes/safest`** (`server/src/api/safest_route.py` + `server/src/routing/safest.py`) — scores candidate routes by claims exposure so a member can route *around* hotspots. Explicitly not `routing/planner.py`, which solves the opposite objective (send a patrol *towards* risk).
+
+**The route scoring, since it's the one piece of real IP here:** exposure = Σ over suburbs of `severity × exposed_km × time_multiplier`. The polyline is densified to 250 m samples at segment **midpoints** first, because a routing provider returns vertices at corners — a 6 km straight stretch can be two points, and scoring raw vertices would let it count for as little as a 50 m side street. Falloff inside the 2.5 km exposure radius is linear (1 at the centroid → 0 at the edge); anything sharper would be false precision over a centroid that is itself an approximation. Passing a suburb during its own historical peak hour costs ×1.6, shoulder hours ×1.25, with circular hour distance so 23:00 and 00:00 are one hour apart, not 23.
+
+**What is real and what isn't, precisely:**
+- Real: every hotspot scored is a genuine `RiskCell` row (709 geocoded suburbs, ≥5 claims each, from 15 712 claims); the exposure arithmetic; the comparison percentage.
+- Not ours: **road geometry**. Real routing needs a provider (OpenRouteService). `safest.py` takes geometry as *input* rather than inventing it, so wiring a provider changes nothing in the scoring module. Until then the client sends two bowed corridors and the response carries a required `geometry_source: "ors" | "approx"` field — a client physically cannot render an approximated line as road geometry without saying so.
+
+**Designs in, app out.** The six delivered Claude Design files were desktop *showcase* pages: each laid 2–4 phone frames side by side to display one screen's several states, with `MAP TILES PLACEHOLDER`, `dashcam frame placeholder`, per-frame captions and unresolved `{{ }}` template holes. That's the right format for a design spec and the wrong format for an app. Each ported screen collapses its state frames into **one** screen whose state comes from data — e.g. Live Drive's four separate notification frames became `levelFor(frame)` deriving critical/watch/info/clear from whatever detections are actually on screen at the current video time.
+
+**Three places the honesty line was held against the mockups:**
+1. The Live Drive weapon counter's caption in the design read *"9 weapon · 1 above gate"*. Grepped `scripts/vision_lens_demo.py`: **there is no weapon confidence gate in this pipeline** to be above. Inventing a threshold to make a mockup caption true is backwards, so the counter shows real peak confidence (63%, the max of the nine recorded confidences) instead.
+2. The AI assistant does **real** retrieval with **real** citations against the claims DB, but its answer *wording* is templated, not model-generated. It carries a `SIMULATED` tag and a footnote saying exactly which half is live.
+3. Rewards refuses to show an exposure-reduction figure until a route has actually been scored — the design's zero-state, as a real state, rather than a plausible number.
+Home Guard is tagged `SIMULATED` throughout: the response ladder and timings are real, the acoustic trigger is a scripted button because there is no audio classifier in this build.
+
+**Tests:** `server/tests/test_safest_route.py`, 18 new unit tests over the scoring math (densify preserves polyline length; long straight legs get walked; hotspots beyond the radius contribute exactly zero, not a little; distance-weighting beats count-weighting; severity scales linearly; peak/shoulder/midnight-wrap time weighting; `compare_routes` returns `None` rather than `0%` when both routes are clear). Full server suite **146 passed**. `npx tsc --noEmit` clean.
+
+**Verified live** (uvicorn `:8000` healthy, Vite `:5177`), every screen, against the real database:
+- `/home` — "BRYANSTON · 89 Discovery claims on record here, mostly theft. Historically busiest around 12:00 on Fridays. · #1 of 709 suburbs by severity · 10 780 claims analysed".
+- `/map` — 52 markers + 9 OSM tiles rendered (DOM probe), fills matching the server-computed colours. Tapping Bryanston opened the sheet with `0.85 / 89 claims / peaks 12:00 / Theft / Friday / R9 454 547 / R109 937` — identical to the figures hardcoded in the delivered design, but read from the DB rather than reproduced.
+- `/route` — "The recommended route has 29.3% less claims exposure than the alternative"; Eastern corridor (exposure 3.1, 19 min) over Western (4.4); advice "Passes 1.4 km through Bryanston, which has 89 Discovery claims on record, mostly theft."
+- `/rewards` — after starting that route, "You've cut your route exposure **29%** this session. Across 1 route planned" — computed from the two real scores, not a constant.
+- `/drive` — hijack clip playing, counters `15 plates / 0 read`, `9 weapon / peak 63%`, `2 faces` matching the track exactly; at t≈19.7 s a red `Weapon · pistol · 53%` box and an amber face box rendered in percentage space with the critical notification fired ("The camera model flagged a pistol at 53% confidence. Nothing has been reported yet — you decide."). At t≈36.8 s, no sampled frame within 1.2 s → "All clear", no stale box held.
+- `/assistant` — "How risky is Bryanston?" returned a real answer with the citation "From 89 claims in BRYANSTON · view on map".
+- `/home-guard` — ladder ran, cancel window counted down from 20 s, all four rungs listed with their offsets.
+Zero console errors.
+
+**Also:** `index.html`'s title was still "BEACON — ops dashboard" on the member surface; it's now the neutral product name with per-route titles set at runtime by `MemberShell` and `App`.
+
+**Plain language:** The designs we were given were poster-style — each screen shown two-to-four times side by side to display its different states, with grey boxes where the map and camera would go. This turned them into an actual working phone app: one screen per job, and the different states now happen because of real data instead of being drawn separately. The map draws 709 real suburbs from Discovery's claims history, the route planner really does compare two routes and tell you which one spends less time near past claims (29% less, in the demo), and the dashcam screen draws its boxes from the actual detections the model produced on that clip. Three things in the designs we deliberately did *not* copy, because they claimed more than we can back: a "confidence gate" the code doesn't have, an AI assistant that looks like it writes its own answers when it fills in templates, and a rewards figure that appears before you've planned any route.
+
+**Not done:** OpenRouteService is not wired in (needs a key — Lethabo adds it; only the candidate-building function in `SafestRoute.tsx` changes when it lands). The member is hardcoded as Thandi/Bryanston, flagged in-code, because there are no accounts in this build. Scenes 2–5 of the demo script and the third clip slot remain open. `hotspot_pipeline/Gradhack_Insure_Data.xlsx` is still tracked in this **public** repo, still awaiting a decision.
+
+---
+## 2026-07-25 — Tailwind v4 tokens actually work now (previous config was dead) + BEACON v2 master brief
+
+**What:**
+- **Deleted `dashboard/app/tailwind.config.ts` and moved the design tokens into `@theme` in `src/index.css`.** Tailwind v4 is CSS-first: a `tailwind.config.ts` is silently ignored unless explicitly pulled in with `@config`. Ours wasn't. Every token in it generated *nothing*.
+- **Added `design/BEACON-V2-MASTER-BRIEF.md`** — routing split (member app `/` vs ops console `/ops`), the safest-route method, Azure cloud architecture, notification triggers, LLM orchestration + where a real agent belongs, the news/weather scraper, the copy-paste UI design prompt for Claude Design, the 5-minute demo run-of-show, and the "how did you do that" answers.
+
+**Why the Tailwind thing matters:** the point of the previous commit (`713a324`) was "so when I get a design from Claude Code it renders and integrates properly." It would not have. Because every existing screen is inline-styled, a completely non-functioning Tailwind config produces no error, no warning, and a green build — it fails silently, and you'd only find out when a handed-off design rendered unstyled.
+
+**Correcting a claim I made:** after that commit I told the user designs could use classes like `bg-beacon-bg-900` and `shadow-beacon-card-dark`. That was wrong — I'd only verified `npm run build` succeeded, not that the utilities generated. They did not.
+
+**Verified, properly this time:** added a throwaway `TWProbe.tsx` using `bg-bg-900 text-risk-critical shadow-card-dark font-sans`, built, and grepped the emitted CSS.
+- Before (with `tailwind.config.ts`): `grep -c "risk-critical\|E11D48" dist/assets/*.css` → **0**.
+- After (with `@theme`): `.bg-bg-900{background-color:var(--color-bg-900)}`, `.text-risk-critical{color:var(--color-risk-critical)}` and `.shadow-card-dark{…}` all present.
+Probe removed. `npx tsc --noEmit` clean, `vite build` clean, app re-verified live at `http://localhost:5173` — all six nav buttons render, zero console errors. The short `:root` aliases (`--bg-900` etc.) are kept because every existing screen and `theme/tokens.ts` reference them; they're aliases of the `@theme` values now, not a second copy.
+
+**Plain language:** our design tokens (colours, shadows, fonts) were written into a config file that this version of Tailwind doesn't read. Nothing broke visibly, because the app styles everything by hand — but any new design handed over would have come out unstyled. Moved them to where Tailwind actually looks, and proved it by checking the generated CSS rather than trusting a passing build. Also wrote the master plan for the next version of the product.
+
+**Flagged, not actioned:** `hotspot_pipeline/Gradhack_Insure_Data.xlsx` (1.1 MB of raw Discovery claims data) is tracked in this **public** repo — `.gitignore` only covers `data/raw/*.xlsx`, which doesn't match that path. Confirmed with `git ls-files`. Left untouched pending a decision from Lethabo (brief §0).
+
+**Not done:** none of the brief is built — it's a plan. Scenes 2–5 remain unbuilt.
+
+---
+## 2026-07-25 — Ring Cam: second demo clip (real weapon detections) + phone-alert companion view
+
+**What:** Two additions to `RingCam.tsx`'s recorded-demo mode, both aimed at the 5-scene pitch narrative supplied for the demo:
+- **Second demo clip slot.** The single hardcoded `DEMO_VIDEO_SRC`/`DEMO_TRACK_SRC` pair became a `DEMO_CLIPS` array with two named scenarios — `lens` (the existing plate-OCR clip) and `hijack` (a new News24 "gun-wielding hijackers" clip, local-only per `.gitignore`'s `*.mp4` rule, same as the first clip). Both clips' tracks are prefetched up front so both picker buttons enable together rather than one at a time; picking a clip resets `demoTime` and swaps the `<video src>` (keyed by clip id so React remounts the element instead of trying to hot-swap `src` on a playing video).
+- **`PhoneAlert.tsx`** (new, `dashboard/app/src/components/`): a phone-frame mockup shown next to the lens in demo mode, driven by the exact same `demoActiveFrame`/`demoTime`/`counts` state as the lens — not a separate data source. It renders a lock-screen-style notification for whatever the current frame's highest-priority detection is (weapon > face > plate), or "No detection requiring attention" when there's none.
+
+**Why:** the user's 5-minute demo script (Scene 1) needs a second clip that actually shows a weapon in frame (the original clip's detectors had come back all-zero on that run) and a companion view of what the end user actually sees on their phone at the moment of detection — the ops/lens view is for an operator, not a driver.
+
+**The honesty call on Scene 1's script:** the supplied narrative copy is `"High-risk individual identified."` for face detections. That's not shipped verbatim — this pipeline runs a generic face *detector*, not identity matching against a watchlist, and BEACON's own suspicion scorer (`server/src/suspicion/scorer.py`, ADR-0002) can only ever reach `"candidate"`, never `"flagged"`, without a human verify call. `PhoneAlert.tsx` shows **"Possible match — flagged for review"** instead, which is what the system can actually claim. Weapon copy ("Potential weapon detected") ships close to verbatim because it's a direct, honest read of a real object-detection hit.
+
+**Fixed along the way (blocking, not part of this slice's own scope):** the plate (`:8001`) and weapon (`:8002`) Roboflow-workflow backend processes were stuck returning HTTP 500 on every `/detect` call — confirmed via a fresh `TestClient` run of the identical code succeeding immediately, isolating the fault to stale in-process state on those two long-running servers, not a code bug. Restarted both (user-approved) via `taskkill` + fresh `uvicorn`; both now serve real detections again (~4.5s round-trip, consistent with an actual Roboflow API call).
+
+**Data flow:** `scripts/vision_lens_demo.py --dry-run --interval 1.0 --camera-id cam_hijack_demo` ran once, offline, against the new clip with the now-healthy backends, producing real detections: **9 weapon hits** (pistol/sword, t=8s through t=33s), **15 plate boxes** (0 read — all failed the OCR confidence gate, same honest-refusal behaviour as the first clip), **2 face detections**. Track written to `scripts/detections_ringcam_hijack.json`, mirrored to `dashboard/app/public/demo-clips/ring-demo-hijack-detections.json` for Vite (no image data, safe to commit).
+
+**Verified:** live in the browser (`http://localhost:5173`, Ring Cam tab). Both demo buttons enabled together once both tracks loaded. Clicked "Demo: cam hijack": lens drew a red WEAPON box in sync with playback (confirmed at t≈15s, "pistol · 47% confidence"), and `PhoneAlert` showed a matching lock-screen card with the same weapon copy at the same instant. Advanced further and confirmed the plate-only state ("Plate seen, not read") and idle state ("No detection requiring attention") both render correctly. `npx tsc --noEmit` clean.
+
+**Not done:** the remaining 4 scenes of the supplied demo narrative (hotspot map with claims context, proactive routing + Vitality Points, home audio monitoring, community intelligence loop) are not built — this slice is Scene 1 only (detection + phone alert), scoped from what was concretely actionable this session. A third clip slot ("cam lens demo", per the user, distinct from the two already here) is expected to land in `DEMO_CLIPS` later.
+
+**Plain language:** The Ring Cam demo now has two clips to pick from instead of one, and the new one actually shows a weapon being spotted — earlier the detection service was stuck and came back empty, so we found and fixed that first. Next to the round camera view there's now a phone mockup showing what the driver would actually see pop up on their phone the moment something's detected, kept in sync with the same clip. One wording choice: the demo script said "High-risk individual identified" for a face match, but our system doesn't actually do identity matching — it just detects faces — so the phone shows "Possible match — flagged for review" instead, which is what it can honestly claim.
+
+---
+## 2026-07-25 — Ring Cam: recorded-demo mode plays a real clip with synced live detection boxes
+
+**What:** `RingCam.tsx` gained a second mode alongside the existing live-camera lens: a "▶ Recorded demo clip" button that plays an actual video (`<video>` element, muted/autoplay/loop, `object-fit: cover`, clipped by the lens's existing circular `overflow: hidden`) inside the round lens instead of the STRIPE placeholder. Bounding boxes are drawn from a pre-computed detection track (`scripts/detections_ringcam.json`, mirrored to `dashboard/app/public/demo-clips/ring-demo-detections.json` for Vite to serve) and kept in sync with playback by finding the nearest sampled timestamp to the video's current `currentTime` (1.2s tolerance — beyond that, no box is shown rather than holding a stale one). Boxes scale against each sampled frame's own recorded `width`/`height` (1280x720), not the live-camera `SOURCE_FRAME` constant, since this is a different source clip. Explicitly labelled **RECORDED DEMO**, never LIVE (it's a stored clip, not a camera feed) and never SIMULATED (the detections are real model output from a real offline run, not fabricated).
+
+**Why:** the live-camera lens can only draw boxes over a striped placeholder because no stored video frame exists for a live feed — it answers "does the model see plates" honestly but can't show it "working" the way a real clip playing back can. The user supplied a real hijacking-footage clip and asked for it embedded in the lens so the overlay visibly tracks a moving scene, not just a static readout.
+
+**Data flow:** `scripts/vision_lens_demo.py --dry-run --interval 1.0` (the same real detectors used everywhere else in this repo — plate, weapon, face) ran once, offline, against the locally-stored clip and wrote a bbox/label/confidence JSON track with no image data in it, so it's safe to commit even though the source video (copyrighted broadcast footage) is not. The video itself lives only at `dashboard/app/public/demo-clips/ring-demo.mp4`, covered by the repo-wide `*.mp4` gitignore rule (confirmed via `git check-ignore -v`) — never committed, local use only.
+
+**Measured, not assumed:** the plate (`:8001`) and weapon (`:8002`) Roboflow-workflow services returned HTTP 500 on every call during this run — a real service fault, not simulated — so this clip's track has **0 plate boxes and 0 weapon detections**, only 5 face detections from the local in-process InsightFace pass, which doesn't depend on those services. The UI shows these real zero counts rather than hiding them or reusing numbers from a different clip.
+
+**Verified:** live in the browser (Vite dev server, `http://localhost:5173`, Ring Cam tab): clicked "Recorded demo clip," video played inside the circular lens with the RECORDED DEMO badge; readout showed the real counts (0 weapon, 0 plate/0 read, 5 face) and per-clip detections from `scripts/vision_lens_demo.py --dry-run`. Seeked to `t=20.0s` via `video.currentTime` and confirmed a FACE box rendered correctly positioned over the person's head in frame, with a 77% confidence label — bbox scaling against the frame's own 1280x720 size confirmed correct. No console errors.
+
+**Not done:** did not re-run the plate/weapon detectors after the 500s — the services were reachable (200 on their root path) but erroring on `/detect` specifically; that's a backend service issue outside this slice's scope, not patched around here. Did not add a route/URL param for demo mode (state-only toggle); did not attempt to fix or retune the plate/weapon microservices.
+
+**Plain language:** Ring Cam's live camera view can only draw boxes over a placeholder background because we don't keep actual video from real cameras. For a supplied hijacking clip, we now play the actual footage inside the round lens instead, with the same real detection boxes drawn on top in sync as the video moves — so you can watch the model "working" against real footage, not just read a static summary. Labelled clearly as a recorded clip, not a live camera, and everything shown is real model output — including the fact that the plate and weapon detectors happened to be down when this clip was processed, so only face detection has real numbers for this specific run.
+
+---
 ## 2026-07-25 — Dashboard UI polish: found the real overlap bug, loaded the font that was silently missing
 
 **What:** Four visual complaints ("things are overlapping", buttons not soft/round, font not modern, colors look blocky), each traced to a real cause and fixed:
