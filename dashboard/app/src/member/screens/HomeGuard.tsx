@@ -15,7 +15,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { colors } from '../../theme/tokens';
-import { Button, Card, Chip, MethodNote, Screen, ScreenHeader, SimulatedTag, radii } from '../ui';
+import { Button, Card, Chip, MethodNote, Screen, ScreenHeader, SimulatedTag } from '../ui';
 import { createAlert } from '../../api/member';
 
 const PROPERTY = { address: '14 Ballyclare Drive', suburb: 'Bryanston' };
