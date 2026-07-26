@@ -82,13 +82,36 @@ def classify_audio(req: ClassifyRequest) -> dict:
     # int16 -> float32 in [-1, 1), which is the range YAMNet was trained on.
     waveform = np.frombuffer(raw, dtype="<i2").astype(np.float32) / 32768.0
 
+    samples = len(waveform)
+    duration_ms = round(samples / 16_000 * 1000)
+    print(f"\n🎙  AUDIO WINDOW RECEIVED  ({samples} samples / {duration_ms} ms)")
+    print(f"    Running YAMNet classifier...")
+
     try:
-        return classify(waveform)
+        result = classify(waveform)
     except ClassifierUnavailable as exc:
-        # 503 rather than 500: the request was fine, this host just cannot serve
-        # it, and the client's documented fallback is to stay on the gate alone.
+        print(f"    ✗ Classifier unavailable: {exc}")
         logger.warning("audio classify unavailable: %s", exc)
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc))
+
+    verdict = result["verdict"]
+    top = result.get("top", [])[:3]
+    top_str = "  |  ".join(f"{t['label']} {t['score']:.3f}" for t in top)
+
+    if verdict == "glass_break":
+        print(f"    ⚠  VERDICT: GLASS BREAK  (score {result['glass_score']:.3f})")
+        print(f"    Top labels: {top_str}")
+        print(f"    → ALARM TRIGGERED")
+    elif verdict == "gunshot":
+        print(f"    ⚠  VERDICT: GUNSHOT  (score {result['gunshot_score']:.3f})")
+        print(f"    Top labels: {top_str}")
+        print(f"    → ALARM TRIGGERED")
+    else:
+        print(f"    ✓ verdict: other  (glass {result['glass_score']:.3f} / "
+              f"gunshot {result.get('gunshot_score', 0):.3f})")
+        print(f"    Top labels: {top_str}")
+
+    return result
 
 
 class AudioAlertRequest(BaseModel):
@@ -114,6 +137,10 @@ async def send_audio_alert(req: AudioAlertRequest) -> AudioAlertResponse:
     """
     from ..notify.email import NotConfigured, send_audio_alert as _send
 
+    kind = "GLASS BREAK" if req.verdict == "glass_break" else "GUNSHOT"
+    print(f"\n📧  ALERT EMAIL  — {kind} at {req.property_address}")
+    print(f"    Label: {req.label}  |  Score: {req.score:.3f}")
+
     try:
         res = await _send(
             verdict=req.verdict,
@@ -121,7 +148,11 @@ async def send_audio_alert(req: AudioAlertRequest) -> AudioAlertResponse:
             score=req.score,
             property_address=req.property_address,
         )
+        if res.ok:
+            print(f"    ✓ Email sent via {res.provider} → {', '.join(res.to)}")
+        else:
+            print(f"    ✗ Email failed: {res.detail}")
         return AudioAlertResponse(ok=res.ok, provider=res.provider, to=res.to, detail=res.detail)
     except NotConfigured as exc:
-        # Email not configured — don't block the alarm, just report it.
+        print(f"    ✗ Email not configured: {exc}")
         return AudioAlertResponse(ok=False, provider="unconfigured", to=[], detail=str(exc))
