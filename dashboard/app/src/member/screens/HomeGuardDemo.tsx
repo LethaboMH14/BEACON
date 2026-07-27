@@ -14,7 +14,7 @@ import { NavLink } from 'react-router-dom';
 function PhoneChrome() {
   return (
     <div style={{
-      width: 410, height: 820, borderRadius: 44, background: colors.bg50,
+      width: 390, height: 720, borderRadius: 44, background: colors.bg50,
       color: colors.inkHi,
       boxShadow: '0 0 0 11px #0B1120, 0 0 0 12px rgba(255,255,255,0.09), 0 40px 90px rgba(15,23,42,0.34)',
       position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column',
