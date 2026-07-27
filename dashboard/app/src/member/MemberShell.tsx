@@ -15,7 +15,7 @@
  * live screen whose state comes from data.
  */
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { colors } from '../theme/tokens';
 
 const TABS = [
@@ -89,59 +89,18 @@ const TITLES: Record<string, string> = {
   '/rewards': 'Vitality points · BEACON',
 };
 
-// Chrome above/below each screen's own content: notch clearance + status bar,
-// then the bottom tab bar. Measured from StatusBar's own padding/font-size and
-// the nav's padding, not guessed — keep in sync if either changes.
-const CHROME_H = 54 + 78;
-
-const FRAME_W = 410;
-const FRAME_MIN_H = 700;   // a screen shorter than this would look cramped/odd
-const FRAME_MAX_H = 1300;  // above Home Guard's real measured content height —
-                           // no known screen needs more; a future screen that
-                           // does will scroll rather than break the layout
-const FRAME_MARGIN = 32; // total breathing room budgeted around the frame
+// Design size of the phone frame — a plain, fixed iPhone-sized column. No
+// auto-scaling, no per-screen measurement: those were tried (2026-07-26) to
+// solve short-screen whitespace and long-screen scrolling at once, but the
+// scale-to-fit transform silently overrode native browser/OS zoom (pinch or
+// Ctrl+scroll no longer changed anything visible), which is worse than either
+// original problem during a live demo. Reverted to this on direct instruction.
+const FRAME_W = 390;
+const FRAME_H = 844;
 
 export default function MemberShell() {
   const { pathname } = useLocation();
   const dark = DARK_ROUTES.some((r) => pathname.startsWith(r));
-  const contentRef = useRef<HTMLDivElement | null>(null);
-
-  // The frame's height is each screen's OWN content height, not one fixed size
-  // shared by all of them — a fixed max-height frame made short screens (Home)
-  // show a wall of empty space below their real content, which read as broken.
-  // Measured live via ResizeObserver rather than hardcoded per screen, so this
-  // stays correct as screens change without anyone updating a magic number.
-  const [frameH, setFrameH] = useState(FRAME_MIN_H);
-  useEffect(() => {
-    const el = contentRef.current;
-    if (!el) return;
-    const measure = () => {
-      const needed = el.scrollHeight + CHROME_H;
-      setFrameH(Math.min(FRAME_MAX_H, Math.max(FRAME_MIN_H, needed)));
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [pathname]);
-
-  // Scale the whole frame to fit the actual viewport — critical for split-screen
-  // demoing, where the window is a fraction of a full monitor and the frame
-  // would otherwise run off the bottom with no way to see it all.
-  const [scale, setScale] = useState(1);
-  useEffect(() => {
-    function fit() {
-      const s = Math.min(
-        1,
-        (window.innerWidth - FRAME_MARGIN) / FRAME_W,
-        (window.innerHeight - FRAME_MARGIN) / frameH,
-      );
-      setScale(Math.max(0.3, s));
-    }
-    fit();
-    window.addEventListener('resize', fit);
-    return () => window.removeEventListener('resize', fit);
-  }, [frameH]);
 
   useEffect(() => {
     document.title = TITLES[pathname] ?? 'BEACON';
@@ -156,29 +115,14 @@ export default function MemberShell() {
   return (
     <div style={{
       minHeight: '100vh', background: `radial-gradient(1200px 600px at 50% -10%, #E8F1F9 0%, ${colors.bg50} 55%)`,
-      display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '16px 12px',
-      overflow: 'hidden',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '28px 16px',
     }}>
-      {/*
-        The frame height is THIS screen's own measured content (frameH), never
-        a one-size-fits-all constant — that was leaving a wall of empty space
-        below short screens (Home) while still not being tall enough for the
-        longest one (Home Guard). It's then scaled to fit the actual viewport,
-        which matters in split-screen demoing where the window is a fraction
-        of a full monitor. Never scales above 1: on a big monitor it stays at
-        its natural size.
-      */}
       <div style={{
-        width: FRAME_W * scale, height: frameH * scale,
-        flexShrink: 0,
-      }}>
-      <div style={{
-        width: FRAME_W, height: frameH, borderRadius: 44, background: frameBg,
+        width: FRAME_W, height: FRAME_H, borderRadius: 44, background: frameBg,
         color: dark ? colors.textHi : colors.inkHi,
         boxShadow: '0 0 0 11px #0B1120, 0 0 0 12px rgba(255,255,255,0.09), 0 40px 90px rgba(15,23,42,0.34)',
         position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column',
         transition: 'background 0.25s ease, color 0.25s ease',
-        transform: `scale(${scale})`, transformOrigin: 'top left',
       }}>
         {/* dynamic-island notch */}
         <div style={{
@@ -188,7 +132,7 @@ export default function MemberShell() {
 
         <StatusBar />
 
-        <div ref={contentRef} style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch' }}>
+        <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch' }}>
           <Outlet />
         </div>
 
@@ -217,7 +161,6 @@ export default function MemberShell() {
           width: 134, height: 5, borderRadius: 3,
           background: dark ? 'rgba(255,255,255,0.32)' : 'rgba(15,23,42,0.26)', zIndex: 25,
         }} />
-      </div>
       </div>
     </div>
   );
